@@ -15,6 +15,10 @@ import StorePage from "./pages/store/StorePage";
 import StoreCart from "./pages/store/StoreCart";
 import StoreCheckout from "./pages/store/StoreCheckout";
 import StoreOrders from "./pages/store/StoreOrders";
+import LoginPage from "./pages/auth/LoginPage";
+import RegisterPage from "./pages/auth/RegisterPage";
+import CustomerDashboard from "./pages/customer/CustomerDashboard";
+import CourierDashboard from "./pages/courier/CourierDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +30,8 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboard />} />
             <Route path="products" element={<AdminProducts />} />
@@ -39,6 +45,8 @@ const App = () => (
           <Route path="/store/cart" element={<StoreCart />} />
           <Route path="/store/checkout" element={<StoreCheckout />} />
           <Route path="/store/orders" element={<StoreOrders />} />
+          <Route path="/customer" element={<CustomerDashboard />} />
+          <Route path="/courier" element={<CourierDashboard />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

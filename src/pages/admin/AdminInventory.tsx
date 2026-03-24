@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { getProducts, saveProducts, addStockLog, generateId } from "@/lib/store";
+import { getProducts, saveProducts, addStockLog, generateId, getProductImage } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,7 +54,7 @@ const AdminInventory = () => {
               <tr key={p.id} className="border-b last:border-0">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">{p.image}</span>
+                    <img src={getProductImage(p)} alt={p.name} className="h-10 w-10 rounded-md object-cover" />
                     <span className="font-medium text-foreground">{p.name}</span>
                   </div>
                 </td>

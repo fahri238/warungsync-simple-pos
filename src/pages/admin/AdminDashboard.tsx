@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { getProducts, getOrders } from "@/lib/store";
+import { getProducts, getOrders, getProductImage } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign, ShoppingCart, TrendingUp, AlertTriangle } from "lucide-react";
 
@@ -87,7 +87,7 @@ const AdminDashboard = () => {
               {stats.lowStock.map((p) => (
                 <div key={p.id} className="flex items-center justify-between rounded-lg border px-4 py-2">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">{p.image}</span>
+                    <img src={getProductImage(p)} alt={p.name} className="h-10 w-10 rounded-md object-cover" />
                     <span className="font-medium text-foreground">{p.name}</span>
                   </div>
                   <span className="rounded-full bg-destructive/10 px-3 py-1 text-xs font-semibold text-destructive">

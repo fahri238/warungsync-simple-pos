@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { getProducts, getCategories, reduceStock, addOrder, generateId } from "@/lib/store";
+import { getProducts, getCategories, reduceStock, addOrder, generateId, getProductImage } from "@/lib/store";
 import type { Product, CartItem } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,10 +28,7 @@ const AdminPOS = () => {
     setCart(prev => {
       const existing = prev.find(i => i.product.id === p.id);
       if (existing) {
-        if (existing.quantity >= p.stock) {
-          toast.error("Stok tidak cukup");
-          return prev;
-        }
+        if (existing.quantity >= p.stock) { toast.error("Stok tidak cukup"); return prev; }
         return prev.map(i => i.product.id === p.id ? { ...i, quantity: i.quantity + 1 } : i);
       }
       return [...prev, { product: p, quantity: 1 }];
@@ -81,13 +78,9 @@ const AdminPOS = () => {
             <Input placeholder="Cari produk..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1">
-            <Button size="sm" variant={catFilter === "all" ? "default" : "outline"} onClick={() => setCatFilter("all")}>
-              Semua
-            </Button>
+            <Button size="sm" variant={catFilter === "all" ? "default" : "outline"} onClick={() => setCatFilter("all")}>Semua</Button>
             {categories.map(c => (
-              <Button key={c.id} size="sm" variant={catFilter === c.id ? "default" : "outline"} onClick={() => setCatFilter(c.id)}>
-                {c.name}
-              </Button>
+              <Button key={c.id} size="sm" variant={catFilter === c.id ? "default" : "outline"} onClick={() => setCatFilter(c.id)}>{c.name}</Button>
             ))}
           </div>
         </div>
@@ -97,9 +90,9 @@ const AdminPOS = () => {
               <button
                 key={p.id}
                 onClick={() => addToCart(p)}
-                className="flex flex-col items-center rounded-xl border bg-card p-4 text-center transition-all hover:shadow-md hover:border-primary/50 active:scale-95"
+                className="flex flex-col items-center rounded-xl border bg-card p-3 text-center transition-all hover:shadow-md hover:border-primary/50 active:scale-95"
               >
-                <span className="mb-2 text-4xl">{p.image}</span>
+                <img src={getProductImage(p)} alt={p.name} className="mb-2 h-20 w-20 rounded-lg object-cover" loading="lazy" />
                 <span className="text-sm font-medium text-foreground line-clamp-1">{p.name}</span>
                 <span className="text-sm font-bold text-primary">Rp {p.price.toLocaleString("id-ID")}</span>
                 <span className="text-xs text-muted-foreground">Stok: {p.stock}</span>
@@ -113,8 +106,7 @@ const AdminPOS = () => {
       <Card className="flex w-full flex-col lg:w-80 xl:w-96">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
-            <ShoppingCart className="h-4 w-4" />
-            Keranjang ({cart.length})
+            <ShoppingCart className="h-4 w-4" />Keranjang ({cart.length})
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-1 flex-col gap-3 overflow-hidden">
@@ -124,22 +116,16 @@ const AdminPOS = () => {
             ) : (
               cart.map(item => (
                 <div key={item.product.id} className="flex items-center gap-3 rounded-lg border p-2">
-                  <span className="text-2xl">{item.product.image}</span>
+                  <img src={getProductImage(item.product)} alt={item.product.name} className="h-10 w-10 rounded-md object-cover" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{item.product.name}</p>
                     <p className="text-xs text-muted-foreground">Rp {(item.product.price * item.quantity).toLocaleString("id-ID")}</p>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(item.product.id, -1)}>
-                      <Minus className="h-3 w-3" />
-                    </Button>
+                    <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(item.product.id, -1)}><Minus className="h-3 w-3" /></Button>
                     <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
-                    <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(item.product.id, 1)}>
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeFromCart(item.product.id)}>
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
+                    <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQty(item.product.id, 1)}><Plus className="h-3 w-3" /></Button>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeFromCart(item.product.id)}><Trash2 className="h-3 w-3" /></Button>
                   </div>
                 </div>
               ))
@@ -151,8 +137,7 @@ const AdminPOS = () => {
               <span className="text-xl font-bold text-foreground">Rp {total.toLocaleString("id-ID")}</span>
             </div>
             <Button className="w-full gap-2" size="lg" disabled={cart.length === 0} onClick={completeSale}>
-              <Check className="h-4 w-4" />
-              Bayar (Cash)
+              <Check className="h-4 w-4" />Bayar (Cash)
             </Button>
           </div>
         </CardContent>

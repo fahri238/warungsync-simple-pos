@@ -1,15 +1,16 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { getProducts, getCategories, getCart, saveCart, getDeliverySettings } from "@/lib/store";
+import { getProducts, getCategories, getCart, saveCart, getProductImage, getSession } from "@/lib/store";
 import type { CartItem } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, ShoppingCart, Plus, Minus, Store } from "lucide-react";
+import { Search, ShoppingCart, Plus, User } from "lucide-react";
 import { toast } from "sonner";
 
 const StorePage = () => {
   const products = getProducts();
   const categories = getCategories();
+  const session = getSession();
   const [cart, setCart] = useState<CartItem[]>(getCart);
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("all");
@@ -57,6 +58,17 @@ const StorePage = () => {
                 {cartCount > 0 && <span className="rounded-full bg-primary px-1.5 text-xs text-primary-foreground">{cartCount}</span>}
               </Link>
             </Button>
+            {session ? (
+              <Button variant="ghost" size="sm" className="gap-1" asChild>
+                <Link to={session.role === "admin" ? "/admin" : session.role === "courier" ? "/courier" : "/customer"}>
+                  <User className="h-4 w-4" />{session.name}
+                </Link>
+              </Button>
+            ) : (
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/login">Masuk</Link>
+              </Button>
+            )}
           </div>
         </div>
       </header>
@@ -79,15 +91,19 @@ const StorePage = () => {
         {/* Product Grid */}
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {filtered.map(p => (
-            <div key={p.id} className="group rounded-xl border bg-card p-4 transition-shadow hover:shadow-md">
-              <div className="mb-3 text-center text-5xl">{p.image}</div>
-              <h3 className="font-semibold text-foreground line-clamp-1">{p.name}</h3>
-              <p className="text-xs text-muted-foreground line-clamp-1">{p.description}</p>
-              <div className="mt-2 flex items-center justify-between">
-                <span className="text-sm font-bold text-primary">Rp {p.price.toLocaleString("id-ID")}</span>
-                <Button size="icon" className="h-8 w-8" onClick={() => addToCart(p)}>
-                  <Plus className="h-4 w-4" />
-                </Button>
+            <div key={p.id} className="group overflow-hidden rounded-xl border bg-card transition-shadow hover:shadow-md">
+              <div className="aspect-square bg-muted">
+                <img src={getProductImage(p)} alt={p.name} className="h-full w-full object-cover" loading="lazy" />
+              </div>
+              <div className="p-3">
+                <h3 className="font-semibold text-foreground line-clamp-1">{p.name}</h3>
+                <p className="text-xs text-muted-foreground line-clamp-1">{p.description}</p>
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="text-sm font-bold text-primary">Rp {p.price.toLocaleString("id-ID")}</span>
+                  <Button size="icon" className="h-8 w-8" onClick={() => addToCart(p)}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           ))}

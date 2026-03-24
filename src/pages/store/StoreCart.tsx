@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { getCart, saveCart } from "@/lib/store";
+import { getCart, saveCart, getProductImage } from "@/lib/store";
 import type { CartItem } from "@/types";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Plus, Minus, Trash2, ShoppingBag } from "lucide-react";
@@ -53,7 +53,7 @@ const StoreCart = () => {
             <div className="space-y-3">
               {cart.map(item => (
                 <div key={item.product.id} className="flex items-center gap-3 rounded-xl border bg-card p-3">
-                  <span className="text-3xl">{item.product.image}</span>
+                  <img src={getProductImage(item.product)} alt={item.product.name} className="h-14 w-14 rounded-lg object-cover" />
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-foreground truncate">{item.product.name}</p>
                     <p className="text-sm font-bold text-primary">Rp {(item.product.price * item.quantity).toLocaleString("id-ID")}</p>

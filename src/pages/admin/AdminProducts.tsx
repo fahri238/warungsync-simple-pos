@@ -1,16 +1,16 @@
 import { useState } from "react";
-import { getProducts, getCategories, addProduct, updateProduct, deleteProduct, addCategory, deleteCategory, generateId } from "@/lib/store";
-import type { Product, Category } from "@/types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getProducts, getCategories, addProduct, updateProduct, deleteProduct, addCategory, deleteCategory, generateId, getProductImage } from "@/lib/store";
+import type { Product } from "@/types";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, Tag } from "lucide-react";
+import { Plus, Pencil, Trash2, Tag, ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 
-const emptyProduct: Omit<Product, "id"> = { name: "", price: 0, stock: 0, category: "", image: "📦", description: "" };
+const emptyProduct: Omit<Product, "id"> = { name: "", price: 0, stock: 0, category: "", image: "", description: "" };
 
 const AdminProducts = () => {
   const [products, setProducts] = useState(getProducts);
@@ -96,9 +96,11 @@ const AdminProducts = () => {
       {/* Product Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {products.map(p => (
-          <Card key={p.id}>
+          <Card key={p.id} className="overflow-hidden">
+            <div className="aspect-square bg-muted">
+              <img src={getProductImage(p)} alt={p.name} className="h-full w-full object-cover" loading="lazy" />
+            </div>
             <CardContent className="p-4">
-              <div className="mb-3 text-center text-5xl">{p.image}</div>
               <h3 className="font-semibold text-foreground">{p.name}</h3>
               <p className="text-sm font-bold text-primary">Rp {p.price.toLocaleString("id-ID")}</p>
               <p className="text-xs text-muted-foreground">Stok: {p.stock} · {categories.find(c => c.id === p.category)?.name}</p>
@@ -130,7 +132,13 @@ const AdminProducts = () => {
                 <SelectContent>{categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div><Label>Emoji/Image</Label><Input value={form.image} onChange={e => setForm({ ...form, image: e.target.value })} /></div>
+            <div>
+              <Label className="flex items-center gap-1"><ImageIcon className="h-3 w-3" />URL Gambar Produk</Label>
+              <Input value={form.image} onChange={e => setForm({ ...form, image: e.target.value })} placeholder="https://contoh.com/gambar.jpg (kosongkan untuk default)" />
+              {form.image && form.image.length > 5 && (
+                <img src={form.image} alt="Preview" className="mt-2 h-24 w-24 rounded-lg border object-cover" />
+              )}
+            </div>
             <div><Label>Deskripsi</Label><Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
             <Button className="w-full" onClick={handleSave}>{editing ? "Simpan" : "Tambah"}</Button>
           </div>

@@ -111,20 +111,21 @@ export interface AppUser {
   password: string;
   phone: string;
   role: "admin" | "customer" | "courier";
+  address?: string;
 }
 
 const defaultUsers: AppUser[] = [
   { id: "admin-1", name: "Admin", email: "admin@warungsync.com", password: "admin123", phone: "08123456789", role: "admin" },
-  { id: "courier-1", name: "Kurir Andi", email: "kurir@warungsync.com", password: "kurir123", phone: "08198765432", role: "courier" },
+  { id: "courier-1", name: "Kurir Andi", email: "kurir@warungsync.com", password: "kurir123", phone: "08198765432", role: "courier", address: "Jl. Merdeka No. 10, Jakarta" },
 ];
 
 export function getUsers(): AppUser[] { return get(USERS_KEY, defaultUsers); }
 export function saveUsers(u: AppUser[]) { set(USERS_KEY, u); }
 
-export function registerUser(name: string, email: string, password: string, phone: string): AppUser | string {
+export function registerUser(name: string, email: string, password: string, phone: string, role: "customer" | "courier" = "customer", address?: string): AppUser | string {
   const users = getUsers();
   if (users.find(u => u.email === email)) return "Email sudah terdaftar";
-  const user: AppUser = { id: generateId(), name, email, password, phone, role: "customer" };
+  const user: AppUser = { id: generateId(), name, email, password, phone, role, address };
   users.push(user);
   saveUsers(users);
   return user;

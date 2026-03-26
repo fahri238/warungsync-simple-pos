@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getSession, setSession, getOrders, updateOrder } from "@/lib/store";
+import { getSession, setSession, getOrders, updateOrder, getUsers } from "@/lib/store";
 import type { Order, OrderStatus } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LogOut, Truck, MapPin, Package, Phone } from "lucide-react";
+import { LogOut, Truck, MapPin, Package, Phone, Mail, User } from "lucide-react";
 import { toast } from "sonner";
 
 const statusLabels: Record<OrderStatus, string> = {
@@ -22,6 +22,7 @@ const CourierDashboard = () => {
   const navigate = useNavigate();
   const session = getSession();
   const [orders, setOrders] = useState(() => getOrders().filter(o => o.fulfillment === "delivery" && ["ready", "delivering"].includes(o.status)));
+  const completedOrders = getOrders().filter(o => o.fulfillment === "delivery" && o.status === "completed" && o.courierId === session?.id);
 
   if (!session || session.role !== "courier") {
     return (
@@ -66,6 +67,33 @@ const CourierDashboard = () => {
       </header>
 
       <div className="container mx-auto max-w-2xl px-4 py-6 space-y-4 animate-slide-in">
+        {/* Courier Profile */}
+        <Card>
+          <CardHeader><CardTitle className="flex items-center gap-2 text-base"><User className="h-4 w-4" />Profil Kurir</CardTitle></CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <div className="flex justify-between"><span className="text-muted-foreground">Nama</span><span className="font-medium text-foreground">{session.name}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Email</span><span className="font-medium text-foreground">{session.email}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">No. HP</span><span className="font-medium text-foreground">{session.phone}</span></div>
+            {session.address && <div className="flex justify-between"><span className="text-muted-foreground">Alamat</span><span className="font-medium text-foreground">{session.address}</span></div>}
+          </CardContent>
+        </Card>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 gap-4">
+          <Card>
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-accent">{orders.length}</p>
+              <p className="text-xs text-muted-foreground">Pengiriman Aktif</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-primary">{completedOrders.length}</p>
+              <p className="text-xs text-muted-foreground">Selesai</p>
+            </CardContent>
+          </Card>
+        </div>
+
         <h2 className="text-xl font-bold text-foreground">Pengiriman Aktif ({orders.length})</h2>
 
         {orders.length === 0 ? (
@@ -86,19 +114,21 @@ const CourierDashboard = () => {
                   </span>
                 </div>
 
-                <div className="space-y-1 text-sm">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Phone className="h-3 w-3" />{o.customerPhone}
+                {/* Customer contact details */}
+                <div className="space-y-1 text-sm rounded-lg border p-3 bg-muted/50">
+                  <p className="text-xs font-semibold text-muted-foreground mb-1">📞 Kontak Pelanggan</p>
+                  <div className="flex items-center gap-2 text-foreground">
+                    <Phone className="h-3 w-3 text-muted-foreground" />{o.customerPhone}
                   </div>
                   {o.customerAddress && (
-                    <div className="flex items-start gap-2 text-muted-foreground">
-                      <MapPin className="h-3 w-3 mt-0.5" />{o.customerAddress}
+                    <div className="flex items-start gap-2 text-foreground">
+                      <MapPin className="h-3 w-3 mt-0.5 text-muted-foreground" />{o.customerAddress}
                     </div>
                   )}
                 </div>
 
                 <div className="rounded-lg bg-muted p-3">
-                  <p className="text-xs font-medium text-muted-foreground mb-1">Item Pesanan:</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">📦 Item Pesanan:</p>
                   {o.items.map(i => (
                     <p key={i.product.id} className="text-sm text-foreground">{i.product.name} x{i.quantity}</p>
                   ))}
@@ -120,6 +150,30 @@ const CourierDashboard = () => {
               </CardContent>
             </Card>
           ))
+        )}
+
+        {/* Completed deliveries */}
+        {completedOrders.length > 0 && (
+          <>
+            <h2 className="text-lg font-bold text-foreground mt-6">Riwayat Pengiriman ({completedOrders.length})</h2>
+            {completedOrders.slice(0, 10).map(o => (
+              <Card key={o.id} className="opacity-75">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="font-medium text-foreground">{o.customerName}</span>
+                      <p className="text-xs text-muted-foreground">{o.items.map(i => `${i.product.name} x${i.quantity}`).join(", ")}</p>
+                      <p className="text-xs text-muted-foreground">{new Date(o.createdAt).toLocaleString("id-ID")}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Selesai</span>
+                      <p className="mt-1 text-sm font-bold text-primary">Rp {o.total.toLocaleString("id-ID")}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </>
         )}
       </div>
     </div>

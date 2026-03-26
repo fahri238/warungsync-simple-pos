@@ -15,14 +15,11 @@ const Index = () => {
             <span className="text-xl font-bold text-foreground">WarungSync</span>
           </div>
           <div className="flex gap-2">
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/login">Masuk</Link>
-            </Button>
             <Button variant="outline" size="sm" asChild>
               <Link to="/store">Belanja</Link>
             </Button>
             <Button size="sm" asChild>
-              <Link to="/admin">Admin</Link>
+              <Link to="/login">Masuk</Link>
             </Button>
           </div>
         </div>
@@ -43,11 +40,8 @@ const Index = () => {
             <Button size="lg" className="gap-2 px-8 text-base" asChild>
               <Link to="/store"><ShoppingBag className="h-5 w-5" />Mulai Belanja</Link>
             </Button>
-            <Button size="lg" variant="outline" className="gap-2 px-8 text-base" asChild>
-              <Link to="/admin"><LayoutDashboard className="h-5 w-5" />Dashboard Admin</Link>
-            </Button>
             <Button size="lg" variant="secondary" className="gap-2 px-8 text-base" asChild>
-              <Link to="/login"><Users className="h-5 w-5" />Login</Link>
+              <Link to="/login"><Users className="h-5 w-5" />Masuk</Link>
             </Button>
           </div>
         </div>

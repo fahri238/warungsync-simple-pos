@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ShoppingBag, Package, LogOut, User, BarChart3, Heart, DollarSign } from "lucide-react";
+import PrintReportButton from "@/components/PrintReportButton";
 import type { OrderStatus } from "@/types";
 
 const statusLabels: Record<OrderStatus, string> = {
@@ -63,6 +64,8 @@ const CustomerDashboard = () => {
   }));
   const favoriteProducts = Object.values(productFreq).sort((a, b) => b.qty - a.qty);
 
+  const dateRange = { from: dateFrom, to: dateTo };
+
   const handleLogout = () => {
     setSession(null);
     navigate("/");
@@ -81,6 +84,90 @@ const CustomerDashboard = () => {
     );
   }
 
+  // Print table components
+  const OrderHistoryTable = () => (
+    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <thead><tr style={{ background: "#f0f0f0" }}>
+        <th style={{ padding: "8px 10px", textAlign: "left", fontSize: 11, borderBottom: "2px solid #ddd" }}>Tanggal</th>
+        <th style={{ padding: "8px 10px", textAlign: "left", fontSize: 11, borderBottom: "2px solid #ddd" }}>Item</th>
+        <th style={{ padding: "8px 10px", textAlign: "center", fontSize: 11, borderBottom: "2px solid #ddd" }}>Status</th>
+        <th style={{ padding: "8px 10px", textAlign: "right", fontSize: 11, borderBottom: "2px solid #ddd" }}>Total</th>
+      </tr></thead>
+      <tbody>
+        {filteredOrders.map(o => (
+          <tr key={o.id} style={{ borderBottom: "1px solid #eee" }}>
+            <td style={{ padding: "6px 10px", fontSize: 11 }}>{new Date(o.createdAt).toLocaleString("id-ID")}</td>
+            <td style={{ padding: "6px 10px", fontSize: 11 }}>{o.items.map(i => `${i.product.name} x${i.quantity}`).join(", ")}</td>
+            <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "center" }}>
+              <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, background: "#e8f5e9", color: "#2e7d32" }}>{statusLabels[o.status]}</span>
+            </td>
+            <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "right", fontFamily: "monospace" }}>Rp {o.total.toLocaleString("id-ID")}</td>
+          </tr>
+        ))}
+        <tr style={{ background: "#e8f5e9", fontWeight: 700 }}>
+          <td colSpan={3} style={{ padding: "10px", borderTop: "2px solid #4CAF50" }}>Total</td>
+          <td style={{ padding: "10px", textAlign: "right", borderTop: "2px solid #4CAF50", fontFamily: "monospace" }}>Rp {totalSpending.toLocaleString("id-ID")}</td>
+        </tr>
+      </tbody>
+    </table>
+  );
+
+  const SpendingTable = () => (
+    <>
+      <div style={{ textAlign: "center", marginBottom: 16 }}>
+        <div style={{ display: "inline-block", border: "1px solid #ddd", borderRadius: 8, padding: "12px 20px", margin: 4, textAlign: "center", minWidth: 140 }}>
+          <div style={{ fontSize: 10, color: "#888" }}>Total Belanja</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#2C3E50" }}>Rp {totalSpending.toLocaleString("id-ID")}</div>
+        </div>
+        <div style={{ display: "inline-block", border: "1px solid #ddd", borderRadius: 8, padding: "12px 20px", margin: 4, textAlign: "center", minWidth: 140 }}>
+          <div style={{ fontSize: 10, color: "#888" }}>Total Pesanan</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#2C3E50" }}>{totalOrders}</div>
+        </div>
+      </div>
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <thead><tr style={{ background: "#f0f0f0" }}>
+          <th style={{ padding: "8px 10px", textAlign: "left", fontSize: 11, borderBottom: "2px solid #ddd" }}>Bulan</th>
+          <th style={{ padding: "8px 10px", textAlign: "center", fontSize: 11, borderBottom: "2px solid #ddd" }}>Pesanan</th>
+          <th style={{ padding: "8px 10px", textAlign: "right", fontSize: 11, borderBottom: "2px solid #ddd" }}>Total</th>
+        </tr></thead>
+        <tbody>
+          {monthlyData.map(m => (
+            <tr key={m.month} style={{ borderBottom: "1px solid #eee" }}>
+              <td style={{ padding: "6px 10px", fontSize: 11 }}>{m.month}</td>
+              <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "center" }}>{m.count}</td>
+              <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "right", fontFamily: "monospace" }}>Rp {m.total.toLocaleString("id-ID")}</td>
+            </tr>
+          ))}
+          <tr style={{ background: "#e8f5e9", fontWeight: 700 }}>
+            <td colSpan={2} style={{ padding: "10px", borderTop: "2px solid #4CAF50" }}>Total</td>
+            <td style={{ padding: "10px", textAlign: "right", borderTop: "2px solid #4CAF50", fontFamily: "monospace" }}>Rp {totalSpending.toLocaleString("id-ID")}</td>
+          </tr>
+        </tbody>
+      </table>
+    </>
+  );
+
+  const FavoritesTable = () => (
+    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <thead><tr style={{ background: "#f0f0f0" }}>
+        <th style={{ padding: "8px 10px", textAlign: "left", fontSize: 11, borderBottom: "2px solid #ddd" }}>#</th>
+        <th style={{ padding: "8px 10px", textAlign: "left", fontSize: 11, borderBottom: "2px solid #ddd" }}>Produk</th>
+        <th style={{ padding: "8px 10px", textAlign: "center", fontSize: 11, borderBottom: "2px solid #ddd" }}>Dipesan</th>
+        <th style={{ padding: "8px 10px", textAlign: "right", fontSize: 11, borderBottom: "2px solid #ddd" }}>Total Belanja</th>
+      </tr></thead>
+      <tbody>
+        {favoriteProducts.map((p, i) => (
+          <tr key={p.name} style={{ borderBottom: "1px solid #eee" }}>
+            <td style={{ padding: "6px 10px", fontSize: 11 }}>{i + 1}</td>
+            <td style={{ padding: "6px 10px", fontSize: 11, fontWeight: 500 }}>{p.name}</td>
+            <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "center" }}>{p.qty}x</td>
+            <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "right", fontFamily: "monospace" }}>Rp {p.spent.toLocaleString("id-ID")}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
@@ -97,7 +184,6 @@ const CustomerDashboard = () => {
       </header>
 
       <div className="container mx-auto max-w-3xl px-4 py-6 space-y-6 animate-slide-in">
-        {/* Profile */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base"><User className="h-4 w-4" />Profil Saya</CardTitle>
@@ -109,7 +195,6 @@ const CustomerDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
         <div className="grid grid-cols-2 gap-4">
           <Button className="h-20 flex-col gap-2" asChild>
             <Link to="/store"><ShoppingBag className="h-6 w-6" />Belanja</Link>
@@ -119,7 +204,6 @@ const CustomerDashboard = () => {
           </Button>
         </div>
 
-        {/* Recent Orders */}
         <Card>
           <CardHeader><CardTitle className="text-base">Pesanan Terakhir</CardTitle></CardHeader>
           <CardContent>
@@ -146,10 +230,9 @@ const CustomerDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Reports Section */}
         <div>
           <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2"><BarChart3 className="h-5 w-5" />Laporan Saya</h2>
-          
+
           <div className="flex flex-wrap items-end gap-4 mb-4">
             <div><Label>Dari</Label><Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} /></div>
             <div><Label>Sampai</Label><Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} /></div>
@@ -188,7 +271,10 @@ const CustomerDashboard = () => {
 
             <TabsContent value="history">
               <Card>
-                <CardHeader><CardTitle className="text-base">📋 Riwayat Pesanan</CardTitle></CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="text-base">📋 Riwayat Pesanan</CardTitle>
+                  <PrintReportButton title="Riwayat Pesanan" subtitle={`Pelanggan: ${session.name}`} dateRange={dateRange}><OrderHistoryTable /></PrintReportButton>
+                </CardHeader>
                 <CardContent>
                   {filteredOrders.length === 0 ? <p className="text-sm text-muted-foreground">Belum ada pesanan.</p> : (
                     <div className="overflow-x-auto">
@@ -218,7 +304,10 @@ const CustomerDashboard = () => {
 
             <TabsContent value="spending">
               <Card>
-                <CardHeader><CardTitle className="text-base">💰 Laporan Pengeluaran</CardTitle></CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="text-base">💰 Laporan Pengeluaran</CardTitle>
+                  <PrintReportButton title="Laporan Pengeluaran" subtitle={`Pelanggan: ${session.name}`} dateRange={dateRange}><SpendingTable /></PrintReportButton>
+                </CardHeader>
                 <CardContent>
                   {monthlyData.length === 0 ? <p className="text-sm text-muted-foreground">Belum ada data.</p> : (
                     <div className="overflow-x-auto">
@@ -248,7 +337,10 @@ const CustomerDashboard = () => {
 
             <TabsContent value="favorites">
               <Card>
-                <CardHeader><CardTitle className="text-base">❤️ Produk Favorit</CardTitle></CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="text-base">❤️ Produk Favorit</CardTitle>
+                  <PrintReportButton title="Produk Favorit" subtitle={`Pelanggan: ${session.name}`} dateRange={dateRange}><FavoritesTable /></PrintReportButton>
+                </CardHeader>
                 <CardContent>
                   {favoriteProducts.length === 0 ? <p className="text-sm text-muted-foreground">Belum ada data.</p> : (
                     <div className="overflow-x-auto">

@@ -81,48 +81,6 @@ const CustomerDashboard = () => {
     );
   }
 
-  const allOrders = getOrders().filter(o => o.type === "online");
-
-  const filteredOrders = useMemo(() => {
-    return allOrders.filter(o => {
-      const d = new Date(o.createdAt);
-      if (dateFrom && d < new Date(dateFrom)) return false;
-      if (dateTo && d > new Date(dateTo + "T23:59:59")) return false;
-      return true;
-    });
-  }, [allOrders, dateFrom, dateTo]);
-
-  // Customer report data
-  const totalSpending = filteredOrders.reduce((s, o) => s + o.total, 0);
-  const totalOrders = filteredOrders.length;
-  const completedOrders = filteredOrders.filter(o => o.status === "completed").length;
-
-  // Monthly spending breakdown
-  const monthlySpending: Record<string, { month: string; total: number; count: number }> = {};
-  filteredOrders.forEach(o => {
-    const d = new Date(o.createdAt);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const label = d.toLocaleDateString("id-ID", { year: "numeric", month: "long" });
-    if (!monthlySpending[key]) monthlySpending[key] = { month: label, total: 0, count: 0 };
-    monthlySpending[key].total += o.total;
-    monthlySpending[key].count += 1;
-  });
-  const monthlyData = Object.values(monthlySpending).reverse();
-
-  // Favorite products
-  const productFreq: Record<string, { name: string; qty: number; spent: number }> = {};
-  filteredOrders.forEach(o => o.items.forEach(i => {
-    if (!productFreq[i.product.id]) productFreq[i.product.id] = { name: i.product.name, qty: 0, spent: 0 };
-    productFreq[i.product.id].qty += i.quantity;
-    productFreq[i.product.id].spent += i.product.price * i.quantity;
-  }));
-  const favoriteProducts = Object.values(productFreq).sort((a, b) => b.qty - a.qty);
-
-  const handleLogout = () => {
-    setSession(null);
-    navigate("/");
-  };
-
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
@@ -197,7 +155,6 @@ const CustomerDashboard = () => {
             <div><Label>Sampai</Label><Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} /></div>
           </div>
 
-          {/* Summary */}
           <div className="grid gap-4 sm:grid-cols-3 mb-4">
             <Card>
               <CardHeader className="pb-2 flex flex-row items-center justify-between">
@@ -229,7 +186,6 @@ const CustomerDashboard = () => {
               <TabsTrigger value="favorites">Favorit</TabsTrigger>
             </TabsList>
 
-            {/* 1. Order History Report */}
             <TabsContent value="history">
               <Card>
                 <CardHeader><CardTitle className="text-base">📋 Riwayat Pesanan</CardTitle></CardHeader>
@@ -260,7 +216,6 @@ const CustomerDashboard = () => {
               </Card>
             </TabsContent>
 
-            {/* 2. Spending Report */}
             <TabsContent value="spending">
               <Card>
                 <CardHeader><CardTitle className="text-base">💰 Laporan Pengeluaran</CardTitle></CardHeader>
@@ -291,7 +246,6 @@ const CustomerDashboard = () => {
               </Card>
             </TabsContent>
 
-            {/* 3. Favorite Products Report */}
             <TabsContent value="favorites">
               <Card>
                 <CardHeader><CardTitle className="text-base">❤️ Produk Favorit</CardTitle></CardHeader>

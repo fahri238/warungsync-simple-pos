@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { loginUser, setSession } from "@/lib/store";
+import { login, setSession } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +14,7 @@ const LoginPage = () => {
 
   const handleLogin = () => {
     if (!email || !password) { toast.error("Isi email dan password"); return; }
-    const result = loginUser(email, password);
+    const result = login(email, password);
     if (typeof result === "string") { toast.error(result); return; }
     setSession(result);
     toast.success(`Selamat datang, ${result.name}!`);

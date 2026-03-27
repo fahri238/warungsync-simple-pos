@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { getProducts, getCategories, getCart, saveCart, getProductImage, getSession } from "@/lib/store";
-import type { CartItem } from "@/types";
+import type { OrderItem } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, ShoppingCart, Plus, User } from "lucide-react";
@@ -11,7 +11,7 @@ const StorePage = () => {
   const products = getProducts();
   const categories = getCategories();
   const session = getSession();
-  const [cart, setCart] = useState<CartItem[]>(getCart);
+  const [cart, setCart] = useState<OrderItem[]>(getCart);
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("all");
 
@@ -28,7 +28,7 @@ const StorePage = () => {
   const addToCart = (p: typeof products[0]) => {
     setCart(prev => {
       const existing = prev.find(i => i.product.id === p.id);
-      let updated: CartItem[];
+      let updated: OrderItem[];
       if (existing) {
         if (existing.quantity >= p.stock) { toast.error("Stok tidak cukup"); return prev; }
         updated = prev.map(i => i.product.id === p.id ? { ...i, quantity: i.quantity + 1 } : i);

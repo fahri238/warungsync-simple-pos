@@ -13,7 +13,7 @@ export interface Category {
   name: string;
 }
 
-export interface CartItem {
+export interface OrderItem {
   product: Product;
   quantity: number;
 }
@@ -25,7 +25,7 @@ export type FulfillmentType = "pickup" | "delivery";
 
 export interface Order {
   id: string;
-  items: CartItem[];
+  items: OrderItem[];
   total: number;
   status: OrderStatus;
   paymentMethod: PaymentMethod;
@@ -45,6 +45,15 @@ export interface StockLog {
   change: number;
   reason: string;
   createdAt: string;
+}
+
+export interface Delivery {
+  id: string;
+  orderId: string;
+  courierId: string;
+  address: string;
+  status: "delivering" | "delivered";
+  updatedAt: string;
 }
 
 export interface DeliverySettings {

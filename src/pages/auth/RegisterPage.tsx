@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { registerUser, setSession } from "@/lib/store";
-import type { AppUser } from "@/lib/store";
+import { register, setSession } from "@/lib/store";
+import type { User } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,7 +21,7 @@ const RegisterPage = () => {
   const handleRegister = () => {
     if (!name || !email || !password || !phone) { toast.error("Isi semua field"); return; }
     if (role === "courier" && !address) { toast.error("Kurir wajib mengisi alamat"); return; }
-    const result = registerUser(name, email, password, phone, role, address || undefined);
+    const result = register(name, email, password, phone, role, address || undefined);
     if (typeof result === "string") { toast.error(result); return; }
     setSession(result);
     toast.success("Akun berhasil dibuat!");

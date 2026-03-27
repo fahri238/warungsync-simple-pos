@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { getProducts, saveProducts, addStockLog, generateId, getProductImage } from "@/lib/store";
+import { getProducts, saveProducts, recordStockLog, generateId, getProductImage } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,7 @@ const AdminInventory = () => {
     const updated = products.map(p => {
       if (p.id === adjusting) {
         const newStock = Math.max(0, p.stock + adjustQty);
-        addStockLog({
+        recordStockLog({
           id: generateId(),
           productId: p.id,
           productName: p.name,

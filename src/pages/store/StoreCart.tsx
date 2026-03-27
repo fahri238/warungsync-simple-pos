@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { getCart, saveCart, getProductImage } from "@/lib/store";
-import type { CartItem } from "@/types";
+import type { OrderItem } from "@/types";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Plus, Minus, Trash2, ShoppingBag } from "lucide-react";
 
 const StoreCart = () => {
-  const [cart, setCart] = useState<CartItem[]>(getCart);
+  const [cart, setCart] = useState<OrderItem[]>(getCart);
   const total = cart.reduce((s, i) => s + i.product.price * i.quantity, 0);
 
   const updateQty = (id: string, delta: number) => {

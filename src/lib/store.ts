@@ -61,7 +61,19 @@ const defaultUsers: User[] = [
   { id: "customer-1", name: "Budi Santoso", email: "customer@warungsync.com", password: "customer123", phone: "08112233445", role: "customer", address: "Jl. Sudirman No. 5, Jakarta" },
 ];
 
-export function getUsers(): User[] { return get(USERS_KEY, defaultUsers); }
+export function getUsers(): User[] {
+  const users = get(USERS_KEY, defaultUsers);
+  // Ensure all default accounts always exist
+  let changed = false;
+  for (const def of defaultUsers) {
+    if (!users.find(u => u.email === def.email)) {
+      users.push(def);
+      changed = true;
+    }
+  }
+  if (changed) saveUsers(users);
+  return users;
+}
 export function saveUsers(u: User[]) { set(USERS_KEY, u); }
 
 // User.login(): Boolean

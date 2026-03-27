@@ -42,6 +42,7 @@ const LoginPage = () => {
             <p className="font-semibold mb-1">Demo Accounts:</p>
             <p>Admin: admin@warungsync.com / admin123</p>
             <p>Kurir: kurir@warungsync.com / kurir123</p>
+            <p>Customer: customer@warungsync.com / customer123</p>
           </div>
         </CardContent>
       </Card>

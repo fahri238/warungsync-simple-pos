@@ -58,6 +58,7 @@ export interface User {
 const defaultUsers: User[] = [
   { id: "admin-1", name: "Admin", email: "admin@warungsync.com", password: "admin123", phone: "08123456789", role: "admin" },
   { id: "courier-1", name: "Kurir Andi", email: "kurir@warungsync.com", password: "kurir123", phone: "08198765432", role: "courier", address: "Jl. Merdeka No. 10, Jakarta" },
+  { id: "customer-1", name: "Budi Santoso", email: "customer@warungsync.com", password: "customer123", phone: "08112233445", role: "customer", address: "Jl. Sudirman No. 5, Jakarta" },
 ];
 
 export function getUsers(): User[] { return get(USERS_KEY, defaultUsers); }

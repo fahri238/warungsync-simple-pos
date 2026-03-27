@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { getProducts, getCategories, getCart, saveCart, getProductImage, getSession } from "@/lib/store";
-import type { CartItem } from "@/types";
+import type { OrderItem } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, ShoppingCart, Plus, User } from "lucide-react";

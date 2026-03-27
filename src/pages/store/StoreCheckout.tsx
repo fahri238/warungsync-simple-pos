@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getCart, saveCart, reduceStock, addOrder, generateId, getDeliverySettings } from "@/lib/store";
+import { getCart, saveCart, updateStock, addOrder, generateId, getDeliverySettings } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,7 +26,7 @@ const StoreCheckout = () => {
     if (fulfillment === "delivery" && !address.trim()) { toast.error("Isi alamat pengiriman"); return; }
     if (cart.length === 0) { toast.error("Keranjang kosong"); return; }
 
-    reduceStock(cart);
+    updateStock(cart);
     addOrder({
       id: generateId(),
       items: cart,

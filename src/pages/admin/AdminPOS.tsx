@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
-import { getProducts, getCategories, reduceStock, addOrder, generateId, getProductImage } from "@/lib/store";
-import type { Product, CartItem } from "@/types";
+import { getProducts, getCategories, updateStock, addOrder, generateId, getProductImage } from "@/lib/store";
+import type { Product, OrderItem } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { toast } from "sonner";
 const AdminPOS = () => {
   const [products] = useState(getProducts);
   const categories = getCategories();
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<OrderItem[]>([]);
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("all");
 
@@ -51,7 +51,7 @@ const AdminPOS = () => {
 
   const completeSale = () => {
     if (cart.length === 0) return;
-    reduceStock(cart);
+    updateStock(cart);
     addOrder({
       id: generateId(),
       items: cart,

@@ -1,18 +1,37 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { getProducts, getCategories, updateStock, addOrder, generateId, getProductImage } from "@/lib/store";
 import type { Product, OrderItem } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, Minus, Trash2, ShoppingCart, Check } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Search, Plus, Minus, Trash2, ShoppingCart, Check, Banknote, Receipt, Printer } from "lucide-react";
 import { toast } from "sonner";
 
+interface CompletedSale {
+  orderId: string;
+  items: OrderItem[];
+  total: number;
+  cashReceived: number;
+  change: number;
+  createdAt: string;
+}
+
 const AdminPOS = () => {
-  const [products] = useState(getProducts);
+  const [products, setProducts] = useState(getProducts);
   const categories = getCategories();
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("all");
+
+  // Payment flow
+  const [showPayment, setShowPayment] = useState(false);
+  const [cashInput, setCashInput] = useState("");
+  const cashInputRef = useRef<HTMLInputElement>(null);
+
+  // Receipt
+  const [completedSale, setCompletedSale] = useState<CompletedSale | null>(null);
 
   const filtered = useMemo(() => {
     return products.filter(p => {
@@ -49,11 +68,29 @@ const AdminPOS = () => {
 
   const removeFromCart = (id: string) => setCart(prev => prev.filter(i => i.product.id !== id));
 
-  const completeSale = () => {
+  // Step 1: Click "Bayar" → open payment dialog
+  const handlePayClick = () => {
     if (cart.length === 0) return;
-    updateStock(cart);
+    setCashInput("");
+    setShowPayment(true);
+    setTimeout(() => cashInputRef.current?.focus(), 100);
+  };
+
+  // Step 2: Confirm payment with cash amount
+  const confirmPayment = () => {
+    const cash = parseInt(cashInput.replace(/\D/g, ""), 10);
+    if (!cash || cash < total) {
+      toast.error("Uang tunai tidak cukup!");
+      return;
+    }
+
+    const change = cash - total;
+    const orderId = generateId();
+
+    // Save to Order table
+    updateStock(cart); // Reduces stock + records StockLog
     addOrder({
-      id: generateId(),
+      id: orderId,
       items: cart,
       total,
       status: "completed",
@@ -64,8 +101,52 @@ const AdminPOS = () => {
       customerPhone: "-",
       createdAt: new Date().toISOString(),
     });
+
+    // Show receipt
+    setCompletedSale({
+      orderId,
+      items: [...cart],
+      total,
+      cashReceived: cash,
+      change,
+      createdAt: new Date().toISOString(),
+    });
+
     setCart([]);
+    setShowPayment(false);
+    setProducts(getProducts()); // Refresh product list with updated stock
     toast.success("Transaksi berhasil!");
+  };
+
+  // Print receipt
+  const printReceipt = () => {
+    const receiptEl = document.getElementById("pos-receipt");
+    if (!receiptEl) return;
+    const printWindow = window.open("", "_blank", "width=350,height=600");
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <html><head><title>Struk</title>
+      <style>
+        body { font-family: 'Courier New', monospace; font-size: 12px; padding: 10px; max-width: 300px; margin: 0 auto; }
+        .center { text-align: center; }
+        .bold { font-weight: bold; }
+        .divider { border-top: 1px dashed #000; margin: 8px 0; }
+        .row { display: flex; justify-content: space-between; }
+        .item-name { flex: 1; }
+      </style></head><body>
+      ${receiptEl.innerHTML}
+      <script>window.print(); window.close();</script>
+      </body></html>
+    `);
+    printWindow.document.close();
+  };
+
+  const formatCurrency = (n: number) => `Rp ${n.toLocaleString("id-ID")}`;
+
+  const formatDate = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) +
+      " " + d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
   };
 
   return (
@@ -136,12 +217,110 @@ const AdminPOS = () => {
               <span className="text-sm font-medium text-muted-foreground">Total</span>
               <span className="text-xl font-bold text-foreground">Rp {total.toLocaleString("id-ID")}</span>
             </div>
-            <Button className="w-full gap-2" size="lg" disabled={cart.length === 0} onClick={completeSale}>
-              <Check className="h-4 w-4" />Bayar (Cash)
+            <Button className="w-full gap-2" size="lg" disabled={cart.length === 0} onClick={handlePayClick}>
+              <Banknote className="h-4 w-4" />Bayar
             </Button>
           </div>
         </CardContent>
       </Card>
+
+      {/* Payment Dialog - Input uang tunai */}
+      <Dialog open={showPayment} onOpenChange={setShowPayment}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Banknote className="h-5 w-5" />Pembayaran Tunai
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-lg bg-muted p-4 text-center">
+              <p className="text-sm text-muted-foreground">Total yang harus dibayar</p>
+              <p className="text-2xl font-bold text-foreground">{formatCurrency(total)}</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cash-input">Uang Diterima</Label>
+              <Input
+                ref={cashInputRef}
+                id="cash-input"
+                type="number"
+                placeholder="Masukkan jumlah uang..."
+                value={cashInput}
+                onChange={e => setCashInput(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && confirmPayment()}
+                className="text-lg font-semibold"
+              />
+            </div>
+            {cashInput && parseInt(cashInput.replace(/\D/g, ""), 10) >= total && (
+              <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-4 text-center">
+                <p className="text-sm text-muted-foreground">Kembalian</p>
+                <p className="text-2xl font-bold text-primary">
+                  {formatCurrency(parseInt(cashInput.replace(/\D/g, ""), 10) - total)}
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPayment(false)}>Batal</Button>
+            <Button className="gap-2" onClick={confirmPayment}>
+              <Check className="h-4 w-4" />Konfirmasi Bayar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Receipt Dialog - Struk transaksi */}
+      <Dialog open={!!completedSale} onOpenChange={() => setCompletedSale(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5" />Struk Transaksi
+            </DialogTitle>
+          </DialogHeader>
+          {completedSale && (
+            <div id="pos-receipt" className="space-y-3 rounded-lg border bg-card p-4 font-mono text-sm">
+              <div className="text-center">
+                <p className="text-base font-bold">WarungSync</p>
+                <p className="text-xs text-muted-foreground">Struk Pembayaran</p>
+                <p className="text-xs text-muted-foreground">{formatDate(completedSale.createdAt)}</p>
+                <p className="text-xs text-muted-foreground">#{completedSale.orderId.slice(0, 8)}</p>
+              </div>
+              <div className="border-t border-dashed" />
+              {completedSale.items.map(item => (
+                <div key={item.product.id}>
+                  <div className="flex justify-between">
+                    <span className="flex-1">{item.product.name}</span>
+                  </div>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>{item.quantity} x {formatCurrency(item.product.price)}</span>
+                    <span>{formatCurrency(item.product.price * item.quantity)}</span>
+                  </div>
+                </div>
+              ))}
+              <div className="border-t border-dashed" />
+              <div className="flex justify-between font-bold">
+                <span>TOTAL</span>
+                <span>{formatCurrency(completedSale.total)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Tunai</span>
+                <span>{formatCurrency(completedSale.cashReceived)}</span>
+              </div>
+              <div className="flex justify-between font-bold text-primary">
+                <span>Kembalian</span>
+                <span>{formatCurrency(completedSale.change)}</span>
+              </div>
+              <div className="border-t border-dashed" />
+              <p className="text-center text-xs text-muted-foreground">Terima kasih atas kunjungan Anda!</p>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" className="gap-2" onClick={printReceipt}>
+              <Printer className="h-4 w-4" />Cetak Struk
+            </Button>
+            <Button onClick={() => setCompletedSale(null)}>Selesai</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

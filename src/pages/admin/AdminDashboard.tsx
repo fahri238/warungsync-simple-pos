@@ -120,10 +120,12 @@ const AdminDashboard = () => {
                   </div>
                   <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                     o.status === "completed" ? "bg-primary/10 text-primary" :
-                    o.status === "pending" ? "bg-accent/10 text-accent" :
-                    "bg-info/10 text-info"
+                    o.status === "delivering" ? "bg-orange-500/10 text-orange-600" :
+                    o.status === "ready" ? "bg-primary/10 text-primary" :
+                    o.status === "processing" ? "bg-info/10 text-info" :
+                    "bg-accent/10 text-accent"
                   }`}>
-                    {o.status}
+                    {o.status === "pending" ? "Menunggu" : o.status === "processing" ? "Diproses" : o.status === "ready" ? "Siap Diambil" : o.status === "delivering" ? "Diantar" : "Selesai"}
                   </span>
                 </div>
               ))}

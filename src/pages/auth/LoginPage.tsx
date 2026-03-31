@@ -12,14 +12,25 @@ const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  // Sequence Diagram: inputCredentials(email, password) → POST /login
   const handleLogin = () => {
     if (!email || !password) { toast.error("Isi email dan password"); return; }
-    const result = login(email, password);
-    if (typeof result === "string") { toast.error(result); return; }
-    setSession(result);
-    toast.success(`Selamat datang, ${result.name}!`);
-    if (result.role === "admin") navigate("/admin");
-    else if (result.role === "courier") navigate("/courier");
+
+    // Step 3: AuthController → UserModel: findUserByEmail(email)
+    const userData = findUserByEmail(email);
+
+    // Step 5: AuthController → AuthController: verifyPassword(password, hash)
+    if (!userData || !verifyPassword(password, userData.password)) {
+      // Alt [Tidak Valid]: return error 401 → showErrorMsg()
+      toast.error("Email atau password salah");
+      return;
+    }
+
+    // Alt [Valid]: generateToken() → redirect to Dashboard
+    generateToken(userData);
+    toast.success(`Selamat datang, ${userData.name}!`);
+    if (userData.role === "admin") navigate("/admin");
+    else if (userData.role === "courier") navigate("/courier");
     else navigate("/customer");
   };
 

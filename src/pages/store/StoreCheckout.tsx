@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getCart, saveCart, updateStock, addOrder, generateId, getDeliverySettings } from "@/lib/store";
+import { getCart, saveCart, updateStock, addOrder, generateId, getDeliverySettings, getSession } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,11 +13,12 @@ const StoreCheckout = () => {
   const navigate = useNavigate();
   const cart = getCart();
   const delivery = getDeliverySettings();
+  const session = getSession();
   const total = cart.reduce((s, i) => s + i.product.price * i.quantity, 0);
 
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
+  const [name, setName] = useState(session?.name || "");
+  const [phone, setPhone] = useState(session?.phone || "");
+  const [address, setAddress] = useState(session?.address || "");
   const [fulfillment, setFulfillment] = useState<FulfillmentType>("pickup");
   const [payment, setPayment] = useState<PaymentMethod>("cash");
 

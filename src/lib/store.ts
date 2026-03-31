@@ -76,12 +76,28 @@ export function getUsers(): User[] {
 }
 export function saveUsers(u: User[]) { set(USERS_KEY, u); }
 
-// User.login(): Boolean
-export function login(email: string, password: string): User | string {
+// UserModel.findUserByEmail(email): userData / null
+export function findUserByEmail(email: string): User | null {
   const users = getUsers();
-  const user = users.find(u => u.email === email && u.password === password);
-  if (!user) return "Email atau password salah";
-  return user;
+  return users.find(u => u.email === email) || null;
+}
+
+// AuthController.verifyPassword(password, hash): Boolean
+export function verifyPassword(inputPassword: string, storedPassword: string): boolean {
+  return inputPassword === storedPassword;
+}
+
+// AuthController.generateToken(): sets session
+export function generateToken(user: User): void {
+  setSession(user);
+}
+
+// User.login(): Boolean (composite - kept for backward compatibility)
+export function login(email: string, password: string): User | string {
+  const userData = findUserByEmail(email);
+  if (!userData) return "Email atau password salah";
+  if (!verifyPassword(password, userData.password)) return "Email atau password salah";
+  return userData;
 }
 
 // User.register(): Boolean

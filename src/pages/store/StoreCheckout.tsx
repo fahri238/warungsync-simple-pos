@@ -15,9 +15,9 @@ const StoreCheckout = () => {
   const delivery = getDeliverySettings();
   const total = cart.reduce((s, i) => s + i.product.price * i.quantity, 0);
 
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
+  const [name, setName] = useState(session?.name || "");
+  const [phone, setPhone] = useState(session?.phone || "");
+  const [address, setAddress] = useState(session?.address || "");
   const [fulfillment, setFulfillment] = useState<FulfillmentType>("pickup");
   const [payment, setPayment] = useState<PaymentMethod>("cash");
 

@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getSession, setSession, getOrders, updateOrder, getUsers } from "@/lib/store";
+import { getSession, setSession, getOrders, updateOrder, getDeliveries, updateDeliveryStatus, updateOrderStatus } from "@/lib/store";
 import type { Order, OrderStatus } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LogOut, Truck, MapPin, Package, Phone, Mail, User } from "lucide-react";
+import { LogOut, Truck, MapPin, Package, Phone, User } from "lucide-react";
 import { toast } from "sonner";
 
 const statusLabels: Record<OrderStatus, string> = {
@@ -12,17 +12,25 @@ const statusLabels: Record<OrderStatus, string> = {
 };
 const statusColors: Record<OrderStatus, string> = {
   pending: "bg-accent/10 text-accent",
-  processing: "bg-info/10 text-info",
+  processing: "bg-blue-500/10 text-blue-600",
   ready: "bg-primary/10 text-primary",
-  delivering: "bg-accent/10 text-accent",
+  delivering: "bg-orange-500/10 text-orange-600",
   completed: "bg-primary/10 text-primary",
 };
 
 const CourierDashboard = () => {
   const navigate = useNavigate();
   const session = getSession();
-  const [orders, setOrders] = useState(() => getOrders().filter(o => o.fulfillment === "delivery" && ["ready", "delivering"].includes(o.status)));
-  const completedOrders = getOrders().filter(o => o.fulfillment === "delivery" && o.status === "completed" && o.courierId === session?.id);
+
+  // Active deliveries: orders assigned to this courier that are "delivering"
+  const [orders, setOrders] = useState(() => {
+    if (!session) return [];
+    return getOrders().filter(o => o.fulfillment === "delivery" && o.status === "delivering" && o.courierId === session.id);
+  });
+
+  const completedOrders = session
+    ? getOrders().filter(o => o.fulfillment === "delivery" && o.status === "completed" && o.courierId === session.id)
+    : [];
 
   if (!session || session.role !== "courier") {
     return (
@@ -42,11 +50,20 @@ const CourierDashboard = () => {
     navigate("/");
   };
 
-  const handleUpdateStatus = (order: Order, status: OrderStatus) => {
-    const updated = { ...order, status, courierId: session.id };
-    updateOrder(updated);
-    setOrders(getOrders().filter(o => o.fulfillment === "delivery" && ["ready", "delivering"].includes(o.status)));
-    toast.success(status === "completed" ? "Pengiriman selesai!" : "Status diperbarui");
+  const handleCompleteDelivery = (order: Order) => {
+    // Update Order status to completed
+    updateOrderStatus(order.id, "completed");
+
+    // Update Delivery record status to delivered
+    const deliveries = getDeliveries();
+    const delivery = deliveries.find(d => d.orderId === order.id && d.courierId === session.id);
+    if (delivery) {
+      updateDeliveryStatus(delivery.id, "delivered");
+    }
+
+    // Refresh
+    setOrders(getOrders().filter(o => o.fulfillment === "delivery" && o.status === "delivering" && o.courierId === session.id));
+    toast.success("Pengiriman selesai!");
   };
 
   return (
@@ -135,18 +152,9 @@ const CourierDashboard = () => {
                   <p className="mt-2 text-sm font-bold text-primary">Total: Rp {o.total.toLocaleString("id-ID")}</p>
                 </div>
 
-                <div className="flex gap-2">
-                  {o.status === "ready" && (
-                    <Button className="flex-1 gap-2" onClick={() => handleUpdateStatus(o, "delivering")}>
-                      <Truck className="h-4 w-4" />Mulai Antar
-                    </Button>
-                  )}
-                  {o.status === "delivering" && (
-                    <Button className="flex-1 gap-2" onClick={() => handleUpdateStatus(o, "completed")}>
-                      <Package className="h-4 w-4" />Selesai
-                    </Button>
-                  )}
-                </div>
+                <Button className="w-full gap-2" onClick={() => handleCompleteDelivery(o)}>
+                  <Package className="h-4 w-4" /> Pesanan Selesai
+                </Button>
               </CardContent>
             </Card>
           ))

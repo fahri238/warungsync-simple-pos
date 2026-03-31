@@ -13,6 +13,7 @@ const StoreCheckout = () => {
   const navigate = useNavigate();
   const cart = getCart();
   const delivery = getDeliverySettings();
+  const session = getSession();
   const total = cart.reduce((s, i) => s + i.product.price * i.quantity, 0);
 
   const [name, setName] = useState(session?.name || "");

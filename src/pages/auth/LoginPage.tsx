@@ -37,7 +37,11 @@ const LoginPage = () => {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-sm animate-slide-in">
+      <div className="w-full max-w-sm space-y-4 animate-slide-in">
+      <Button variant="ghost" size="sm" className="gap-1" asChild>
+        <Link to="/"><ArrowLeft className="h-4 w-4" />Kembali</Link>
+      </Button>
+      <Card>
         <CardHeader className="text-center">
           <div className="mx-auto mb-2 text-4xl">🏪</div>
           <CardTitle className="text-xl">Masuk ke WarungSync</CardTitle>

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ShoppingBag, Package, LogOut, User, BarChart3, Heart, DollarSign } from "lucide-react";
+import { ShoppingBag, Package, LogOut, User, BarChart3, Heart, DollarSign, ArrowLeft } from "lucide-react";
 import PrintReportButton from "@/components/PrintReportButton";
 import type { OrderStatus } from "@/types";
 

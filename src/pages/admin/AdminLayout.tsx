@@ -2,7 +2,7 @@ import { Outlet, Link, useLocation } from "react-router-dom";
 import { useState } from "react";
 import {
   LayoutDashboard, Package, Warehouse, Monitor, ClipboardList,
-  BarChart3, Settings, Menu, X, ChevronLeft,
+  BarChart3, Settings, Menu, X, ChevronLeft, ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -98,9 +98,12 @@ const AdminLayout = () => {
           <h1 className="text-lg font-semibold text-foreground">
             {navItems.find((n) => isActive(n.to))?.label || "Admin"}
           </h1>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
             <Button variant="outline" size="sm" asChild>
               <Link to="/store">Lihat Toko</Link>
+            </Button>
+            <Button variant="ghost" size="sm" className="gap-1" asChild>
+              <Link to="/login"><ArrowLeft className="h-4 w-4" />Kembali</Link>
             </Button>
           </div>
         </header>

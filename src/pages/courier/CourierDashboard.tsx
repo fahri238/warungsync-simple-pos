@@ -4,7 +4,7 @@ import { getSession, setSession, getOrders, updateOrder, getDeliveries, updateDe
 import type { Order, OrderStatus } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LogOut, Truck, MapPin, Package, Phone, User } from "lucide-react";
+import { LogOut, Truck, MapPin, Package, Phone, User, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
 const statusLabels: Record<OrderStatus, string> = {
@@ -70,7 +70,10 @@ const CourierDashboard = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b bg-secondary">
         <div className="container mx-auto flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" className="text-secondary-foreground hover:bg-secondary/80" asChild>
+              <Link to="/login"><ArrowLeft className="h-4 w-4" /></Link>
+            </Button>
             <Truck className="h-5 w-5 text-secondary-foreground" />
             <span className="font-bold text-secondary-foreground">Kurir Panel</span>
           </div>

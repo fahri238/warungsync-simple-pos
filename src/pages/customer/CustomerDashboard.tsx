@@ -172,10 +172,15 @@ const CustomerDashboard = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
         <div className="container mx-auto flex items-center justify-between px-4 py-3">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="text-xl">🏪</span>
-            <span className="font-bold text-foreground">WarungSync</span>
-          </Link>
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" asChild>
+              <Link to="/login"><ArrowLeft className="h-4 w-4" /></Link>
+            </Button>
+            <Link to="/" className="flex items-center gap-2">
+              <span className="text-xl">🏪</span>
+              <span className="font-bold text-foreground">WarungSync</span>
+            </Link>
+          </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground">{session.name}</span>
             <Button variant="ghost" size="icon" onClick={handleLogout}><LogOut className="h-4 w-4" /></Button>

@@ -4,7 +4,7 @@ import { getSession, setSession, getOrders, updateOrder, getDeliveries, updateDe
 import type { Order, OrderStatus } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LogOut, Truck, MapPin, Package, Phone, User } from "lucide-react";
+import { LogOut, Truck, MapPin, Package, Phone, User, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
 const statusLabels: Record<OrderStatus, string> = {

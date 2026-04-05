@@ -279,7 +279,7 @@ const AdminPOS = () => {
           {completedSale && (
             <div id="pos-receipt" className="space-y-3 rounded-lg border bg-card p-4 font-mono text-sm">
               <div className="text-center">
-                <p className="text-base font-bold">WarungSync</p>
+                <p className="text-base font-bold">Warung Mama Eva</p>
                 <p className="text-xs text-muted-foreground">Struk Pembayaran</p>
                 <p className="text-xs text-muted-foreground">{formatDate(completedSale.createdAt)}</p>
                 <p className="text-xs text-muted-foreground">#{completedSale.orderId.slice(0, 8)}</p>

@@ -12,7 +12,7 @@ const Index = () => {
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-xl">
               🏪
             </div>
-            <span className="text-xl font-bold text-foreground">WarungSync</span>
+            <span className="text-xl font-bold text-foreground">Warung Mama Eva</span>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" asChild>

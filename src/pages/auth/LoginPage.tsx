@@ -44,7 +44,7 @@ const LoginPage = () => {
       <Card>
         <CardHeader className="text-center">
           <div className="mx-auto mb-2 text-4xl">🏪</div>
-          <CardTitle className="text-xl">Masuk ke WarungSync</CardTitle>
+          <CardTitle className="text-xl">Masuk ke Warung Mama Eva</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div><Label>Email</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@contoh.com" /></div>
@@ -56,9 +56,9 @@ const LoginPage = () => {
           </p>
           <div className="rounded-lg bg-muted p-3 text-xs text-muted-foreground">
             <p className="font-semibold mb-1">Demo Accounts:</p>
-            <p>Admin: admin@warungsync.com / admin123</p>
-            <p>Kurir: kurir@warungsync.com / kurir123</p>
-            <p>Customer: customer@warungsync.com / customer123</p>
+            <p>Admin: admin@warungmamaeva.com / admin123</p>
+            <p>Kurir: kurir@warungmamaeva.com / kurir123</p>
+            <p>Customer: customer@warungmamaeva.com / customer123</p>
           </div>
         </CardContent>
       </Card>

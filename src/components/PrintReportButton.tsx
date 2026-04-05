@@ -10,23 +10,22 @@ interface PrintReportButtonProps {
   children: React.ReactNode;
 }
 
+const STORE_NAME = "Warung Mama Eva";
+
 const PrintReportButton = ({ title, subtitle, dateRange, children }: PrintReportButtonProps) => {
   const [previewOpen, setPreviewOpen] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
-  const handlePrint = () => {
+  const buildPrintHTML = () => {
     const content = printRef.current;
-    if (!content) return;
-
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
+    if (!content) return "";
 
     const dateStr = dateRange?.from || dateRange?.to
       ? `Periode: ${dateRange.from || "..."} s/d ${dateRange.to || "..."}`
       : `Dicetak: ${new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}`;
 
-    printWindow.document.write(`<!DOCTYPE html>
-<html><head><title>${title} - WarungSync</title>
+    return `<!DOCTYPE html>
+<html><head><title>${title} - ${STORE_NAME}</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Segoe UI', Arial, sans-serif; color: #333; padding: 24px; font-size: 12px; }
@@ -59,17 +58,47 @@ const PrintReportButton = ({ title, subtitle, dateRange, children }: PrintReport
 </style>
 </head><body>
 <div class="header">
-  <div class="store-name">🏪 WarungSync</div>
+  <div class="store-name">🏪 ${STORE_NAME}</div>
   <h1>${title}</h1>
   ${subtitle ? `<div class="subtitle">${subtitle}</div>` : ""}
   <div class="date">${dateStr}</div>
 </div>
 ${content.innerHTML}
-<div class="footer">Dicetak dari WarungSync &mdash; ${new Date().toLocaleString("id-ID")}</div>
-</body></html>`);
+<div class="footer">Dicetak dari ${STORE_NAME} &mdash; ${new Date().toLocaleString("id-ID")}</div>
+</body></html>`;
+  };
 
-    printWindow.document.close();
-    setTimeout(() => { printWindow.print(); }, 300);
+  const handlePrint = () => {
+    const html = buildPrintHTML();
+    if (!html) return;
+
+    // Try window.open first, fallback to iframe
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+      setTimeout(() => { printWindow.print(); }, 300);
+    } else {
+      // Fallback: use hidden iframe
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.top = "-10000px";
+      iframe.style.left = "-10000px";
+      iframe.style.width = "210mm";
+      iframe.style.height = "297mm";
+      document.body.appendChild(iframe);
+
+      const doc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (doc) {
+        doc.open();
+        doc.write(html);
+        doc.close();
+        setTimeout(() => {
+          iframe.contentWindow?.print();
+          setTimeout(() => document.body.removeChild(iframe), 1000);
+        }, 300);
+      }
+    }
   };
 
   return (
@@ -88,14 +117,14 @@ ${content.innerHTML}
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
               <span>Preview: {title}</span>
-              <Button size="sm" className="gap-2" onClick={() => { setPreviewOpen(false); handlePrint(); }}>
+              <Button size="sm" className="gap-2" onClick={() => { setPreviewOpen(false); setTimeout(handlePrint, 100); }}>
                 <Printer className="h-4 w-4" />Print
               </Button>
             </DialogTitle>
           </DialogHeader>
           <div className="border rounded-lg p-6 bg-white text-black">
             <div className="text-center mb-5 border-b-2 border-primary pb-3">
-              <p className="text-xl font-bold text-primary">🏪 WarungSync</p>
+              <p className="text-xl font-bold text-primary">🏪 {STORE_NAME}</p>
               <h2 className="text-lg font-bold text-secondary">{title}</h2>
               {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
               <p className="text-xs text-muted-foreground mt-1">
@@ -106,7 +135,7 @@ ${content.innerHTML}
             </div>
             <div ref={printRef}>{children}</div>
             <p className="text-center text-xs text-muted-foreground mt-6 border-t pt-3">
-              Dicetak dari WarungSync — {new Date().toLocaleString("id-ID")}
+              Dicetak dari {STORE_NAME} — {new Date().toLocaleString("id-ID")}
             </p>
           </div>
         </DialogContent>

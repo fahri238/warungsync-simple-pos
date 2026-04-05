@@ -44,7 +44,7 @@ const LoginPage = () => {
       <Card>
         <CardHeader className="text-center">
           <div className="mx-auto mb-2 text-4xl">🏪</div>
-          <CardTitle className="text-xl">Masuk ke WarungSync</CardTitle>
+          <CardTitle className="text-xl">Masuk ke Warung Mama Eva</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div><Label>Email</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="email@contoh.com" /></div>

@@ -78,7 +78,7 @@ const AdminLayout = () => {
             <div className="flex items-center justify-between border-b border-sidebar-border px-4 py-4">
               <div className="flex items-center gap-2">
                 <span className="text-xl">🏪</span>
-                <span className="font-bold text-sidebar-foreground">WarungSync</span>
+                <span className="font-bold text-sidebar-foreground">Warung Mama Eva</span>
               </div>
               <button onClick={() => setMobileOpen(false)} className="text-sidebar-foreground">
                 <X className="h-5 w-5" />

@@ -48,7 +48,7 @@ const StorePage = () => {
         <div className="container mx-auto flex items-center justify-between px-4 py-3">
           <Link to="/" className="flex items-center gap-2">
             <span className="text-xl">🏪</span>
-            <span className="font-bold text-foreground">WarungSync</span>
+            <span className="font-bold text-foreground">Warung Mama Eva</span>
           </Link>
           <div className="flex items-center gap-3">
             <Link to="/store/orders" className="text-sm font-medium text-muted-foreground hover:text-foreground">Pesanan</Link>

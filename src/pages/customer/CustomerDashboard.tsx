@@ -178,7 +178,7 @@ const CustomerDashboard = () => {
             </Button>
             <Link to="/" className="flex items-center gap-2">
               <span className="text-xl">🏪</span>
-              <span className="font-bold text-foreground">WarungSync</span>
+              <span className="font-bold text-foreground">Warung Mama Eva</span>
             </Link>
           </div>
           <div className="flex items-center gap-3">

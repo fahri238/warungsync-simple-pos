@@ -93,7 +93,7 @@ const Index = () => {
       </section>
 
       <footer className="border-t py-8 text-center text-sm text-muted-foreground">
-        <p>© 2026 WarungSync. Built for small businesses.</p>
+        <p>© 2026 Warung Mama Eva. Built for small businesses.</p>
       </footer>
     </div>
   );

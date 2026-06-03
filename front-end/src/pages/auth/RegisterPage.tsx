@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+<<<<<<< HEAD
 import { register, setSession } from "@/lib/store";
 import type { User } from "@/lib/store";
+=======
+import { useAuth } from "@/context/AuthContext";
+>>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,12 +15,17 @@ import { toast } from "sonner";
 
 const RegisterPage = () => {
   const navigate = useNavigate();
+<<<<<<< HEAD
+=======
+  const { register, loading } = useAuth();
+>>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<"customer" | "courier">("customer");
   const [address, setAddress] = useState("");
+<<<<<<< HEAD
 
   const handleRegister = () => {
     if (!name || !email || !password || !phone) { toast.error("Isi semua field"); return; }
@@ -26,6 +35,37 @@ const RegisterPage = () => {
     setSession(result);
     toast.success("Akun berhasil dibuat!");
     navigate(role === "courier" ? "/courier" : "/customer");
+=======
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleRegister = async () => {
+    if (!name || !email || !password || !phone) {
+      toast.error("Isi semua field");
+      return;
+    }
+    if (role === "courier" && !address) {
+      toast.error("Kurir wajib mengisi alamat");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const user = await register({
+        name,
+        email,
+        password,
+        phone,
+        role,
+        address: address || undefined,
+      });
+      toast.success("Akun berhasil dibuat!");
+      navigate(user.role === "courier" ? "/courier" : "/customer");
+    } catch (error: any) {
+      toast.error(error?.message || "Gagal mendaftar");
+    } finally {
+      setSubmitting(false);
+    }
+>>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
   };
 
   return (
@@ -56,7 +96,13 @@ const RegisterPage = () => {
             <div><Label>Alamat</Label><Input value={address} onChange={e => setAddress(e.target.value)} placeholder="Alamat lengkap kurir" /></div>
           )}
           <div><Label>Password</Label><Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••" /></div>
+<<<<<<< HEAD
           <Button className="w-full" onClick={handleRegister}>Daftar</Button>
+=======
+          <Button className="w-full" onClick={handleRegister} disabled={submitting || loading}>
+            {submitting ? "Memproses..." : "Daftar"}
+          </Button>
+>>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
           <p className="text-center text-sm text-muted-foreground">
             Sudah punya akun?{" "}
             <Link to="/login" className="font-medium text-primary hover:underline">Masuk</Link>

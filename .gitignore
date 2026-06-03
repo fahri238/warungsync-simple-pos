@@ -13,7 +13,7 @@
 **/dist-ssr/
 **/*.local
 
-# Environment Variables (Sangat penting untuk keamanan data sensitif)
+# Environment Variables 
 **/.env
 **/.env.*
 **/config.json

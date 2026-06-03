@@ -20,11 +20,16 @@ import RegisterPage from "./pages/auth/RegisterPage";
 import CustomerDashboard from "./pages/customer/CustomerDashboard";
 import CourierDashboard from "./pages/courier/CourierDashboard";
 import NotFound from "./pages/NotFound";
+<<<<<<< HEAD
+=======
+import { AuthProvider } from "./context/AuthContext";
+>>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+<<<<<<< HEAD
     <TooltipProvider>
       <Sonner />
       <BrowserRouter>
@@ -51,6 +56,36 @@ const App = () => (
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
+=======
+    <AuthProvider>
+      <TooltipProvider>
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<AdminDashboard />} />
+              <Route path="products" element={<AdminProducts />} />
+              <Route path="inventory" element={<AdminInventory />} />
+              <Route path="pos" element={<AdminPOS />} />
+              <Route path="orders" element={<AdminOrders />} />
+              <Route path="reports" element={<AdminReports />} />
+              <Route path="settings" element={<AdminSettings />} />
+            </Route>
+            <Route path="/store" element={<StorePage />} />
+            <Route path="/store/cart" element={<StoreCart />} />
+            <Route path="/store/checkout" element={<StoreCheckout />} />
+            <Route path="/store/orders" element={<StoreOrders />} />
+            <Route path="/customer" element={<CustomerDashboard />} />
+            <Route path="/courier" element={<CourierDashboard />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
+>>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
   </QueryClientProvider>
 );
 

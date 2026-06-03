@@ -1,5 +1,10 @@
+<<<<<<< HEAD
 import { useState, useMemo, useCallback, useRef } from "react";
 import { getProducts, getCategories, updateStock, addOrder, generateId, getProductImage } from "@/lib/store";
+=======
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { getProductsFromAPI, getCategoriesFromAPI, getProductImage } from "@/lib/store";
+>>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
 import type { Product, OrderItem } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +13,10 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Search, Plus, Minus, Trash2, ShoppingCart, Check, Banknote, Receipt, Printer } from "lucide-react";
 import { toast } from "sonner";
+<<<<<<< HEAD
+=======
+import { createOrder } from "@/services/orderService";
+>>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
 
 interface CompletedSale {
   orderId: string;
@@ -19,8 +28,13 @@ interface CompletedSale {
 }
 
 const AdminPOS = () => {
+<<<<<<< HEAD
   const [products, setProducts] = useState(getProducts);
   const categories = getCategories();
+=======
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+>>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("all");
@@ -29,10 +43,28 @@ const AdminPOS = () => {
   const [showPayment, setShowPayment] = useState(false);
   const [cashInput, setCashInput] = useState("");
   const cashInputRef = useRef<HTMLInputElement>(null);
+<<<<<<< HEAD
+=======
+  const [submitting, setSubmitting] = useState(false);
+>>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
 
   // Receipt
   const [completedSale, setCompletedSale] = useState<CompletedSale | null>(null);
 
+<<<<<<< HEAD
+=======
+  useEffect(() => {
+    Promise.all([getProductsFromAPI(), getCategoriesFromAPI()])
+      .then(([prods, cats]) => {
+        setProducts(prods);
+        setCategories(cats);
+      })
+      .catch(() => {
+        toast.error("Gagal memuat data POS");
+      });
+  }, []);
+
+>>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
   const filtered = useMemo(() => {
     return products.filter(p => {
       const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
@@ -77,7 +109,11 @@ const AdminPOS = () => {
   };
 
   // Step 2: Confirm payment with cash amount
+<<<<<<< HEAD
   const confirmPayment = () => {
+=======
+  const confirmPayment = async () => {
+>>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
     const cash = parseInt(cashInput.replace(/\D/g, ""), 10);
     if (!cash || cash < total) {
       toast.error("Uang tunai tidak cukup!");
@@ -85,6 +121,7 @@ const AdminPOS = () => {
     }
 
     const change = cash - total;
+<<<<<<< HEAD
     const orderId = generateId();
 
     // Save to Order table
@@ -116,6 +153,48 @@ const AdminPOS = () => {
     setShowPayment(false);
     setProducts(getProducts()); // Refresh product list with updated stock
     toast.success("Transaksi berhasil!");
+=======
+    const createdAt = new Date().toISOString();
+
+    try {
+      setSubmitting(true);
+      const response = await createOrder({
+        customerName: "Walk-in",
+        customerPhone: "-",
+        type: "pos",
+        fulfillment: "pickup",
+        paymentMethod: "cash",
+        status: "completed",
+        items: cart,
+      });
+      const orderId = response?.data?.id || `local-${Date.now()}`;
+
+      // Show receipt
+      setCompletedSale({
+        orderId,
+        items: [...cart],
+        total,
+        cashReceived: cash,
+        change,
+        createdAt,
+      });
+
+      setCart([]);
+      setShowPayment(false);
+      setProducts((prev) =>
+        prev.map((product) => {
+          const cartItem = cart.find((item) => item.product.id === product.id);
+          if (!cartItem) return product;
+          return { ...product, stock: Math.max(0, product.stock - cartItem.quantity) };
+        }),
+      );
+      toast.success("Transaksi berhasil!");
+    } catch (error: any) {
+      toast.error(error?.message || "Transaksi gagal");
+    } finally {
+      setSubmitting(false);
+    }
+>>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
   };
 
   // Print receipt
@@ -261,7 +340,11 @@ const AdminPOS = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPayment(false)}>Batal</Button>
+<<<<<<< HEAD
             <Button className="gap-2" onClick={confirmPayment}>
+=======
+            <Button className="gap-2" onClick={confirmPayment} disabled={submitting}>
+>>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
               <Check className="h-4 w-4" />Konfirmasi Bayar
             </Button>
           </DialogFooter>

@@ -1,5 +1,9 @@
+<<<<<<< HEAD
 import { useState } from "react";
 import { getOrders, updateOrder, updateOrderStatus, getUsers, addDelivery, generateId } from "@/lib/store";
+=======
+import { useEffect, useState } from "react";
+>>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
 import type { Order, OrderStatus } from "@/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Package, Truck, CheckCircle, Clock, ArrowRight } from "lucide-react";
+<<<<<<< HEAD
+=======
+import { fetchOrders, updateOrderStatus as updateOrderStatusApi } from "@/services/orderService";
+import { fetchUsersByRole } from "@/services/authService";
+import { assignCourier } from "@/services/deliveryService";
+>>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
 
 const statusLabels: Record<OrderStatus, string> = {
   pending: "Menunggu", processing: "Diproses", ready: "Siap Diambil", delivering: "Diantar", completed: "Selesai"
@@ -20,6 +30,7 @@ const statusColors: Record<OrderStatus, string> = {
 };
 
 const AdminOrders = () => {
+<<<<<<< HEAD
   const [orders, setOrders] = useState(getOrders);
   const [courierDialogOrder, setCourierDialogOrder] = useState<Order | null>(null);
   const [selectedCourierId, setSelectedCourierId] = useState<string>("");
@@ -31,13 +42,48 @@ const AdminOrders = () => {
   const handleProcess = (order: Order) => {
     updateOrderStatus(order.id, "processing");
     refresh();
+=======
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [courierDialogOrder, setCourierDialogOrder] = useState<Order | null>(null);
+  const [selectedCourierId, setSelectedCourierId] = useState<string>("");
+  const [couriers, setCouriers] = useState<any[]>([]);
+
+  const refresh = async () => {
+    const data = await fetchOrders();
+    setOrders(data);
+  };
+
+  useEffect(() => {
+    Promise.all([fetchOrders(), fetchUsersByRole("kurir")])
+      .then(([orderRows, courierRows]) => {
+        setOrders(orderRows);
+        setCouriers(courierRows);
+      })
+      .catch((error: any) => {
+        toast.error(error?.message || "Gagal memuat data pesanan");
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Step 1: pending → processing (Proses Pesanan)
+  const handleProcess = async (order: Order) => {
+    await updateOrderStatusApi(order.id, { status: "processing" });
+    await refresh();
+>>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
     toast.success("Pesanan sedang diproses");
   };
 
   // Step 2a (Pickup): processing → ready (Siap Diambil)
+<<<<<<< HEAD
   const handleReadyPickup = (order: Order) => {
     updateOrderStatus(order.id, "ready");
     refresh();
+=======
+  const handleReadyPickup = async (order: Order) => {
+    await updateOrderStatusApi(order.id, { status: "ready" });
+    await refresh();
+>>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
     toast.success("Pesanan siap diambil");
   };
 
@@ -48,11 +94,16 @@ const AdminOrders = () => {
   };
 
   // Step 2b (Delivery): assign courier → create Delivery record, status → delivering
+<<<<<<< HEAD
   const handleAssignCourier = () => {
+=======
+  const handleAssignCourier = async () => {
+>>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
     if (!courierDialogOrder || !selectedCourierId) return;
     const courier = couriers.find(c => c.id === selectedCourierId);
     if (!courier) return;
 
+<<<<<<< HEAD
     // Create Delivery record
     addDelivery({
       id: generateId(),
@@ -69,13 +120,25 @@ const AdminOrders = () => {
 
     setCourierDialogOrder(null);
     refresh();
+=======
+    await assignCourier(courierDialogOrder.id, selectedCourierId);
+
+    setCourierDialogOrder(null);
+    await refresh();
+>>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
     toast.success(`Pesanan dikirim oleh ${courier.name}`);
   };
 
   // For pickup: admin can mark as completed
+<<<<<<< HEAD
   const handleCompletePickup = (order: Order) => {
     updateOrderStatus(order.id, "completed");
     refresh();
+=======
+  const handleCompletePickup = async (order: Order) => {
+    await updateOrderStatusApi(order.id, { status: "completed" });
+    await refresh();
+>>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
     toast.success("Pesanan selesai");
   };
 
@@ -128,10 +191,20 @@ const AdminOrders = () => {
   return (
     <div className="space-y-4 animate-slide-in">
       <h2 className="text-xl font-bold text-foreground">Pesanan ({orders.length})</h2>
+<<<<<<< HEAD
       {orders.length === 0 ? (
         <Card><CardContent className="py-12 text-center text-muted-foreground">Belum ada pesanan.</CardContent></Card>
       ) : (
         <div className="space-y-3">
+=======
+      {loading && (
+        <Card><CardContent className="py-12 text-center text-muted-foreground">Memuat pesanan...</CardContent></Card>
+      )}
+      {!loading && orders.length === 0 ? (
+        <Card><CardContent className="py-12 text-center text-muted-foreground">Belum ada pesanan.</CardContent></Card>
+      ) : (
+        !loading && <div className="space-y-3">
+>>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
           {orders.map(o => (
             <Card key={o.id}>
               <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">

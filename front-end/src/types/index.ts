@@ -34,6 +34,10 @@ export interface Order {
   customerName: string;
   customerPhone: string;
   customerAddress?: string;
+<<<<<<< HEAD
+=======
+  deliveryId?: string;
+>>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
   createdAt: string;
   courierId?: string;
 }

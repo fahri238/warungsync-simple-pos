@@ -1,23 +1,14 @@
-<<<<<<< HEAD
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { getSession, setSession, getOrders, updateOrder, getDeliveries, updateDeliveryStatus, updateOrderStatus } from "@/lib/store";
-=======
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getSession } from "@/lib/store";
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
 import type { Order, OrderStatus } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LogOut, Truck, MapPin, Package, Phone, User, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-<<<<<<< HEAD
-=======
 import { fetchOrders, updateOrderStatus } from "@/services/orderService";
 import { useAuth } from "@/context/AuthContext";
 import { completeDelivery } from "@/services/deliveryService";
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
 
 const statusLabels: Record<OrderStatus, string> = {
   pending: "Menunggu", processing: "Diproses", ready: "Siap Ambil", delivering: "Diantar", completed: "Selesai"
@@ -33,18 +24,6 @@ const statusColors: Record<OrderStatus, string> = {
 const CourierDashboard = () => {
   const navigate = useNavigate();
   const session = getSession();
-<<<<<<< HEAD
-
-  // Active deliveries: orders assigned to this courier that are "delivering"
-  const [orders, setOrders] = useState(() => {
-    if (!session) return [];
-    return getOrders().filter(o => o.fulfillment === "delivery" && o.status === "delivering" && o.courierId === session.id);
-  });
-
-  const completedOrders = session
-    ? getOrders().filter(o => o.fulfillment === "delivery" && o.status === "completed" && o.courierId === session.id)
-    : [];
-=======
   const { logout } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
@@ -76,7 +55,6 @@ const CourierDashboard = () => {
     () => orders.filter((o) => o.status === "completed"),
     [orders],
   );
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
 
   if (!session || session.role !== "courier") {
     return (
@@ -92,26 +70,6 @@ const CourierDashboard = () => {
   }
 
   const handleLogout = () => {
-<<<<<<< HEAD
-    setSession(null);
-    navigate("/");
-  };
-
-  const handleCompleteDelivery = (order: Order) => {
-    // Update Order status to completed
-    updateOrderStatus(order.id, "completed");
-
-    // Update Delivery record status to delivered
-    const deliveries = getDeliveries();
-    const delivery = deliveries.find(d => d.orderId === order.id && d.courierId === session.id);
-    if (delivery) {
-      updateDeliveryStatus(delivery.id, "delivered");
-    }
-
-    // Refresh
-    setOrders(getOrders().filter(o => o.fulfillment === "delivery" && o.status === "delivering" && o.courierId === session.id));
-    toast.success("Pengiriman selesai!");
-=======
     logout();
     navigate("/");
   };
@@ -130,7 +88,6 @@ const CourierDashboard = () => {
     } catch (error: any) {
       toast.error(error?.message || "Gagal memperbarui pengiriman");
     }
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
   };
 
   return (
@@ -169,11 +126,7 @@ const CourierDashboard = () => {
         <div className="grid grid-cols-2 gap-4">
           <Card>
             <CardContent className="p-4 text-center">
-<<<<<<< HEAD
-              <p className="text-2xl font-bold text-accent">{orders.length}</p>
-=======
               <p className="text-2xl font-bold text-accent">{activeOrders.length}</p>
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
               <p className="text-xs text-muted-foreground">Pengiriman Aktif</p>
             </CardContent>
           </Card>
@@ -185,11 +138,6 @@ const CourierDashboard = () => {
           </Card>
         </div>
 
-<<<<<<< HEAD
-        <h2 className="text-xl font-bold text-foreground">Pengiriman Aktif ({orders.length})</h2>
-
-        {orders.length === 0 ? (
-=======
         <h2 className="text-xl font-bold text-foreground">Pengiriman Aktif ({activeOrders.length})</h2>
 
         {loadingOrders ? (
@@ -199,7 +147,6 @@ const CourierDashboard = () => {
             </CardContent>
           </Card>
         ) : activeOrders.length === 0 ? (
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
           <Card>
             <CardContent className="py-12 text-center">
               <Package className="mx-auto mb-3 h-12 w-12 text-muted-foreground" />
@@ -207,11 +154,7 @@ const CourierDashboard = () => {
             </CardContent>
           </Card>
         ) : (
-<<<<<<< HEAD
-          orders.map(o => (
-=======
           activeOrders.map(o => (
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
             <Card key={o.id}>
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center justify-between">

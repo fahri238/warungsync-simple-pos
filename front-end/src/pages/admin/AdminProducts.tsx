@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-import { useState } from "react";
-import { getProducts, getCategories, addProduct, updateProduct, deleteProduct, addCategory, deleteCategory, generateId, getProductImage } from "@/lib/store";
-=======
 import { useState, useEffect } from "react";
 import {
   getProductsFromAPI,
@@ -13,7 +9,6 @@ import {
   deleteCategoryFromAPI,
   getProductImage
 } from "@/lib/store";
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
 import type { Product } from "@/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,22 +16,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-<<<<<<< HEAD
-import { Plus, Pencil, Trash2, Tag, ImageIcon } from "lucide-react";
-=======
 import { Plus, Pencil, Trash2, Tag, ImageIcon, Loader2 } from "lucide-react";
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
 import { toast } from "sonner";
 
 const emptyProduct: Omit<Product, "id"> = { name: "", price: 0, stock: 0, category: "", image: "", description: "" };
 
 const AdminProducts = () => {
-<<<<<<< HEAD
-  const [products, setProducts] = useState(getProducts);
-  const [categories, setCategories] = useState(getCategories);
-  const [editing, setEditing] = useState<Product | null>(null);
-  const [form, setForm] = useState<Omit<Product, "id">>(emptyProduct);
-=======
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,52 +30,10 @@ const AdminProducts = () => {
   const [editing, setEditing] = useState<Product | null>(null);
   const [form, setForm] = useState<Omit<Product, "id">>(emptyProduct);
   const [imagePreview, setImagePreview] = useState<string>("");
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
   const [dialogOpen, setDialogOpen] = useState(false);
   const [catDialogOpen, setCatDialogOpen] = useState(false);
   const [newCatName, setNewCatName] = useState("");
 
-<<<<<<< HEAD
-  const openAdd = () => { setEditing(null); setForm(emptyProduct); setDialogOpen(true); };
-  const openEdit = (p: Product) => { setEditing(p); setForm(p); setDialogOpen(true); };
-
-  const handleSave = () => {
-    if (!form.name || !form.category || form.price <= 0) { toast.error("Isi semua field"); return; }
-    if (editing) {
-      const updated = { ...editing, ...form };
-      updateProduct(updated);
-      setProducts(getProducts());
-      toast.success("Produk diperbarui");
-    } else {
-      const newP: Product = { id: generateId(), ...form };
-      addProduct(newP);
-      setProducts(getProducts());
-      toast.success("Produk ditambahkan");
-    }
-    setDialogOpen(false);
-  };
-
-  const handleDelete = (id: string) => {
-    deleteProduct(id);
-    setProducts(getProducts());
-    toast.success("Produk dihapus");
-  };
-
-  const handleAddCategory = () => {
-    if (!newCatName.trim()) return;
-    addCategory({ id: generateId(), name: newCatName.trim() });
-    setCategories(getCategories());
-    setNewCatName("");
-    toast.success("Kategori ditambahkan");
-  };
-
-  const handleDeleteCategory = (id: string) => {
-    deleteCategory(id);
-    setCategories(getCategories());
-    toast.success("Kategori dihapus");
-  };
-
-=======
   // Load products and categories on mount
   useEffect(() => {
     loadData();
@@ -214,7 +157,6 @@ const AdminProducts = () => {
     );
   }
 
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
   return (
     <div className="space-y-6 animate-slide-in">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -229,21 +171,13 @@ const AdminProducts = () => {
               <div className="space-y-3">
                 <div className="flex gap-2">
                   <Input placeholder="Nama kategori baru" value={newCatName} onChange={e => setNewCatName(e.target.value)} />
-<<<<<<< HEAD
-                  <Button onClick={handleAddCategory}><Plus className="h-4 w-4" /></Button>
-=======
                   <Button onClick={handleAddCategory} disabled={saving}><Plus className="h-4 w-4" /></Button>
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
                 </div>
                 <div className="space-y-2">
                   {categories.map(c => (
                     <div key={c.id} className="flex items-center justify-between rounded-lg border px-4 py-2">
                       <span className="text-sm font-medium">{c.name}</span>
-<<<<<<< HEAD
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteCategory(c.id)}>
-=======
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteCategory(c.id)} disabled={saving}>
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
@@ -285,15 +219,6 @@ const AdminProducts = () => {
         <DialogContent>
           <DialogHeader><DialogTitle>{editing ? "Edit Produk" : "Tambah Produk"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
-<<<<<<< HEAD
-            <div><Label>Nama</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
-            <div><Label>Harga (Rp)</Label><Input type="number" value={form.price} onChange={e => setForm({ ...form, price: Number(e.target.value) })} /></div>
-            <div><Label>Stok</Label><Input type="number" value={form.stock} onChange={e => setForm({ ...form, stock: Number(e.target.value) })} /></div>
-            <div>
-              <Label>Kategori</Label>
-              <Select value={form.category} onValueChange={v => setForm({ ...form, category: v })}>
-                <SelectTrigger><SelectValue placeholder="Pilih kategori" /></SelectTrigger>
-=======
             <div>
               <Label>Nama</Label>
               <Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} disabled={saving} className="mt-2" />
@@ -310,21 +235,11 @@ const AdminProducts = () => {
               <Label>Kategori</Label>
               <Select value={form.category} onValueChange={v => setForm({ ...form, category: v })}>
                 <SelectTrigger disabled={saving} className="mt-2"><SelectValue placeholder="Pilih kategori" /></SelectTrigger>
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
                 <SelectContent>{categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>
               <Label className="flex items-center gap-1"><ImageIcon className="h-3 w-3" />URL Gambar Produk</Label>
-<<<<<<< HEAD
-              <Input value={form.image} onChange={e => setForm({ ...form, image: e.target.value })} placeholder="https://contoh.com/gambar.jpg (kosongkan untuk default)" />
-              {form.image && form.image.length > 5 && (
-                <img src={form.image} alt="Preview" className="mt-2 h-24 w-24 rounded-lg border object-cover" />
-              )}
-            </div>
-            <div><Label>Deskripsi</Label><Input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} /></div>
-            <Button className="w-full" onClick={handleSave}>{editing ? "Simpan" : "Tambah"}</Button>
-=======
               <Input
                 placeholder="https://contoh.com/gambar.jpg"
                 value={form.image}
@@ -346,7 +261,6 @@ const AdminProducts = () => {
               {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               {editing ? "Simpan" : "Tambah"}
             </Button>
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
           </div>
         </DialogContent>
       </Dialog>

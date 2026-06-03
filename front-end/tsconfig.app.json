@@ -3,15 +3,11 @@
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
-<<<<<<< HEAD
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-=======
     "lib": [
       "ES2020",
       "DOM",
       "DOM.Iterable"
     ],
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
     "module": "ESNext",
     "moduleDetection": "force",
     "moduleResolution": "bundler",
@@ -21,24 +17,13 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "paths": {
-<<<<<<< HEAD
-      "@/*": ["./src/*"]
-=======
       "@/*": [
         "./src/*"
       ]
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
     },
     "skipLibCheck": true,
     "strict": false,
     "target": "ES2020",
-<<<<<<< HEAD
-    "types": ["vitest/globals"],
-    "useDefineForClassFields": true
-  },
-  "include": ["src"]
-}
-=======
     "types": [
       "vitest/globals"
     ],
@@ -48,4 +33,3 @@
     "src"
   ]
 }
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c

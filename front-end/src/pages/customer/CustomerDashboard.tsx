@@ -1,12 +1,6 @@
-<<<<<<< HEAD
-import { useState, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { getSession, setSession, getOrders } from "@/lib/store";
-=======
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { getSession } from "@/lib/store";
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,14 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ShoppingBag, Package, LogOut, User, BarChart3, Heart, DollarSign, ArrowLeft } from "lucide-react";
 import PrintReportButton from "@/components/PrintReportButton";
-<<<<<<< HEAD
-import type { OrderStatus } from "@/types";
-=======
 import type { Order, OrderStatus } from "@/types";
 import { fetchOrders } from "@/services/orderService";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
 
 const statusLabels: Record<OrderStatus, string> = {
   pending: "Menunggu", processing: "Diproses", ready: "Siap Ambil", delivering: "Diantar", completed: "Selesai"
@@ -37,14 +27,6 @@ const statusColors: Record<OrderStatus, string> = {
 const CustomerDashboard = () => {
   const navigate = useNavigate();
   const session = getSession();
-<<<<<<< HEAD
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-
-  const allOrders = useMemo(() => {
-    if (!session || session.role !== "customer") return [];
-    return getOrders().filter(o => o.type === "online");
-=======
   const { logout } = useAuth();
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
@@ -64,7 +46,6 @@ const CustomerDashboard = () => {
         toast.error(error?.message || "Gagal memuat data pesanan");
       })
       .finally(() => setLoadingOrders(false));
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
   }, [session]);
 
   const filteredOrders = useMemo(() => {
@@ -102,11 +83,7 @@ const CustomerDashboard = () => {
   const dateRange = { from: dateFrom, to: dateTo };
 
   const handleLogout = () => {
-<<<<<<< HEAD
-    setSession(null);
-=======
     logout();
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
     navigate("/");
   };
 
@@ -251,13 +228,9 @@ const CustomerDashboard = () => {
         <Card>
           <CardHeader><CardTitle className="text-base">Pesanan Terakhir</CardTitle></CardHeader>
           <CardContent>
-<<<<<<< HEAD
-            {allOrders.length === 0 ? (
-=======
             {loadingOrders ? (
               <p className="text-sm text-muted-foreground">Memuat pesanan...</p>
             ) : allOrders.length === 0 ? (
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
               <p className="text-sm text-muted-foreground">Belum ada pesanan.</p>
             ) : (
               <div className="space-y-3">

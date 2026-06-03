@@ -1,10 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-<<<<<<< HEAD
-import { getCart, saveCart, updateStock, addOrder, generateId, getDeliverySettings, getSession } from "@/lib/store";
-=======
 import { getCart, saveCart, getDeliverySettings, getSession } from "@/lib/store";
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,10 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ArrowLeft, Check } from "lucide-react";
 import { toast } from "sonner";
 import type { FulfillmentType, PaymentMethod } from "@/types";
-<<<<<<< HEAD
-=======
 import { createOrder } from "@/services/orderService";
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
 
 const StoreCheckout = () => {
   const navigate = useNavigate();
@@ -29,37 +22,13 @@ const StoreCheckout = () => {
   const [address, setAddress] = useState(session?.address || "");
   const [fulfillment, setFulfillment] = useState<FulfillmentType>("pickup");
   const [payment, setPayment] = useState<PaymentMethod>("cash");
-<<<<<<< HEAD
-
-  const handleOrder = () => {
-=======
   const [submitting, setSubmitting] = useState(false);
 
   const handleOrder = async () => {
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
     if (!name.trim() || !phone.trim()) { toast.error("Isi nama dan nomor HP"); return; }
     if (fulfillment === "delivery" && !address.trim()) { toast.error("Isi alamat pengiriman"); return; }
     if (cart.length === 0) { toast.error("Keranjang kosong"); return; }
 
-<<<<<<< HEAD
-    updateStock(cart);
-    addOrder({
-      id: generateId(),
-      items: cart,
-      total,
-      status: "pending",
-      paymentMethod: payment,
-      type: "online",
-      fulfillment,
-      customerName: name.trim(),
-      customerPhone: phone.trim(),
-      customerAddress: address.trim() || undefined,
-      createdAt: new Date().toISOString(),
-    });
-    saveCart([]);
-    toast.success("Pesanan berhasil dibuat!");
-    navigate("/store/orders");
-=======
     try {
       setSubmitting(true);
       await createOrder({
@@ -81,7 +50,6 @@ const StoreCheckout = () => {
     } finally {
       setSubmitting(false);
     }
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
   };
 
   if (cart.length === 0) {
@@ -162,15 +130,9 @@ const StoreCheckout = () => {
           </RadioGroup>
         </div>
 
-<<<<<<< HEAD
-        <Button className="w-full gap-2" size="lg" onClick={handleOrder}>
-          <Check className="h-4 w-4" />
-          Pesan Sekarang
-=======
         <Button className="w-full gap-2" size="lg" onClick={handleOrder} disabled={submitting}>
           <Check className="h-4 w-4" />
           {submitting ? "Memproses..." : "Pesan Sekarang"}
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
         </Button>
       </div>
     </div>

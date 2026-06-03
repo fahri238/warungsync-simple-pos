@@ -1,18 +1,3 @@
-<<<<<<< HEAD
-import { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
-import { getProducts, getCategories, getCart, saveCart, getProductImage, getSession } from "@/lib/store";
-import type { OrderItem } from "@/types";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Search, ShoppingCart, Plus, User } from "lucide-react";
-import { toast } from "sonner";
-
-const StorePage = () => {
-  const products = getProducts();
-  const categories = getCategories();
-  const session = getSession();
-=======
 import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -34,15 +19,10 @@ const StorePage = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
   const [cart, setCart] = useState<OrderItem[]>(getCart);
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("all");
 
-<<<<<<< HEAD
-  const filtered = useMemo(() => {
-    return products.filter(p => {
-=======
   // Load products and categories on mount
   useEffect(() => {
     loadData();
@@ -67,7 +47,6 @@ const StorePage = () => {
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
       const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
       const matchCat = catFilter === "all" || p.category === catFilter;
       return matchSearch && matchCat && p.stock > 0;
@@ -76,15 +55,6 @@ const StorePage = () => {
 
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
 
-<<<<<<< HEAD
-  const addToCart = (p: typeof products[0]) => {
-    setCart(prev => {
-      const existing = prev.find(i => i.product.id === p.id);
-      let updated: OrderItem[];
-      if (existing) {
-        if (existing.quantity >= p.stock) { toast.error("Stok tidak cukup"); return prev; }
-        updated = prev.map(i => i.product.id === p.id ? { ...i, quantity: i.quantity + 1 } : i);
-=======
   const addToCart = (p: Product) => {
     setCart((prev) => {
       const existing = prev.find((i) => i.product.id === p.id);
@@ -97,7 +67,6 @@ const StorePage = () => {
         updated = prev.map((i) =>
           i.product.id === p.id ? { ...i, quantity: i.quantity + 1 } : i,
         );
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
       } else {
         updated = [...prev, { product: p, quantity: 1 }];
       }
@@ -117,13 +86,6 @@ const StorePage = () => {
             <span className="font-bold text-foreground">Warung Mama Eva</span>
           </Link>
           <div className="flex items-center gap-3">
-<<<<<<< HEAD
-            <Link to="/store/orders" className="text-sm font-medium text-muted-foreground hover:text-foreground">Pesanan</Link>
-            <Button variant="outline" size="sm" className="gap-2" asChild>
-              <Link to="/store/cart">
-                <ShoppingCart className="h-4 w-4" />
-                {cartCount > 0 && <span className="rounded-full bg-primary px-1.5 text-xs text-primary-foreground">{cartCount}</span>}
-=======
             <Link
               to="/store/orders"
               className="text-sm font-medium text-muted-foreground hover:text-foreground"
@@ -138,15 +100,10 @@ const StorePage = () => {
                     {cartCount}
                   </span>
                 )}
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
               </Link>
             </Button>
             {session ? (
               <Button variant="ghost" size="sm" className="gap-1" asChild>
-<<<<<<< HEAD
-                <Link to={session.role === "admin" ? "/admin" : session.role === "courier" ? "/courier" : "/customer"}>
-                  <User className="h-4 w-4" />{session.name}
-=======
                 <Link
                   to={
                     session.role === "admin"
@@ -158,7 +115,6 @@ const StorePage = () => {
                 >
                   <User className="h-4 w-4" />
                   {session.name}
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
                 </Link>
               </Button>
             ) : (
@@ -175,41 +131,6 @@ const StorePage = () => {
         <div className="mb-6 space-y-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-<<<<<<< HEAD
-            <Input placeholder="Cari makanan atau minuman..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
-          </div>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            <Button size="sm" variant={catFilter === "all" ? "default" : "outline"} onClick={() => setCatFilter("all")}>Semua</Button>
-            {categories.map(c => (
-              <Button key={c.id} size="sm" variant={catFilter === c.id ? "default" : "outline"} onClick={() => setCatFilter(c.id)}>{c.name}</Button>
-            ))}
-          </div>
-        </div>
-
-        {/* Product Grid */}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {filtered.map(p => (
-            <div key={p.id} className="group overflow-hidden rounded-xl border bg-card transition-shadow hover:shadow-md">
-              <div className="aspect-square bg-muted">
-                <img src={getProductImage(p)} alt={p.name} className="h-full w-full object-cover" loading="lazy" />
-              </div>
-              <div className="p-3">
-                <h3 className="font-semibold text-foreground line-clamp-1">{p.name}</h3>
-                <p className="text-xs text-muted-foreground line-clamp-1">{p.description}</p>
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="text-sm font-bold text-primary">Rp {p.price.toLocaleString("id-ID")}</span>
-                  <Button size="icon" className="h-8 w-8" onClick={() => addToCart(p)}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {filtered.length === 0 && (
-          <div className="py-12 text-center text-muted-foreground">Tidak ada produk ditemukan.</div>
-=======
             <Input
               placeholder="Cari makanan atau minuman..."
               value={search}
@@ -292,7 +213,6 @@ const StorePage = () => {
           <div className="py-12 text-center text-muted-foreground">
             Tidak ada produk ditemukan.
           </div>
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
         )}
       </div>
     </div>

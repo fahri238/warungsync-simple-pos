@@ -1,10 +1,3 @@
-<<<<<<< HEAD
-import { Link } from "react-router-dom";
-import { getOrders } from "@/lib/store";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Package } from "lucide-react";
-import type { OrderStatus } from "@/types";
-=======
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getSession } from "@/lib/store";
@@ -13,7 +6,6 @@ import { ArrowLeft, Package } from "lucide-react";
 import type { Order, OrderStatus } from "@/types";
 import { fetchOrders } from "@/services/orderService";
 import { toast } from "sonner";
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
 
 const statusLabels: Record<OrderStatus, string> = {
   pending: "Menunggu", processing: "Diproses", ready: "Siap Ambil", delivering: "Diantar", completed: "Selesai"
@@ -27,9 +19,6 @@ const statusColors: Record<OrderStatus, string> = {
 };
 
 const StoreOrders = () => {
-<<<<<<< HEAD
-  const orders = getOrders().filter(o => o.type === "online");
-=======
   const session = getSession();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,7 +40,6 @@ const StoreOrders = () => {
       })
       .finally(() => setLoading(false));
   }, [session?.id]);
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
 
   return (
     <div className="min-h-screen bg-background">
@@ -63,13 +51,9 @@ const StoreOrders = () => {
       </header>
 
       <div className="container mx-auto max-w-lg px-4 py-6">
-<<<<<<< HEAD
-        {orders.length === 0 ? (
-=======
         {loading ? (
           <div className="py-16 text-center text-muted-foreground">Memuat pesanan...</div>
         ) : orders.length === 0 ? (
->>>>>>> 72971a4b8e369be54608e64de8db797937ea951c
           <div className="py-16 text-center">
             <Package className="mx-auto mb-3 h-12 w-12 text-muted-foreground" />
             <p className="text-muted-foreground">Belum ada pesanan</p>

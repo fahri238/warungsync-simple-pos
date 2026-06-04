@@ -21,6 +21,7 @@ AI_INSTRUCTIONS.md
 **/.env.*
 **/config.json
 database
+**/migration
 
 # Editor directories and files
 **/.vscode/

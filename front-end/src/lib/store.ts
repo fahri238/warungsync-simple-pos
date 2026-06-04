@@ -16,6 +16,7 @@ const ORDERS_KEY = "warungsync_orders";
 const STOCK_LOGS_KEY = "warungsync_stock_logs";
 const DELIVERY_KEY = "warungsync_delivery";
 const CART_KEY = "warungsync_cart";
+const CART_BY_STORE_KEY = "warungsync_cart_by_store";
 const USERS_KEY = "warungsync_users";
 const SESSION_KEY = "warungsync_session";
 const DELIVERIES_KEY = "warungsync_deliveries";
@@ -136,6 +137,7 @@ function set<T>(key: string, value: T) {
 // ---- User (Class Diagram: User) ----
 export interface User {
   id: string;
+  storeId?: string;
   name: string;
   email: string;
   password?: string;
@@ -143,6 +145,8 @@ export interface User {
   role: "admin" | "customer" | "courier";
   address?: string;
 }
+
+export const DEFAULT_STORE_ID = "store-mama-eva";
 
 const defaultUsers: User[] = [
   {
@@ -303,15 +307,17 @@ export function updateStock(items: OrderItem[]): boolean {
 let _cachedProducts: Product[] | null = null;
 let _productsLoading = false;
 
-export async function getProductsFromAPI(): Promise<Product[]> {
-  if (_cachedProducts) return _cachedProducts;
+export async function getProductsFromAPI(storeId?: string): Promise<Product[]> {
+  if (_cachedProducts && !storeId) return _cachedProducts;
 
   try {
     _productsLoading = true;
-    const products = await productService.fetchProducts();
-    _cachedProducts = products;
+    const products = await productService.fetchProducts(storeId);
+    if (!storeId) {
+      _cachedProducts = products;
+    }
     // Also update localStorage as backup
-    saveProducts(products);
+    if (!storeId) saveProducts(products);
     return products;
   } catch (error) {
     console.warn(
@@ -402,15 +408,15 @@ export function getCategoryProducts(categoryId: string): Product[] {
 let _cachedCategories: Category[] | null = null;
 let _categoriesLoading = false;
 
-export async function getCategoriesFromAPI(): Promise<Category[]> {
-  if (_cachedCategories) return _cachedCategories;
+export async function getCategoriesFromAPI(storeId?: string): Promise<Category[]> {
+  if (_cachedCategories && !storeId) return _cachedCategories;
 
   try {
     _categoriesLoading = true;
-    const categories = await productService.fetchCategories();
-    _cachedCategories = categories;
+    const categories = await productService.fetchCategories(storeId);
+    if (!storeId) _cachedCategories = categories;
     // Also update localStorage as backup
-    saveCategories(categories);
+    if (!storeId) saveCategories(categories);
     return categories;
   } catch (error) {
     console.warn(
@@ -561,12 +567,40 @@ export function saveDeliverySettings(s: DeliverySettings) {
   set(DELIVERY_KEY, s);
 }
 
-// ---- Cart ----
-export function getCart(): OrderItem[] {
-  return get(CART_KEY, []);
+// ---- Cart (per-store; no cross-store mixing) ----
+type CartByStore = Record<string, OrderItem[]>;
+
+function migrateLegacyCart(): CartByStore {
+  const legacy = get<OrderItem[]>(CART_KEY, []);
+  const byStore = get<CartByStore>(CART_BY_STORE_KEY, {});
+  if (legacy.length > 0 && Object.keys(byStore).length === 0) {
+    byStore[DEFAULT_STORE_ID] = legacy;
+    set(CART_BY_STORE_KEY, byStore);
+    localStorage.removeItem(CART_KEY);
+  }
+  return byStore;
 }
-export function saveCart(c: OrderItem[]) {
-  set(CART_KEY, c);
+
+export function getCart(storeId: string): OrderItem[] {
+  const byStore = migrateLegacyCart();
+  return byStore[storeId] || [];
+}
+
+export function saveCart(storeId: string, items: OrderItem[]) {
+  const byStore = migrateLegacyCart();
+  if (items.length === 0) {
+    delete byStore[storeId];
+  } else {
+    byStore[storeId] = items;
+  }
+  set(CART_BY_STORE_KEY, byStore);
+}
+
+export function clearOtherStoreCarts(activeStoreId: string) {
+  const byStore = migrateLegacyCart();
+  const active = byStore[activeStoreId];
+  const next: CartByStore = active ? { [activeStoreId]: active } : {};
+  set(CART_BY_STORE_KEY, next);
 }
 
 export function generateId(): string {

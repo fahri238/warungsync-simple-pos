@@ -15,17 +15,19 @@ const productRoutes = require('./routes/productRoutes');
 const authRoutes = require('./routes/authRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const deliveryRoutes = require('./routes/deliveryRoutes');
+const storeRoutes = require('./routes/storeRoutes');
 app.use('/api/products', productRoutes);
 app.use('/api/users', authRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/deliveries', deliveryRoutes);
+app.use('/api/stores', storeRoutes);
 
 // Route Test Koneksi
 app.get('/', async (req, res) => {
     try {
         const [rows] = await db.query('SELECT 1 + 1 AS solution');
         res.status(200).json({ 
-            message: "Backend Warung Mama Eva berjalan lancar! 🚀", 
+            message: "Backend WarungSync berjalan lancar! 🚀", 
             db_status: "Terhubung" 
         });
     } catch (error) {

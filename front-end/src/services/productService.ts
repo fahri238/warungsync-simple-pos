@@ -25,16 +25,19 @@ const apiCall = async (endpoint, options = {}) => {
 };
 
 // Product API functions
-export const fetchProducts = async () => {
+export const fetchProducts = async (storeId?: string) => {
   try {
-    const response = await apiCall("/products");
+    const query = storeId ? `?storeId=${encodeURIComponent(storeId)}` : "";
+    const response = await apiCall(`/products${query}`);
     // Transform database column names to frontend property names
     const products = (response.data || []).map((product: any) => ({
       id: product.id,
       name: product.nama || product.name,
       price: product.harga || product.price,
       stock: product.stok || product.stock,
+      storeId: product.id_toko || product.storeId,
       category: product.id_kategori || product.category,
+      barcode: product.barcode,
       image: product.url_gambar || product.image,
       description: product.deskripsi || product.description,
     }));
@@ -102,9 +105,10 @@ export const deleteProduct = async (id) => {
 };
 
 // Category API functions
-export const fetchCategories = async () => {
+export const fetchCategories = async (storeId?: string) => {
   try {
-    const response = await apiCall("/products/categories");
+    const query = storeId ? `?storeId=${encodeURIComponent(storeId)}` : "";
+    const response = await apiCall(`/products/categories${query}`);
     // Transform database column names to frontend property names
     const categories = (response.data || []).map((cat: any) => ({
       id: cat.id,
@@ -132,6 +136,23 @@ export const createCategory = async (category) => {
     console.error("Failed to create category:", error);
     throw error;
   }
+};
+
+export const fetchProductByBarcode = async (storeId: string, barcode: string) => {
+  const query = new URLSearchParams({ storeId, barcode });
+  const response = await apiCall(`/products?${query.toString()}`);
+  const products = (response.data || []).map((product: any) => ({
+    id: product.id,
+    storeId: product.id_toko || product.storeId,
+    name: product.nama || product.name,
+    price: product.harga || product.price,
+    stock: product.stok || product.stock,
+    category: product.id_kategori || product.category,
+    barcode: product.barcode,
+    image: product.url_gambar || product.image,
+    description: product.deskripsi || product.description,
+  }));
+  return products[0] || null;
 };
 
 export const deleteCategory = async (id) => {

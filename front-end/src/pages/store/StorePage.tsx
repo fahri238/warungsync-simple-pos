@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate, useParams } from "react-router-dom";
 import {
   getProductsFromAPI,
   getCategoriesFromAPI,
@@ -7,43 +7,61 @@ import {
   saveCart,
   getProductImage,
   getSession,
+  clearOtherStoreCarts,
 } from "@/lib/store";
+import { fetchStoreById } from "@/services/storeService";
+import { useStoreContext } from "@/context/StoreContext";
 import type { OrderItem, Product } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, ShoppingCart, Plus, User, Loader2 } from "lucide-react";
+import { Search, ShoppingCart, Plus, User, Loader2, MapPin } from "lucide-react";
 import { toast } from "sonner";
 
 const StorePage = () => {
+  const { storeId } = useParams<{ storeId: string }>();
+  const { setSelectedStore } = useStoreContext();
   const session = getSession();
+
+  if (!storeId) {
+    return <Navigate to="/stores" replace />;
+  }
+
+  const [storeName, setStoreName] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
-  const [cart, setCart] = useState<OrderItem[]>(getCart);
+  const [cart, setCart] = useState<OrderItem[]>(() => getCart(storeId));
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("all");
 
-  // Load products and categories on mount
   useEffect(() => {
-    loadData();
-  }, []);
+    clearOtherStoreCarts(storeId);
+    fetchStoreById(storeId)
+      .then((s) => {
+        setStoreName(s.name);
+        setSelectedStore(s);
+      })
+      .catch(() => setStoreName("Toko"));
+  }, [storeId, setSelectedStore]);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const [prods, cats] = await Promise.all([
-        getProductsFromAPI(),
-        getCategoriesFromAPI(),
-      ]);
-      setProducts(prods);
-      setCategories(cats);
-    } catch (error) {
-      console.error("Failed to load data:", error);
-      toast.error("Gagal memuat produk");
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const [prods, cats] = await Promise.all([
+          getProductsFromAPI(storeId),
+          getCategoriesFromAPI(storeId),
+        ]);
+        setProducts(prods);
+        setCategories(cats);
+      } catch {
+        toast.error("Gagal memuat produk");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [storeId]);
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
@@ -70,7 +88,7 @@ const StorePage = () => {
       } else {
         updated = [...prev, { product: p, quantity: 1 }];
       }
-      saveCart(updated);
+      saveCart(storeId, updated);
       return updated;
     });
     toast.success("Ditambahkan ke keranjang");
@@ -78,22 +96,23 @@ const StorePage = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur">
         <div className="container mx-auto flex items-center justify-between px-4 py-3">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="text-xl">🏪</span>
-            <span className="font-bold text-foreground">Warung Mama Eva</span>
-          </Link>
+          <div className="flex min-w-0 flex-col">
+            <Link to="/stores" className="text-xs text-muted-foreground hover:text-foreground">
+              Ganti toko
+            </Link>
+            <span className="truncate font-bold text-foreground">{storeName || "Toko"}</span>
+          </div>
           <div className="flex items-center gap-3">
             <Link
-              to="/store/orders"
+              to={`/store/${storeId}/orders`}
               className="text-sm font-medium text-muted-foreground hover:text-foreground"
             >
               Pesanan
             </Link>
             <Button variant="outline" size="sm" className="gap-2" asChild>
-              <Link to="/store/cart">
+              <Link to={`/store/${storeId}/cart`}>
                 <ShoppingCart className="h-4 w-4" />
                 {cartCount > 0 && (
                   <span className="rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
@@ -127,12 +146,16 @@ const StorePage = () => {
       </header>
 
       <div className="container mx-auto px-4 py-6">
-        {/* Search & Filter */}
+        <p className="mb-4 flex items-center gap-1 text-xs text-muted-foreground">
+          <MapPin className="h-3.5 w-3.5" />
+          Belanja hanya dari toko ini — keranjang tidak bisa mencampur toko lain.
+        </p>
+
         <div className="mb-6 space-y-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Cari makanan atau minuman..."
+              placeholder="Cari produk..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
@@ -161,14 +184,12 @@ const StorePage = () => {
           )}
         </div>
 
-        {/* Loading State */}
         {loading && (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         )}
 
-        {/* Product Grid */}
         {!loading && (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {filtered.map((p) => (
@@ -185,21 +206,13 @@ const StorePage = () => {
                   />
                 </div>
                 <div className="p-3">
-                  <h3 className="font-semibold text-foreground line-clamp-1">
-                    {p.name}
-                  </h3>
-                  <p className="text-xs text-muted-foreground line-clamp-1">
-                    {p.description}
-                  </p>
+                  <h3 className="font-semibold text-foreground line-clamp-1">{p.name}</h3>
+                  <p className="text-xs text-muted-foreground line-clamp-1">{p.description}</p>
                   <div className="mt-2 flex items-center justify-between">
                     <span className="text-sm font-bold text-primary">
                       Rp {p.price.toLocaleString("id-ID")}
                     </span>
-                    <Button
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => addToCart(p)}
-                    >
+                    <Button size="icon" className="h-8 w-8" onClick={() => addToCart(p)}>
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>

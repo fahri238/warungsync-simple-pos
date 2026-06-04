@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { WarungSyncLogo } from "@/components/brand/WarungSyncLogo";
 
 const navItems = [
   { to: "/admin", icon: LayoutDashboard, label: "Dashboard" },
@@ -55,9 +56,15 @@ const AdminLayout = () => {
           sidebarOpen ? "w-56" : "w-16"
         )}
       >
-        <div className="flex items-center gap-2 border-b border-sidebar-border px-4 py-4">
-          <span className="text-xl">🏪</span>
-          {sidebarOpen && <span className="font-bold text-sidebar-foreground">Warung Mama Eva</span>}
+        <div className="flex items-center border-b border-sidebar-border px-3 py-3">
+          <WarungSyncLogo
+            size="sm"
+            showWordmark={sidebarOpen}
+            className={cn(
+              "[&_span]:text-sidebar-foreground [&_span:last-child]:text-sidebar-foreground/60",
+              !sidebarOpen && "justify-center w-full",
+            )}
+          />
         </div>
         <div className="flex-1 overflow-y-auto py-2">
           <NavContent />
@@ -76,10 +83,10 @@ const AdminLayout = () => {
           <div className="absolute inset-0 bg-foreground/40" onClick={() => setMobileOpen(false)} />
           <aside className="absolute left-0 top-0 h-full w-64 bg-sidebar">
             <div className="flex items-center justify-between border-b border-sidebar-border px-4 py-4">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">🏪</span>
-                <span className="font-bold text-sidebar-foreground">Warung Mama Eva</span>
-              </div>
+              <WarungSyncLogo
+                size="sm"
+                className="[&_span]:text-sidebar-foreground [&_span:last-child]:text-sidebar-foreground/60"
+              />
               <button onClick={() => setMobileOpen(false)} className="text-sidebar-foreground">
                 <X className="h-5 w-5" />
               </button>
@@ -100,7 +107,7 @@ const AdminLayout = () => {
           </h1>
           <div className="ml-auto flex items-center gap-2">
             <Button variant="outline" size="sm" asChild>
-              <Link to="/store">Lihat Toko</Link>
+              <Link to="/stores">Lihat Toko</Link>
             </Button>
             <Button variant="ghost" size="sm" className="gap-1" asChild>
               <Link to="/login"><ArrowLeft className="h-4 w-4" />Kembali</Link>

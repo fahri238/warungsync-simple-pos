@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
+import { WarungSyncLogo } from "@/components/brand/WarungSyncLogo";
+import { ShoppingBag, Truck } from "lucide-react";
 
 const RegisterPage = () => {
   const navigate = useNavigate();
@@ -52,8 +54,10 @@ const RegisterPage = () => {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-sm animate-slide-in">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-2 text-4xl">🏪</div>
-          <CardTitle className="text-xl">Daftar Akun Baru</CardTitle>
+          <div className="mb-3 flex justify-center">
+            <WarungSyncLogo size="md" />
+          </div>
+          <CardTitle className="font-display text-xl">Daftar Akun Baru</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
@@ -61,11 +65,15 @@ const RegisterPage = () => {
             <RadioGroup value={role} onValueChange={v => setRole(v as "customer" | "courier")} className="flex gap-4">
               <div className="flex items-center gap-2 rounded-lg border px-4 py-2 flex-1">
                 <RadioGroupItem value="customer" id="r-customer" />
-                <Label htmlFor="r-customer" className="cursor-pointer text-sm">🛒 Pembeli</Label>
+                <Label htmlFor="r-customer" className="flex cursor-pointer items-center gap-1.5 text-sm">
+                  <ShoppingBag className="h-3.5 w-3.5" /> Pembeli
+                </Label>
               </div>
               <div className="flex items-center gap-2 rounded-lg border px-4 py-2 flex-1">
                 <RadioGroupItem value="courier" id="r-courier" />
-                <Label htmlFor="r-courier" className="cursor-pointer text-sm">🛵 Kurir</Label>
+                <Label htmlFor="r-courier" className="flex cursor-pointer items-center gap-1.5 text-sm">
+                  <Truck className="h-3.5 w-3.5" /> Kurir
+                </Label>
               </div>
             </RadioGroup>
           </div>

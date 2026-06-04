@@ -123,6 +123,7 @@ const login = async (req, res) => {
         nama: user.nama,
         email: user.email,
         peran: user.peran,
+        id_toko: user.id_toko || null,
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRY },
@@ -149,6 +150,7 @@ const login = async (req, res) => {
           peran: user.peran,
           no_hp: user.no_hp,
           alamat: user.alamat,
+          id_toko: user.id_toko || null,
         },
       },
     });
@@ -167,7 +169,7 @@ const getCurrentUser = async (req, res) => {
   try {
     // User info comes from JWT middleware (req.user)
     const [users] = await db.query(
-      "SELECT id, nama, email, peran, no_hp, alamat FROM pengguna WHERE id = ?",
+      "SELECT id, nama, email, peran, no_hp, alamat, id_toko FROM pengguna WHERE id = ?",
       [req.user.id],
     );
 
@@ -230,7 +232,7 @@ const updateProfile = async (req, res) => {
 
     // Fetch updated user
     const [users] = await db.query(
-      "SELECT id, nama, email, peran, no_hp, alamat FROM pengguna WHERE id = ?",
+      "SELECT id, nama, email, peran, no_hp, alamat, id_toko FROM pengguna WHERE id = ?",
       [userId],
     );
 

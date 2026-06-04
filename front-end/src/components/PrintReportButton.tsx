@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Printer, Eye } from "lucide-react";
+import { BRAND_NAME } from "@/constants/brand";
 
 interface PrintReportButtonProps {
   title: string;
@@ -10,7 +11,7 @@ interface PrintReportButtonProps {
   children: React.ReactNode;
 }
 
-const STORE_NAME = "Warung Mama Eva";
+const STORE_NAME = BRAND_NAME;
 
 const PrintReportButton = ({ title, subtitle, dateRange, children }: PrintReportButtonProps) => {
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -58,7 +59,7 @@ const PrintReportButton = ({ title, subtitle, dateRange, children }: PrintReport
 </style>
 </head><body>
 <div class="header">
-  <div class="store-name">🏪 ${STORE_NAME}</div>
+  <div class="store-name">${STORE_NAME}</div>
   <h1>${title}</h1>
   ${subtitle ? `<div class="subtitle">${subtitle}</div>` : ""}
   <div class="date">${dateStr}</div>
@@ -124,7 +125,7 @@ ${content.innerHTML}
           </DialogHeader>
           <div className="border rounded-lg p-6 bg-white text-black">
             <div className="text-center mb-5 border-b-2 border-primary pb-3">
-              <p className="text-xl font-bold text-primary">🏪 {STORE_NAME}</p>
+              <p className="text-xl font-bold text-primary">{STORE_NAME}</p>
               <h2 className="text-lg font-bold text-secondary">{title}</h2>
               {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
               <p className="text-xs text-muted-foreground mt-1">

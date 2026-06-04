@@ -8,6 +8,7 @@ export interface AuthUser {
   name: string;
   email: string;
   role: FrontendRole;
+  storeId?: string;
   phone?: string;
   address?: string;
 }
@@ -17,6 +18,7 @@ interface BackendUser {
   nama: string;
   email: string;
   peran: BackendRole;
+  id_toko?: string;
   no_hp?: string;
   alamat?: string;
 }
@@ -38,6 +40,7 @@ const mapUser = (user: BackendUser): AuthUser => ({
   name: user.nama,
   email: user.email,
   role: mapRoleToFrontend(user.peran),
+  storeId: user.id_toko || undefined,
   phone: user.no_hp,
   address: user.alamat,
 });

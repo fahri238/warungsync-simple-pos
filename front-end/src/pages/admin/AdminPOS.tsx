@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
-import { getProductsFromAPI, getCategoriesFromAPI, getProductImage } from "@/lib/store";
+import { getProductsFromAPI, getCategoriesFromAPI, getProductImage, DEFAULT_STORE_ID } from "@/lib/store";
+import { fetchProductByBarcode } from "@/services/productService";
 import type { Product, OrderItem } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,7 +25,9 @@ const AdminPOS = () => {
   const [categories, setCategories] = useState<any[]>([]);
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [search, setSearch] = useState("");
+  const [barcodeInput, setBarcodeInput] = useState("");
   const [catFilter, setCatFilter] = useState("all");
+  const storeId = DEFAULT_STORE_ID;
 
   // Payment flow
   const [showPayment, setShowPayment] = useState(false);
@@ -36,7 +39,7 @@ const AdminPOS = () => {
   const [completedSale, setCompletedSale] = useState<CompletedSale | null>(null);
 
   useEffect(() => {
-    Promise.all([getProductsFromAPI(), getCategoriesFromAPI()])
+    Promise.all([getProductsFromAPI(storeId), getCategoriesFromAPI(storeId)])
       .then(([prods, cats]) => {
         setProducts(prods);
         setCategories(cats);
@@ -103,6 +106,7 @@ const AdminPOS = () => {
     try {
       setSubmitting(true);
       const response = await createOrder({
+        storeId,
         customerName: "Walk-in",
         customerPhone: "-",
         type: "pos",
@@ -171,6 +175,36 @@ const AdminPOS = () => {
       " " + d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
   };
 
+  const handleBarcodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = barcodeInput.trim();
+    if (!code) return;
+
+    let product = products.find((p) => p.barcode === code);
+    if (!product) {
+      try {
+        const fromApi = await fetchProductByBarcode(storeId, code);
+        if (fromApi) {
+          product = fromApi;
+          setProducts((prev) =>
+            prev.some((p) => p.id === fromApi.id) ? prev : [...prev, fromApi],
+          );
+        }
+      } catch {
+        toast.error("Gagal membaca barcode");
+        return;
+      }
+    }
+
+    if (product) {
+      addToCart(product);
+      setBarcodeInput("");
+      toast.success(`${product.name} ditambahkan`);
+    } else {
+      toast.error("Produk dengan barcode ini tidak ditemukan");
+    }
+  };
+
   return (
     <div className="flex h-[calc(100vh-8rem)] flex-col gap-4 lg:flex-row animate-slide-in">
       {/* Product Grid */}
@@ -180,6 +214,14 @@ const AdminPOS = () => {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Cari produk..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
           </div>
+          <form onSubmit={handleBarcodeSubmit} className="sm:w-56">
+            <Input
+              placeholder="Scan barcode (Enter)"
+              value={barcodeInput}
+              onChange={(e) => setBarcodeInput(e.target.value)}
+              autoComplete="off"
+            />
+          </form>
           <div className="flex gap-2 overflow-x-auto pb-1">
             <Button size="sm" variant={catFilter === "all" ? "default" : "outline"} onClick={() => setCatFilter("all")}>Semua</Button>
             {categories.map(c => (
@@ -301,7 +343,7 @@ const AdminPOS = () => {
           {completedSale && (
             <div id="pos-receipt" className="space-y-3 rounded-lg border bg-card p-4 font-mono text-sm">
               <div className="text-center">
-                <p className="text-base font-bold">Warung Mama Eva</p>
+                <p className="text-base font-bold">WarungSync</p>
                 <p className="text-xs text-muted-foreground">Struk Pembayaran</p>
                 <p className="text-xs text-muted-foreground">{formatDate(completedSale.createdAt)}</p>
                 <p className="text-xs text-muted-foreground">#{completedSale.orderId.slice(0, 8)}</p>

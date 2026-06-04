@@ -50,6 +50,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       email: nextUser.email,
       phone: nextUser.phone || "",
       role: nextUser.role,
+      storeId: nextUser.storeId,
       address: nextUser.address,
     });
   }, []);

@@ -6,10 +6,25 @@ const generateId = () => crypto.randomUUID();
 
 // ================= KATEGORI =================
 
+const storeFilter = (req, column = "id_toko") => {
+  const storeId =
+    req.query.storeId ||
+    req.user?.id_toko ||
+    req.body?.storeId ||
+    req.body?.id_toko ||
+    null;
+  if (!storeId) return { clause: "", params: [] };
+  return { clause: ` AND ${column} = ?`, params: [storeId] };
+};
+
 // 1. Ambil Semua Kategori (GET)
 const getCategories = async (req, res) => {
+  const { clause, params } = storeFilter(req);
   try {
-    const [rows] = await db.query("SELECT * FROM kategori");
+    const [rows] = await db.query(
+      `SELECT * FROM kategori WHERE 1=1${clause}`,
+      params,
+    );
     res.status(200).json({
       success: true,
       data: rows,
@@ -27,14 +42,15 @@ const getCategories = async (req, res) => {
 
 // 2. Tambah Kategori (POST)
 const createCategory = async (req, res) => {
-  const { id: inputId, name } = req.body;
+  const { id: inputId, name, storeId, id_toko } = req.body;
   const id = inputId || generateId();
+  const resolvedStoreId = storeId || id_toko || req.user?.id_toko || null;
 
   try {
     // Check if category with same name already exists
     const [existing] = await db.query(
-      "SELECT id FROM kategori WHERE nama = ?",
-      [name.trim()],
+      "SELECT id FROM kategori WHERE nama = ? AND (id_toko = ? OR (? IS NULL AND id_toko IS NULL))",
+      [name.trim(), resolvedStoreId, resolvedStoreId],
     );
     if (existing.length > 0) {
       return res.status(409).json({
@@ -43,9 +59,10 @@ const createCategory = async (req, res) => {
       });
     }
 
-    await db.query("INSERT INTO kategori (id, nama) VALUES (?, ?)", [
+    await db.query("INSERT INTO kategori (id, nama, id_toko) VALUES (?, ?, ?)", [
       id,
       name.trim(),
+      resolvedStoreId,
     ]);
     res.status(201).json({
       success: true,
@@ -97,12 +114,23 @@ const deleteCategory = async (req, res) => {
 
 // 1. Ambil Semua Produk (GET)
 const getProducts = async (req, res) => {
+  const { clause, params } = storeFilter(req, "p.id_toko");
+  const barcode = req.query.barcode;
+
   try {
-    const [rows] = await db.query(`
+    let query = `
             SELECT p.*, k.nama as kategori_nama
             FROM produk p
             LEFT JOIN kategori k ON p.id_kategori = k.id
-        `);
+            WHERE 1=1${clause}`;
+    const queryParams = [...params];
+
+    if (barcode) {
+      query += " AND p.barcode = ?";
+      queryParams.push(barcode);
+    }
+
+    const [rows] = await db.query(query, queryParams);
     res.status(200).json({
       success: true,
       data: rows,
@@ -128,8 +156,12 @@ const createProduct = async (req, res) => {
     stock = 0,
     image,
     description,
+    barcode,
+    storeId,
+    id_toko,
   } = req.body;
   const id = inputId || generateId();
+  const resolvedStoreId = storeId || id_toko || req.user?.id_toko || null;
 
   try {
     // Verify category exists
@@ -156,10 +188,12 @@ const createProduct = async (req, res) => {
     }
 
     await db.query(
-      "INSERT INTO produk (id, id_kategori, nama, harga, stok, url_gambar, deskripsi) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO produk (id, id_kategori, id_toko, barcode, nama, harga, stok, url_gambar, deskripsi) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [
         id,
         category,
+        resolvedStoreId,
+        barcode || null,
         name.trim(),
         price,
         stock,
@@ -284,16 +318,6 @@ const deleteProduct = async (req, res) => {
       error: error.message,
     });
   }
-};
-
-module.exports = {
-  getCategories,
-  createCategory,
-  deleteCategory,
-  getProducts,
-  createProduct,
-  updateProduct,
-  deleteProduct,
 };
 
 module.exports = {

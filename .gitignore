@@ -7,6 +7,9 @@
 **/pnpm-debug.log*
 **/lerna-debug.log*
 
+# ai context files
+AI_INSTRUCTIONS.md
+
 # Dependencies & Build
 **/node_modules/
 **/dist/
@@ -17,6 +20,7 @@
 **/.env
 **/.env.*
 **/config.json
+database
 
 # Editor directories and files
 **/.vscode/

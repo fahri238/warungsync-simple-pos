@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { WarungSyncLogo } from "@/components/brand/WarungSyncLogo";
 import { getSession } from "@/lib/store";
 import type { Order, OrderStatus } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -98,8 +99,10 @@ const CourierDashboard = () => {
             <Button variant="ghost" size="icon" className="text-secondary-foreground hover:bg-secondary/80" asChild>
               <Link to="/login"><ArrowLeft className="h-4 w-4" /></Link>
             </Button>
-            <Truck className="h-5 w-5 text-secondary-foreground" />
-            <span className="font-bold text-secondary-foreground">Kurir Panel</span>
+            <WarungSyncLogo
+              size="sm"
+              className="[&_span]:text-secondary-foreground [&_span:last-child]:text-secondary-foreground/65"
+            />
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-secondary-foreground/80">{session.name}</span>

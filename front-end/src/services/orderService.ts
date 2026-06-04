@@ -4,9 +4,13 @@ const API_BASE_URL = "http://localhost:5000/api/orders";
 
 export const createOrder = async (payload: {
   userId?: string;
+  storeId?: string;
   customerName: string;
   customerPhone: string;
   deliveryAddress?: string;
+  shippingFee?: number;
+  latitude?: number | null;
+  longitude?: number | null;
   type: OrderType;
   fulfillment: FulfillmentType;
   paymentMethod: PaymentMethod;
@@ -20,9 +24,14 @@ export const createOrder = async (payload: {
     },
     body: JSON.stringify({
       id_pengguna: payload.userId || null,
+      storeId: payload.storeId || null,
+      id_toko: payload.storeId || null,
       nama_pelanggan: payload.customerName,
       no_hp_pelanggan: payload.customerPhone,
       alamat_pengiriman: payload.deliveryAddress || null,
+      biaya_pengiriman: payload.shippingFee || 0,
+      latitude: payload.latitude ?? null,
+      longitude: payload.longitude ?? null,
       tipe_pesanan: payload.type,
       tipe_pengiriman: payload.fulfillment,
       metode_pembayaran: payload.paymentMethod,

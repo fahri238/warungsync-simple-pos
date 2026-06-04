@@ -24,7 +24,7 @@ const normalizeStatus = (status) => {
 };
 
 const getOrders = async (req, res) => {
-  const { userId, type } = req.query;
+  const { userId, type, storeId } = req.query;
 
   try {
     const params = [];
@@ -38,6 +38,14 @@ const getOrders = async (req, res) => {
     if (type && ["online", "pos"].includes(type)) {
       where.push("p.tipe_pesanan = ?");
       params.push(type);
+    }
+
+    if (storeId) {
+      where.push("p.id_toko = ?");
+      params.push(storeId);
+    } else if (req.user?.id_toko) {
+      where.push("p.id_toko = ?");
+      params.push(req.user.id_toko);
     }
 
     const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
@@ -129,15 +137,22 @@ const getOrders = async (req, res) => {
 const createOrder = async (req, res) => {
   const {
     id_pengguna = null,
+    id_toko = null,
+    storeId = null,
     nama_pelanggan,
     no_hp_pelanggan,
     alamat_pengiriman,
     tipe_pesanan,
     tipe_pengiriman,
     metode_pembayaran,
+    biaya_pengiriman = 0,
+    latitude = null,
+    longitude = null,
     items,
     status,
   } = req.body;
+
+  const resolvedStoreId = id_toko || storeId || req.user?.id_toko || null;
 
   if (!nama_pelanggan || !no_hp_pelanggan) {
     return res.status(400).json({
@@ -200,9 +215,18 @@ const createOrder = async (req, res) => {
         throw new Error("Format item pesanan tidak valid");
       }
 
+      let productQuery =
+        "SELECT id, nama, harga, stok, id_toko FROM produk WHERE id = ?";
+      const productParams = [productId];
+      if (resolvedStoreId) {
+        productQuery += " AND (id_toko = ? OR id_toko IS NULL)";
+        productParams.push(resolvedStoreId);
+      }
+      productQuery += " FOR UPDATE";
+
       const [productRows] = await connection.query(
-        "SELECT id, nama, harga, stok FROM produk WHERE id = ? FOR UPDATE",
-        [productId],
+        productQuery,
+        productParams,
       );
 
       if (productRows.length === 0) {
@@ -225,16 +249,21 @@ const createOrder = async (req, res) => {
       });
     }
 
+    const shippingFee = Number(biaya_pengiriman) || 0;
+    const grandTotal = totalHarga + (tipe_pengiriman === "delivery" ? shippingFee : 0);
+
     await connection.query(
       `INSERT INTO pesanan
-      (id, id_pengguna, nama_pelanggan, no_hp_pelanggan, total_harga, status, tipe_pesanan, tipe_pengiriman, metode_pembayaran)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, id_pengguna, id_toko, nama_pelanggan, no_hp_pelanggan, total_harga, biaya_pengiriman, status, tipe_pesanan, tipe_pengiriman, metode_pembayaran)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         orderId,
         id_pengguna || null,
+        resolvedStoreId,
         nama_pelanggan,
         no_hp_pelanggan,
-        totalHarga,
+        grandTotal,
+        shippingFee,
         resolvedStatus,
         tipe_pesanan,
         tipe_pengiriman,
@@ -244,8 +273,16 @@ const createOrder = async (req, res) => {
 
     if (tipe_pengiriman === "delivery") {
       await connection.query(
-        "INSERT INTO pengiriman (id, id_pesanan, id_kurir, alamat, status) VALUES (?, ?, ?, ?, ?)",
-        [crypto.randomUUID(), orderId, null, alamat_pengiriman, "diantar"],
+        "INSERT INTO pengiriman (id, id_pesanan, id_kurir, alamat, latitude, longitude, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [
+          crypto.randomUUID(),
+          orderId,
+          null,
+          alamat_pengiriman,
+          latitude,
+          longitude,
+          "diantar",
+        ],
       );
     }
 
@@ -278,7 +315,8 @@ const createOrder = async (req, res) => {
       message: "Pesanan berhasil dibuat",
       data: {
         id: orderId,
-        total_harga: totalHarga,
+        total_harga: grandTotal,
+        biaya_pengiriman: shippingFee,
         status: resolvedStatus,
       },
     });

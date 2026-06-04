@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { WarungSyncLogo } from "@/components/brand/WarungSyncLogo";
 import { getSession } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -192,9 +193,8 @@ const CustomerDashboard = () => {
             <Button variant="ghost" size="icon" asChild>
               <Link to="/login"><ArrowLeft className="h-4 w-4" /></Link>
             </Button>
-            <Link to="/" className="flex items-center gap-2">
-              <span className="text-xl">🏪</span>
-              <span className="font-bold text-foreground">Warung Mama Eva</span>
+            <Link to="/">
+              <WarungSyncLogo size="sm" />
             </Link>
           </div>
           <div className="flex items-center gap-3">
@@ -218,7 +218,7 @@ const CustomerDashboard = () => {
 
         <div className="grid grid-cols-2 gap-4">
           <Button className="h-20 flex-col gap-2" asChild>
-            <Link to="/store"><ShoppingBag className="h-6 w-6" />Belanja</Link>
+            <Link to="/stores"><ShoppingBag className="h-6 w-6" />Belanja</Link>
           </Button>
           <Button variant="outline" className="h-20 flex-col gap-2" asChild>
             <Link to="/store/orders"><Package className="h-6 w-6" />Pesanan Saya</Link>

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Package, Truck, CheckCircle, Clock, ArrowRight } from "lucide-react";
+import { Package, Truck, Store, CheckCircle, Clock, ArrowRight } from "lucide-react";
 import { fetchOrders, updateOrderStatus as updateOrderStatusApi } from "@/services/orderService";
 import { fetchUsersByRole } from "@/services/authService";
 import { assignCourier } from "@/services/deliveryService";
@@ -153,8 +153,12 @@ const AdminOrders = () => {
                     <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
                       {o.type === "pos" ? "POS" : "Online"}
                     </span>
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                      {o.fulfillment === "delivery" ? "🚚 Delivery" : "🏪 Pickup"}
+                    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                      {o.fulfillment === "delivery" ? (
+                        <><Truck className="h-3 w-3" /> Delivery</>
+                      ) : (
+                        <><Store className="h-3 w-3" /> Pickup</>
+                      )}
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">

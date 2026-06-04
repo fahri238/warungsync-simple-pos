@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate, useParams } from "react-router-dom";
 import { getSession } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Package } from "lucide-react";
@@ -19,7 +19,12 @@ const statusColors: Record<OrderStatus, string> = {
 };
 
 const StoreOrders = () => {
+  const { storeId } = useParams<{ storeId: string }>();
   const session = getSession();
+
+  if (!storeId) {
+    return <Navigate to="/stores" replace />;
+  }
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -45,7 +50,7 @@ const StoreOrders = () => {
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur">
         <div className="container mx-auto flex items-center gap-3 px-4 py-3">
-          <Button variant="ghost" size="icon" asChild><Link to="/store"><ArrowLeft className="h-5 w-5" /></Link></Button>
+          <Button variant="ghost" size="icon" asChild><Link to={`/store/${storeId}`}><ArrowLeft className="h-5 w-5" /></Link></Button>
           <h1 className="font-bold text-foreground">Pesanan Saya</h1>
         </div>
       </header>
@@ -57,7 +62,7 @@ const StoreOrders = () => {
           <div className="py-16 text-center">
             <Package className="mx-auto mb-3 h-12 w-12 text-muted-foreground" />
             <p className="text-muted-foreground">Belum ada pesanan</p>
-            <Button className="mt-4" asChild><Link to="/store">Mulai Belanja</Link></Button>
+            <Button className="mt-4" asChild><Link to={`/store/${storeId}`}>Mulai Belanja</Link></Button>
           </div>
         ) : (
           <div className="space-y-3">

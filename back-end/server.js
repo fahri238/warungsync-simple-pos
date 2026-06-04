@@ -7,36 +7,32 @@ dotenv.config();
 
 const app = express();
 
-// Middleware
-app.use(cors()); // Mengizinkan frontend React (Vite) untuk mengakses API ini
-app.use(express.json()); // Menerima data dalam format JSON
+app.use(cors());
+app.use(express.json());
 
-const productRoutes = require('./routes/productRoutes');
-const authRoutes = require('./routes/authRoutes');
-const orderRoutes = require('./routes/orderRoutes');
+const productRoutes  = require('./routes/productRoutes');
+const authRoutes     = require('./routes/authRoutes');
+const orderRoutes    = require('./routes/orderRoutes');
 const deliveryRoutes = require('./routes/deliveryRoutes');
-app.use('/api/products', productRoutes);
-app.use('/api/users', authRoutes);
-app.use('/api/orders', orderRoutes);
+const storeRoutes    = require('./routes/storeRoutes');
+
+app.use('/api/stores',     storeRoutes);
+app.use('/api/products',   productRoutes);
+app.use('/api/users',      authRoutes);
+app.use('/api/orders',     orderRoutes);
 app.use('/api/deliveries', deliveryRoutes);
 
-// Route Test Koneksi
 app.get('/', async (req, res) => {
-    try {
-        const [rows] = await db.query('SELECT 1 + 1 AS solution');
-        res.status(200).json({ 
-            message: "Backend Warung Mama Eva berjalan lancar! 🚀", 
-            db_status: "Terhubung" 
-        });
-    } catch (error) {
-        res.status(500).json({ 
-            message: "Gagal terhubung ke Database ❌", 
-            error: error.message 
-        });
-    }
+  try {
+    const [rows] = await db.query('SELECT 1 + 1 AS solution');
+    res.status(200).json({
+      message: "Backend Multi-Tenant Warung berjalan lancar! 🚀",
+      db_status: "Terhubung",
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Gagal terhubung ke Database ❌", error: error.message });
+  }
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`Server berjalan di http://localhost:${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server berjalan di http://localhost:${PORT}`));

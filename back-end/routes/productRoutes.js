@@ -8,19 +8,18 @@ const {
   createProduct,
   updateProduct,
   deleteProduct,
+  getLowStockProducts,
 } = require("../controllers/productController");
-const {
-  validateProduct,
-  validateCategory,
-} = require("../middleware/validation");
+const { validateProduct, validateCategory } = require("../middleware/validation");
 
-// Routes Kategori
+// Kategori
 router.get("/categories", getCategories);
 router.post("/categories", validateCategory, createCategory);
 router.delete("/categories/:id", deleteCategory);
 
-// Routes Produk
+// Produk
 router.get("/", getProducts);
+router.get("/low-stock", getLowStockProducts);
 router.post("/", validateProduct, createProduct);
 router.put("/:id", validateProduct, updateProduct);
 router.delete("/:id", deleteProduct);

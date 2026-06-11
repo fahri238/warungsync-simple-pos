@@ -12,16 +12,36 @@ import {
   Eye,
   EyeOff,
   ShoppingBag,
+  LayoutDashboard,
+  Truck,
   MapPin,
   Barcode,
   CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 
+const highlights = [
+  {
+    icon: LayoutDashboard,
+    title: "Admin & Kasir",
+    desc: "Kelola produk, POS, dan pesanan toko Anda.",
+  },
+  {
+    icon: ShoppingBag,
+    title: "Pelanggan",
+    desc: "Belanja dari toko pilihan dan lacak pesanan.",
+  },
+  {
+    icon: Truck,
+    title: "Kurir",
+    desc: "Terima tugas antar dan perbarui status pengiriman.",
+  },
+];
+
 const perks = [
-  { icon: Barcode, text: "POS & barcode" },
-  { icon: MapPin, text: "Peta toko & antar" },
-  { icon: CheckCircle2, text: "Multi-peran" },
+  { icon: Barcode, text: "Kasir cepat dengan scan barcode" },
+  { icon: MapPin, text: "Peta toko & lokasi antar" },
+  { icon: CheckCircle2, text: "Satu akun, panel sesuai peran" },
 ];
 
 const LoginPage = () => {
@@ -47,7 +67,8 @@ const LoginPage = () => {
       else if (userData.role === "courier") navigate("/courier");
       else navigate("/customer");
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Email atau password salah";
+      const message =
+        error instanceof Error ? error.message : "Email atau password salah";
       toast.error(message);
     } finally {
       setSubmitting(false);
@@ -55,77 +76,109 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="grid h-dvh max-h-dvh overflow-hidden lg:grid-cols-2">
-      {/* Brand panel — compact, no scroll */}
-      <div className="relative hidden h-full flex-col overflow-hidden bg-secondary lg:flex">
+    <div className="grid min-h-screen lg:grid-cols-2">
+      {/* Brand panel */}
+      <div className="relative hidden overflow-hidden bg-secondary lg:flex lg:flex-col lg:justify-between">
         <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_45%_at_15%_0%,hsl(var(--primary)/0.45),transparent_55%)]"
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_20%_0%,hsl(var(--primary)/0.4),transparent_50%)]"
           aria-hidden
         />
-        <div className="relative flex h-full flex-col justify-between px-8 py-8 xl:px-12">
-          <div>
-            <WarungSyncLogo
-              size="md"
-              className="[&_span]:text-secondary-foreground [&_span:last-child]:text-secondary-foreground/65"
-            />
-            <h1 className="mt-6 font-display text-2xl font-bold leading-snug text-secondary-foreground xl:text-3xl">
-              Satu platform untuk{" "}
-              <span className="text-primary">warung & toko online</span>
-            </h1>
-            <p className="mt-3 max-w-sm text-sm leading-relaxed text-secondary-foreground/75">
-              Admin, pelanggan, dan kurir — semua terhubung dalam WarungSync.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-2">
-              {perks.map((p) => (
-                <span
-                  key={p.text}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-secondary-foreground/15 bg-secondary-foreground/5 px-3 py-1.5 text-xs font-medium text-secondary-foreground/90"
-                >
-                  <p.icon className="h-3.5 w-3.5 text-primary" />
-                  {p.text}
+        <div
+          className="pointer-events-none absolute bottom-0 right-0 h-80 w-80 rounded-full bg-accent/15 blur-3xl"
+          aria-hidden
+        />
+
+        <div className="relative flex flex-1 flex-col justify-center px-10 py-12 xl:px-16">
+          <WarungSyncLogo
+            size="lg"
+            className="[&_span]:text-secondary-foreground [&_span:last-child]:text-secondary-foreground/70"
+          />
+
+          <h1 className="mt-10 font-display text-3xl font-bold leading-tight text-secondary-foreground xl:text-4xl">
+            Kelola warung & <span className="text-primary">jualan online</span>{" "}
+            dalam satu tempat
+          </h1>
+
+          <ul className="mt-8 space-y-3">
+            {perks.map((p) => (
+              <li
+                key={p.text}
+                className="flex items-center gap-3 text-sm text-secondary-foreground/90"
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/20">
+                  <p.icon className="h-4 w-4 text-primary" />
                 </span>
-              ))}
-            </div>
+                {p.text}
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-10 grid gap-3">
+            {highlights.map((h) => (
+              <div
+                key={h.title}
+                className="flex items-start gap-3 rounded-xl border border-secondary-foreground/10 bg-secondary-foreground/5 p-4 backdrop-blur-sm"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/20">
+                  <h.icon className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-semibold text-secondary-foreground">
+                    {h.title}
+                  </p>
+                  <p className="mt-0.5 text-sm text-secondary-foreground/70">
+                    {h.desc}
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
-          <p className="text-xs text-secondary-foreground/45">
-            © 2026 WarungSync
+          <p className="mt-auto text-xs text-secondary-foreground/50">
+            © 2026 WarungSync — Platform untuk UMKM di berbagai wilayah.
           </p>
         </div>
       </div>
 
       {/* Form panel */}
-      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
-        <div className="flex min-h-0 flex-1 flex-col justify-center overflow-hidden px-4 py-4 sm:px-8">
-          <div className="mx-auto w-full max-w-sm">
-            <div className="mb-4 flex items-center justify-between gap-2">
-              <Button variant="ghost" size="sm" className="h-8 gap-1 px-2 text-muted-foreground" asChild>
-                <Link to="/">
-                  <ArrowLeft className="h-3.5 w-3.5" />
-                  Beranda
-                </Link>
-              </Button>
-              <div className="lg:hidden">
-                <WarungSyncLogo size="sm" />
-              </div>
+      <div className="relative flex flex-col bg-background">
+        <div
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,hsl(var(--primary)/0.08),transparent)] lg:hidden"
+          aria-hidden
+        />
+
+        <div className="relative flex flex-1 flex-col justify-center px-4 py-8 sm:px-8">
+          <div className="mx-auto w-full max-w-md">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="-ml-2 mb-6 gap-1.5 text-muted-foreground"
+              asChild
+            >
+              <Link to="/">
+                <ArrowLeft className="h-4 w-4" />
+                Kembali ke beranda
+              </Link>
+            </Button>
+
+            <div className="mb-8 lg:hidden">
+              <WarungSyncLogo size="md" />
             </div>
 
-            <div className="mb-5">
-              <h2 className="font-display text-xl font-bold text-foreground sm:text-2xl">
-                Masuk
+            <div className="mb-8">
+              <h2 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                Selamat datang kembali
               </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Gunakan akun WarungSync Anda
+              <p className="mt-2 text-muted-foreground">
+                Masuk dengan akun WarungSync Anda untuk melanjutkan.
               </p>
             </div>
 
             <form
               onSubmit={handleLogin}
-              className="space-y-4 rounded-xl border border-border/80 bg-card p-5 shadow-md shadow-primary/5"
+              className="space-y-5 rounded-2xl border border-border/80 bg-card p-6 shadow-lg shadow-primary/5 sm:p-8"
             >
-              <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-xs">
-                  Email
-                </Label>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -135,15 +188,13 @@ const LoginPage = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="nama@email.com"
-                    className="h-10 pl-9"
+                    className="h-11 pl-10"
                   />
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="password" className="text-xs">
-                  Password
-                </Label>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -153,41 +204,54 @@ const LoginPage = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="h-10 pl-9 pr-9"
+                    className="h-11 pl-10 pr-10"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                    aria-label={
+                      showPassword
+                        ? "Sembunyikan password"
+                        : "Tampilkan password"
+                    }
                   >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
               </div>
 
               <Button
                 type="submit"
-                className="h-10 w-full shadow-md shadow-primary/20"
+                className="h-11 w-full text-base shadow-md shadow-primary/20"
                 disabled={submitting || loading}
               >
                 {submitting ? "Memproses..." : "Masuk"}
               </Button>
             </form>
 
-            <p className="mt-4 text-center text-sm text-muted-foreground">
+            <p className="mt-6 text-center text-sm text-muted-foreground">
               Belum punya akun?{" "}
-              <Link to="/register" className="font-semibold text-primary hover:underline">
-                Daftar
+              <Link
+                to="/register"
+                className="font-semibold text-primary hover:underline"
+              >
+                Daftar sekarang
               </Link>
             </p>
 
-            <Button variant="link" size="sm" className="mt-1 w-full gap-1 text-muted-foreground" asChild>
-              <Link to="/stores">
-                <ShoppingBag className="h-3.5 w-3.5" />
-                Belanja tanpa login
-              </Link>
-            </Button>
+            <div className="mt-8 flex flex-col gap-2 sm:flex-row sm:justify-center">
+              <Button variant="outline" size="sm" className="gap-2" asChild>
+                <Link to="/stores">
+                  <ShoppingBag className="h-4 w-4" />
+                  Belanja tanpa login
+                </Link>
+              </Button>
+            </div>
           </div>
         </div>
       </div>

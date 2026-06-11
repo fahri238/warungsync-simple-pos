@@ -20,6 +20,7 @@ import StoreOrders from "./pages/store/StoreOrders";
 import { StoreProvider } from "./context/StoreContext";
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
+import LocationPickerPage from "./pages/auth/LocationPickerPage";
 import CustomerDashboard from "./pages/customer/CustomerDashboard";
 import CourierDashboard from "./pages/courier/CourierDashboard";
 import NotFound from "./pages/NotFound";
@@ -31,34 +32,41 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <StoreProvider>
-      <TooltipProvider>
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<AdminDashboard />} />
-              <Route path="products" element={<AdminProducts />} />
-              <Route path="inventory" element={<AdminInventory />} />
-              <Route path="pos" element={<AdminPOS />} />
-              <Route path="orders" element={<AdminOrders />} />
-              <Route path="reports" element={<AdminReports />} />
-              <Route path="settings" element={<AdminSettings />} />
-            </Route>
-            <Route path="/stores" element={<StoreSelectPage />} />
-            <Route path="/store" element={<StoreRedirect />} />
-            <Route path="/store/:storeId" element={<StorePage />} />
-            <Route path="/store/:storeId/cart" element={<StoreCart />} />
-            <Route path="/store/:storeId/checkout" element={<StoreCheckout />} />
-            <Route path="/store/:storeId/orders" element={<StoreOrders />} />
-            <Route path="/customer" element={<CustomerDashboard />} />
-            <Route path="/courier" element={<CourierDashboard />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+        <TooltipProvider>
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route
+                path="/register/location"
+                element={<LocationPickerPage />}
+              />
+              <Route path="/admin" element={<AdminLayout />}>
+                <Route index element={<AdminDashboard />} />
+                <Route path="products" element={<AdminProducts />} />
+                <Route path="inventory" element={<AdminInventory />} />
+                <Route path="pos" element={<AdminPOS />} />
+                <Route path="orders" element={<AdminOrders />} />
+                <Route path="reports" element={<AdminReports />} />
+                <Route path="settings" element={<AdminSettings />} />
+              </Route>
+              <Route path="/stores" element={<StoreSelectPage />} />
+              <Route path="/store" element={<StoreRedirect />} />
+              <Route path="/store/:storeId" element={<StorePage />} />
+              <Route path="/store/:storeId/cart" element={<StoreCart />} />
+              <Route
+                path="/store/:storeId/checkout"
+                element={<StoreCheckout />}
+              />
+              <Route path="/store/:storeId/orders" element={<StoreOrders />} />
+              <Route path="/customer" element={<CustomerDashboard />} />
+              <Route path="/courier" element={<CourierDashboard />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
       </StoreProvider>
     </AuthProvider>
   </QueryClientProvider>

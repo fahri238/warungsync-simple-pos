@@ -36,6 +36,7 @@ const defaultProducts: Product[] = [
     stock: 50,
     category: "cat-1",
     image: "",
+    barcode: "899100000001",
     description: "Nasi goreng spesial dengan telur dan ayam",
   },
   {
@@ -45,6 +46,7 @@ const defaultProducts: Product[] = [
     stock: 40,
     category: "cat-1",
     image: "",
+    barcode: "899100000002",
     description: "Mie goreng dengan sayuran segar",
   },
   {
@@ -54,6 +56,7 @@ const defaultProducts: Product[] = [
     stock: 30,
     category: "cat-1",
     image: "",
+    barcode: "899100000003",
     description: "Ayam goreng crispy renyah",
   },
   {
@@ -63,6 +66,7 @@ const defaultProducts: Product[] = [
     stock: 25,
     category: "cat-1",
     image: "",
+    barcode: "899100000004",
     description: "Soto ayam kuah bening",
   },
   {
@@ -72,6 +76,7 @@ const defaultProducts: Product[] = [
     stock: 100,
     category: "cat-2",
     image: "",
+    barcode: "899200000001",
     description: "Es teh manis segar",
   },
   {
@@ -81,6 +86,7 @@ const defaultProducts: Product[] = [
     stock: 80,
     category: "cat-2",
     image: "",
+    barcode: "899200000002",
     description: "Es jeruk peras segar",
   },
   {
@@ -90,6 +96,7 @@ const defaultProducts: Product[] = [
     stock: 60,
     category: "cat-2",
     image: "",
+    barcode: "899200000003",
     description: "Kopi tubruk khas",
   },
   {
@@ -99,6 +106,7 @@ const defaultProducts: Product[] = [
     stock: 200,
     category: "cat-3",
     image: "",
+    barcode: "899300000001",
     description: "Kerupuk renyah",
   },
   {
@@ -108,6 +116,7 @@ const defaultProducts: Product[] = [
     stock: 70,
     category: "cat-3",
     image: "",
+    barcode: "899300000002",
     description: "Aneka gorengan hangat",
   },
   {
@@ -117,6 +126,7 @@ const defaultProducts: Product[] = [
     stock: 100,
     category: "cat-4",
     image: "",
+    barcode: "899400000001",
     description: "Nasi putih hangat",
   },
 ];
@@ -179,7 +189,6 @@ const defaultUsers: User[] = [
 
 export function getUsers(): User[] {
   const users = get(USERS_KEY, defaultUsers);
-  // Ensure all default accounts always exist
   let changed = false;
   for (const def of defaultUsers) {
     if (!users.find((u) => u.email === def.email)) {
@@ -194,13 +203,11 @@ export function saveUsers(u: User[]) {
   set(USERS_KEY, u);
 }
 
-// UserModel.findUserByEmail(email): userData / null
 export function findUserByEmail(email: string): User | null {
   const users = getUsers();
   return users.find((u) => u.email === email) || null;
 }
 
-// AuthController.verifyPassword(password, hash): Boolean
 export function verifyPassword(
   inputPassword: string,
   storedPassword: string,
@@ -208,12 +215,10 @@ export function verifyPassword(
   return inputPassword === storedPassword;
 }
 
-// AuthController.generateToken(): sets session
 export function generateToken(user: User): void {
   setSession(user);
 }
 
-// User.login(): Boolean (composite - kept for backward compatibility)
 export function login(email: string, password: string): User | string {
   const userData = findUserByEmail(email);
   if (!userData) return "Email atau password salah";
@@ -222,7 +227,6 @@ export function login(email: string, password: string): User | string {
   return userData;
 }
 
-// User.register(): Boolean
 export function register(
   name: string,
   email: string,
@@ -247,7 +251,6 @@ export function register(
   return user;
 }
 
-// User.updateProfile(): Void
 export function updateProfile(
   userId: string,
   updates: Partial<Omit<User, "id" | "role">>,
@@ -271,18 +274,15 @@ export function setSession(user: User | null) {
 
 // ---- Product (Class Diagram: Product) ----
 
-// Helper: get the display image for a product
 export function getProductImage(product: Product): string {
   if (product.image && product.image.length > 5) return product.image;
   return defaultProductImages[product.id] || "/placeholder.svg";
 }
 
-// Product.getDetails(): Object
 export function getProductDetails(id: string): Product | undefined {
   return getProducts().find((p) => p.id === id);
 }
 
-// Product.updateStock(amount: INT): Boolean
 export function updateStock(items: OrderItem[]): boolean {
   const products = getProducts();
   items.forEach((item) => {
@@ -303,7 +303,6 @@ export function updateStock(items: OrderItem[]): boolean {
   return true;
 }
 
-// API-based product functions
 let _cachedProducts: Product[] | null = null;
 let _productsLoading = false;
 
@@ -316,7 +315,6 @@ export async function getProductsFromAPI(storeId?: string): Promise<Product[]> {
     if (!storeId) {
       _cachedProducts = products;
     }
-    // Also update localStorage as backup
     if (!storeId) saveProducts(products);
     return products;
   } catch (error) {
@@ -340,7 +338,6 @@ export async function addProductToAPI(
 ): Promise<Product> {
   try {
     const newProduct = await productService.createProduct(product as any);
-    // Invalidate cache
     _cachedProducts = null;
     return newProduct;
   } catch (error) {
@@ -358,7 +355,6 @@ export async function updateProductInAPI(
       id,
       product as any,
     );
-    // Invalidate cache
     _cachedProducts = null;
     return updatedProduct;
   } catch (error) {
@@ -370,7 +366,6 @@ export async function updateProductInAPI(
 export async function deleteProductFromAPI(id: string): Promise<void> {
   try {
     await productService.deleteProduct(id);
-    // Invalidate cache
     _cachedProducts = null;
   } catch (error) {
     console.error("Failed to delete product:", error);
@@ -378,7 +373,6 @@ export async function deleteProductFromAPI(id: string): Promise<void> {
   }
 }
 
-// Fallback localStorage functions (deprecated, use API functions instead)
 export function getProducts(): Product[] {
   return get(PRODUCTS_KEY, defaultProducts);
 }
@@ -399,12 +393,10 @@ export function deleteProduct(id: string) {
 
 // ---- Category (Class Diagram: Category) ----
 
-// Category.getProducts(): Array
 export function getCategoryProducts(categoryId: string): Product[] {
   return getProducts().filter((p) => p.category === categoryId);
 }
 
-// API-based category functions
 let _cachedCategories: Category[] | null = null;
 let _categoriesLoading = false;
 
@@ -415,7 +407,6 @@ export async function getCategoriesFromAPI(storeId?: string): Promise<Category[]
     _categoriesLoading = true;
     const categories = await productService.fetchCategories(storeId);
     if (!storeId) _cachedCategories = categories;
-    // Also update localStorage as backup
     if (!storeId) saveCategories(categories);
     return categories;
   } catch (error) {
@@ -439,7 +430,6 @@ export async function addCategoryToAPI(
 ): Promise<Category> {
   try {
     const newCategory = await productService.createCategory(category as any);
-    // Invalidate cache
     _cachedCategories = null;
     return newCategory;
   } catch (error) {
@@ -451,7 +441,6 @@ export async function addCategoryToAPI(
 export async function deleteCategoryFromAPI(id: string): Promise<void> {
   try {
     await productService.deleteCategory(id);
-    // Invalidate cache
     _cachedCategories = null;
   } catch (error) {
     console.error("Failed to delete category:", error);
@@ -459,14 +448,12 @@ export async function deleteCategoryFromAPI(id: string): Promise<void> {
   }
 }
 
-// Fallback localStorage functions (deprecated, use API functions instead)
 export function getCategories(): Category[] {
   return get(CATEGORIES_KEY, defaultCategories);
 }
 export function saveCategories(c: Category[]) {
   set(CATEGORIES_KEY, c);
 }
-// Category.addCategory(): Boolean
 export function addCategory(c: Category) {
   const all = getCategories();
   all.push(c);
@@ -481,7 +468,6 @@ export function deleteCategory(id: string) {
 
 // ---- Order (Class Diagram: Order) ----
 
-// Order.calculateTotal(): DECIMAL
 export function calculateTotal(items: OrderItem[]): number {
   return items.reduce(
     (sum, item) => sum + item.product.price * item.quantity,
@@ -489,7 +475,6 @@ export function calculateTotal(items: OrderItem[]): number {
   );
 }
 
-// Order.updateStatus(newStatus: String): Boolean
 export function updateOrderStatus(orderId: string, newStatus: string): boolean {
   const orders = getOrders();
   const order = orders.find((o) => o.id === orderId);
@@ -516,7 +501,6 @@ export function updateOrder(o: Order) {
 
 // ---- OrderItem (Class Diagram: OrderItem) ----
 
-// OrderItem.getSubtotal(): DECIMAL
 export function getSubtotal(item: OrderItem): number {
   return item.product.price * item.quantity;
 }
@@ -527,7 +511,6 @@ export function getStockLogs(): StockLog[] {
   return get(STOCK_LOGS_KEY, []);
 }
 
-// StockLog.recordLog(): Boolean
 export function recordStockLog(log: StockLog) {
   const all = getStockLogs();
   all.unshift(log);
@@ -545,7 +528,6 @@ export function addDelivery(d: Delivery) {
   set(DELIVERIES_KEY, all);
 }
 
-// Delivery.updateDeliveryStatus(): Boolean
 export function updateDeliveryStatus(
   deliveryId: string,
   status: Delivery["status"],

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import { useEffect } from "react";
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -7,6 +7,7 @@ import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 
+// fixing builtin leaflet icon marker 
 const defaultIcon = L.icon({
   iconUrl: markerIcon,
   iconRetinaUrl: markerIcon2x,
@@ -18,8 +19,7 @@ const defaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = defaultIcon;
 
-const DEFAULT_CENTER: [number, number] = [-2.1234567, 115.1234567];
-
+// click getter on the map (to put PIN)
 function MapClickHandler({
   onPick,
 }: {
@@ -33,9 +33,22 @@ function MapClickHandler({
   return null;
 }
 
+// component force map shift to it.s (FlyTo) perspective (center)
+function MapUpdater({ center }: { center: [number, number] }) {
+  const map = useMap();
+  useEffect(() => {
+    map.flyTo(center, map.getZoom(), {
+      animate: true,
+      duration: 1.5 
+    });
+  }, [center, map]);
+  return null;
+}
+
 interface DeliveryLocationPickerProps {
-  latitude: number | null;
-  longitude: number | null;
+  latitude: number | null; // Red pin dot (can be null at begining)
+  longitude: number | null; 
+  mapCenter: [number, number]; // camera map direction 
   onChange: (lat: number, lng: number) => void;
   height?: string;
 }
@@ -43,44 +56,44 @@ interface DeliveryLocationPickerProps {
 const DeliveryLocationPicker = ({
   latitude,
   longitude,
+  mapCenter,
   onChange,
-  height = "240px",
+  height = "100%", 
 }: DeliveryLocationPickerProps) => {
-  const [center, setCenter] = useState<[number, number]>(
-    latitude != null && longitude != null
-      ? [latitude, longitude]
-      : DEFAULT_CENTER,
-  );
-
-  useEffect(() => {
-    if (latitude != null && longitude != null) {
-      setCenter([latitude, longitude]);
-    }
-  }, [latitude, longitude]);
-
+  
   const position: [number, number] | null =
     latitude != null && longitude != null ? [latitude, longitude] : null;
 
   return (
-    <div className="space-y-2">
-      <p className="text-xs text-muted-foreground">
-        Ketuk peta untuk menandai titik lokasi pengiriman Anda
-      </p>
-      <div className="overflow-hidden rounded-xl border" style={{ height }}>
-        <MapContainer center={center} zoom={14} className="h-full w-full">
-          <TileLayer
-            attribution='&copy; OpenStreetMap'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+    <div className="w-full relative z-0 overflow-hidden" style={{ height }}>
+      {/* Peta selalu mengarah ke mapCenter */}
+      <MapContainer center={mapCenter} zoom={15} className="h-full w-full z-0">
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        
+        {/* call update functions in order to react camera on GPS */}
+        <MapUpdater center={mapCenter} />
+        
+        {/* capture klik event to set PIN */}
+        <MapClickHandler onPick={onChange} />
+        
+        {/* diplay pin only if position not null */}
+        {position && (
+          <Marker
+            position={position}
+            draggable
+            eventHandlers={{
+              dragend: (event) => {
+                const marker = event.target;
+                const latlng = marker.getLatLng();
+                onChange(latlng.lat, latlng.lng);
+              },
+            }}
           />
-          <MapClickHandler onChange={onChange} />
-          {position && <Marker position={position} />}
-        </MapContainer>
-      </div>
-      {position && (
-        <p className="text-xs text-muted-foreground">
-          Koordinat: {position[0].toFixed(5)}, {position[1].toFixed(5)}
-        </p>
-      )}
+        )}
+      </MapContainer>
     </div>
   );
 };

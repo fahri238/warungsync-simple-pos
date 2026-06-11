@@ -1,3 +1,5 @@
+import { getUsers, login as localLogin, register as localRegister } from "@/lib/store";
+
 const API_BASE_URL = "http://localhost:5000/api/users";
 
 export type BackendRole = "admin" | "pelanggan" | "kurir";
@@ -62,18 +64,28 @@ const apiCall = async (endpoint: string, options: RequestInit = {}) => {
 };
 
 export const loginUser = async (email: string, password: string) => {
-  const response = await apiCall("/login", {
-    method: "POST",
-    body: JSON.stringify({
-      email,
-      kata_sandi: password,
-    }),
-  });
+  try {
+    const response = await apiCall("/login", {
+      method: "POST",
+      body: JSON.stringify({
+        email,
+        kata_sandi: password,
+      }),
+    });
 
-  return {
-    token: response.data.token as string,
-    user: mapUser(response.data.user as BackendUser),
-  };
+    return {
+      token: response.data.token as string,
+      user: mapUser(response.data.user as BackendUser),
+    };
+  } catch (error) {
+    console.warn("Backend offline, menggunakan data lokal (Demo Mode).");
+    const result = localLogin(email, password);
+    if (typeof result === "string") throw new Error(result); // result fill it with string error if failed
+    return {
+      token: `dummy-token-${result.id}`,
+      user: result as AuthUser,
+    };
+  }
 };
 
 export const registerUser = async (payload: {
@@ -84,36 +96,61 @@ export const registerUser = async (payload: {
   role: "customer" | "courier";
   address?: string;
 }) => {
-  await apiCall("/register", {
-    method: "POST",
-    body: JSON.stringify({
-      nama: payload.name,
-      email: payload.email,
-      kata_sandi: payload.password,
-      no_hp: payload.phone,
-      peran: mapRoleToBackend(payload.role),
-      alamat: payload.address || undefined,
-    }),
-  });
-
-  // Auto-login after successful register for smoother UX.
-  return loginUser(payload.email, payload.password);
+  try {
+    await apiCall("/register", {
+      method: "POST",
+      body: JSON.stringify({
+        nama: payload.name,
+        email: payload.email,
+        kata_sandi: payload.password,
+        no_hp: payload.phone,
+        peran: mapRoleToBackend(payload.role),
+        alamat: payload.address || undefined,
+      }),
+    });
+    return loginUser(payload.email, payload.password);
+  } catch (error) {
+    console.warn("Backend offline, menggunakan data lokal (Demo Mode).");
+    const result = localRegister(
+      payload.name, 
+      payload.email, 
+      payload.password, 
+      payload.phone, 
+      payload.role, 
+      payload.address
+    );
+    if (typeof result === "string") throw new Error(result);
+    return loginUser(payload.email, payload.password);
+  }
 };
 
 export const fetchCurrentUser = async (token: string): Promise<AuthUser> => {
-  const response = await apiCall("/me", {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  return mapUser(response.data as BackendUser);
+  try {
+    const response = await apiCall("/me", {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return mapUser(response.data as BackendUser);
+  } catch (error) {
+    console.warn("Backend offline, menggunakan data lokal (Demo Mode).");
+    const id = token.replace("dummy-token-", "");
+    const user = getUsers().find(u => u.id === id);
+    if (!user) throw new Error("Token tidak valid");
+    return user as AuthUser;
+  }
 };
 
 export const fetchUsersByRole = async (
   role: BackendRole,
 ): Promise<AuthUser[]> => {
-  const response = await apiCall(`/?role=${role}`, { method: "GET" });
-  return (response.data || []).map((user: BackendUser) => mapUser(user));
+  try {
+    const response = await apiCall(`/?role=${role}`, { method: "GET" });
+    return (response.data || []).map((user: BackendUser) => mapUser(user));
+  } catch (error) {
+    console.warn("Backend offline, menggunakan data lokal (Demo Mode).");
+    const frontendRole = mapRoleToFrontend(role);
+    return getUsers().filter(u => u.role === frontendRole) as AuthUser[];
+  }
 };

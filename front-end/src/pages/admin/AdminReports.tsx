@@ -1,21 +1,95 @@
-import { useState, useMemo } from "react";
-import { getOrders, getProducts, getStockLogs } from "@/lib/store";
+import { useState, useMemo, useEffect } from "react";
+import {
+  getStockLogs,
+  DEFAULT_STORE_ID,
+  getProductsFromAPI,
+} from "@/lib/store";
+import { fetchOrders } from "@/services/orderService";
+import type { Order, Product, StockLog } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DollarSign, ShoppingCart, TrendingUp, AlertTriangle } from "lucide-react";
-import PrintReportButton from "@/components/PrintReportButton";
+import {
+  DollarSign,
+  ShoppingCart,
+  TrendingUp,
+  AlertTriangle,
+  Printer,
+  Loader2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const AdminReports = () => {
-  const orders = getOrders();
-  const products = getProducts();
-  const stockLogs = getStockLogs();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [stockLogs, setStockLogs] = useState<StockLog[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
+  // take data from API (that has demo mode fallback)
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([
+      fetchOrders().catch(() => []),
+      getProductsFromAPI(DEFAULT_STORE_ID).catch(() => []),
+    ])
+      .then(([orderData, productData]) => {
+        setOrders(orderData);
+        setProducts(productData);
+
+        let logs = getStockLogs();
+        // MOCK DATA:
+        if (logs.length === 0 && productData.length > 0) {
+          logs = [
+            {
+              id: "log-1",
+              productId: productData[0].id,
+              productName: productData[0].name,
+              change: 50,
+              reason: "Restock Awal Bulan",
+              createdAt: new Date(Date.now() - 86400000 * 3).toISOString(),
+            },
+            {
+              id: "log-2",
+              productId: productData[1]?.id || "p2",
+              productName: productData[1]?.name || "Produk Tambahan",
+              change: -5,
+              reason: "Penjualan POS",
+              createdAt: new Date(Date.now() - 86400000 * 1).toISOString(),
+            },
+            {
+              id: "log-3",
+              productId: productData[0].id,
+              productName: productData[0].name,
+              change: -2,
+              reason: "Penjualan Online",
+              createdAt: new Date().toISOString(),
+            },
+          ];
+        }
+        setStockLogs(logs);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
+
+  const getOrderTotal = (order: Order) => {
+    if (typeof order.total === "number") return order.total;
+    const itemsTotal =
+      order.items?.reduce(
+        (sum, item) => sum + (item.product?.price || 0) * item.quantity,
+        0,
+      ) || 0;
+    return itemsTotal + ((order as any).shippingFee || 0);
+  };
+
   const filtered = useMemo(() => {
-    return orders.filter(o => {
+    return orders.filter((o) => {
+      if (o.status !== "completed") return false; // report only take success transactions
       const d = new Date(o.createdAt);
       if (dateFrom && d < new Date(dateFrom)) return false;
       if (dateTo && d > new Date(dateTo + "T23:59:59")) return false;
@@ -23,214 +97,274 @@ const AdminReports = () => {
     });
   }, [orders, dateFrom, dateTo]);
 
-  const totalSales = filtered.reduce((s, o) => s + o.total, 0);
+  const totalSales = filtered.reduce((s, o) => s + getOrderTotal(o), 0);
   const totalTransactions = filtered.length;
-  const avgTransaction = totalTransactions > 0 ? totalSales / totalTransactions : 0;
+  const avgTransaction =
+    totalTransactions > 0 ? totalSales / totalTransactions : 0;
 
-  const productSales: Record<string, { name: string; qty: number; revenue: number }> = {};
-  filtered.forEach(o => o.items.forEach(i => {
-    if (!productSales[i.product.id]) productSales[i.product.id] = { name: i.product.name, qty: 0, revenue: 0 };
-    productSales[i.product.id].qty += i.quantity;
-    productSales[i.product.id].revenue += i.product.price * i.quantity;
-  }));
-  const topProducts = Object.values(productSales).sort((a, b) => b.revenue - a.revenue);
+  const productSales: Record<
+    string,
+    { name: string; qty: number; revenue: number }
+  > = {};
+  filtered.forEach((o) =>
+    o.items.forEach((i) => {
+      if (!productSales[i.product.id])
+        productSales[i.product.id] = {
+          name: i.product.name,
+          qty: 0,
+          revenue: 0,
+        };
+      productSales[i.product.id].qty += i.quantity;
+      productSales[i.product.id].revenue +=
+        (i.product?.price || 0) * i.quantity;
+    }),
+  );
+  const topProducts = Object.values(productSales).sort(
+    (a, b) => b.revenue - a.revenue,
+  );
 
-  const lowStock = products.filter(p => p.stock <= 10);
+  const lowStock = products.filter((p) => p.stock <= 10);
 
-  const dailySales: Record<string, { date: string; total: number; count: number }> = {};
-  filtered.forEach(o => {
+  const dailySales: Record<
+    string,
+    { date: string; total: number; count: number }
+  > = {};
+  filtered.forEach((o) => {
     const dateKey = new Date(o.createdAt).toLocaleDateString("id-ID");
-    if (!dailySales[dateKey]) dailySales[dateKey] = { date: dateKey, total: 0, count: 0 };
-    dailySales[dateKey].total += o.total;
+    if (!dailySales[dateKey])
+      dailySales[dateKey] = { date: dateKey, total: 0, count: 0 };
+    dailySales[dateKey].total += getOrderTotal(o);
     dailySales[dateKey].count += 1;
   });
   const dailyData = Object.values(dailySales).reverse();
 
-  const filteredLogs = stockLogs.filter(l => {
+  const filteredLogs = stockLogs.filter((l) => {
     const d = new Date(l.createdAt);
     if (dateFrom && d < new Date(dateFrom)) return false;
     if (dateTo && d > new Date(dateTo + "T23:59:59")) return false;
     return true;
   });
 
-  const dateRange = { from: dateFrom, to: dateTo };
+  // --- PRINT FUNCTION REPORTS (A4 PROFESINAL FORMAT) ---
+  const handlePrintReport = (type: string, title: string) => {
+    const printWindow = window.open("", "_blank", "width=900,height=700");
+    if (!printWindow) return;
 
-  // Reusable print table content components
-  const SalesTable = () => (
-    <>
-      <div className="summary-row" style={{ textAlign: "center", marginBottom: 16 }}>
-        <div style={{ display: "inline-block", border: "1px solid #ddd", borderRadius: 8, padding: "12px 20px", margin: 4, textAlign: "center", minWidth: 140 }}>
-          <div style={{ fontSize: 10, color: "#888" }}>Total Penjualan</div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "#2C3E50" }}>Rp {totalSales.toLocaleString("id-ID")}</div>
+    const d = new Date();
+    const printDate = d.toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const periode =
+      dateFrom || dateTo
+        ? `${dateFrom ? new Date(dateFrom).toLocaleDateString("id-ID") : "Awal"} s/d ${dateTo ? new Date(dateTo).toLocaleDateString("id-ID") : "Sekarang"}`
+        : "Semua Waktu";
+
+    let tableHtml = "";
+    let summaryHtml = "";
+
+    if (type === "sales") {
+      summaryHtml = `
+        <div class="summary-box">
+          <div class="summary-item"><div class="summary-label">Total Penjualan</div><div class="summary-value">Rp ${totalSales.toLocaleString("id-ID")}</div></div>
+          <div class="summary-item"><div class="summary-label">Total Transaksi Selesai</div><div class="summary-value">${totalTransactions}</div></div>
+          <div class="summary-item"><div class="summary-label">Rata-rata Transaksi</div><div class="summary-value">Rp ${Math.round(avgTransaction).toLocaleString("id-ID")}</div></div>
+        </div>`;
+      tableHtml = `
+        <table>
+          <thead><tr><th>Tanggal</th><th class="text-center">Jumlah Pesanan</th><th class="text-right">Total Penjualan</th></tr></thead>
+          <tbody>
+            ${dailyData.map((d) => `<tr><td>${d.date}</td><td class="text-center">${d.count}</td><td class="text-right font-mono">Rp ${d.total.toLocaleString("id-ID")}</td></tr>`).join("")}
+            <tr style="background-color: #f8f9fa;"><td colspan="2" class="font-bold text-right">Grand Total</td><td class="text-right font-mono font-bold">Rp ${totalSales.toLocaleString("id-ID")}</td></tr>
+          </tbody>
+        </table>`;
+    } else if (type === "transactions") {
+      tableHtml = `
+        <table>
+          <thead><tr><th>Waktu</th><th>Pelanggan</th><th class="text-center">Tipe</th><th class="text-center">Status</th><th class="text-center">Metode Bayar</th><th class="text-right">Total</th></tr></thead>
+          <tbody>
+            ${filtered.map((o) => `<tr><td>${new Date(o.createdAt).toLocaleString("id-ID")}</td><td>${o.customerName || "—"}</td><td class="text-center">${o.type === "pos" ? "POS" : "Online"}</td><td class="text-center">${o.status}</td><td class="text-center">${o.paymentMethod === "cash" ? "Cash" : "Transfer"}</td><td class="text-right font-mono">Rp ${getOrderTotal(o).toLocaleString("id-ID")}</td></tr>`).join("")}
+            <tr style="background-color: #f8f9fa;"><td colspan="5" class="font-bold text-right">Total Transaksi</td><td class="text-right font-mono font-bold">Rp ${totalSales.toLocaleString("id-ID")}</td></tr>
+          </tbody>
+        </table>`;
+    } else if (type === "products") {
+      tableHtml = `
+        <table>
+          <thead><tr><th>Peringkat</th><th>Nama Produk</th><th class="text-center">Terjual</th><th class="text-right">Total Pendapatan</th></tr></thead>
+          <tbody>
+            ${topProducts.map((p, i) => `<tr><td class="text-center">${i + 1}</td><td>${p.name}</td><td class="text-center">${p.qty}</td><td class="text-right font-mono">Rp ${p.revenue.toLocaleString("id-ID")}</td></tr>`).join("")}
+          </tbody>
+        </table>`;
+    } else if (type === "stock") {
+      tableHtml = `
+        <table>
+          <thead><tr><th>Waktu Perubahan</th><th>Nama Produk</th><th class="text-center">Perubahan</th><th>Alasan</th></tr></thead>
+          <tbody>
+            ${filteredLogs
+              .slice(0, 100)
+              .map(
+                (l) =>
+                  `<tr><td>${new Date(l.createdAt).toLocaleString("id-ID")}</td><td>${l.productName}</td><td class="text-center font-bold" style="color: ${l.change > 0 ? "#16a34a" : "#dc2626"}">${l.change > 0 ? "+" + l.change : l.change}</td><td>${l.reason}</td></tr>`,
+              )
+              .join("")}
+          </tbody>
+        </table>`;
+    } else if (type === "lowstock") {
+      tableHtml = `
+        <table>
+          <thead><tr><th>Nama Produk</th><th class="text-center">Sisa Stok</th><th class="text-center">Status</th></tr></thead>
+          <tbody>
+            ${lowStock.map((p) => `<tr><td>${p.name}</td><td class="text-center font-bold" style="color: #dc2626;">${p.stock}</td><td class="text-center">${p.stock === 0 ? "Habis" : "Menipis"}</td></tr>`).join("")}
+          </tbody>
+        </table>`;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>${title}</title>
+        <style>
+          @page { size: A4 portrait; margin: 15mm; }
+          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; margin: 0; padding: 20px; font-size: 12px; }
+          .header { text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 15px; margin-bottom: 20px; }
+          .title { font-size: 22px; font-weight: 800; margin: 0 0 5px 0; color: #2c3e50; letter-spacing: 1px; }
+          .subtitle { font-size: 14px; color: #7f8c8d; margin: 0; text-transform: uppercase; letter-spacing: 0.5px; }
+          .meta { display: flex; justify-content: space-between; font-size: 11px; color: #555; margin-bottom: 20px; background: #f8f9fa; padding: 10px; border-radius: 6px; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px; }
+          th, td { border: 1px solid #e2e8f0; padding: 10px; }
+          th { background-color: #f1f5f9; text-align: left; font-weight: bold; color: #475569; text-transform: uppercase; }
+          tr:nth-child(even) { background-color: #f8fafc; }
+          .text-center { text-align: center; }
+          .text-right { text-align: right; }
+          .font-mono { font-family: 'Courier New', monospace; font-size: 12px; }
+          .font-bold { font-weight: bold; }
+          .summary-box { display: flex; gap: 15px; margin-bottom: 20px; }
+          .summary-item { border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; text-align: center; flex: 1; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+          .summary-label { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+          .summary-value { font-size: 18px; font-weight: bold; color: #0f172a; margin-top: 5px; }
+          .footer { text-align: center; margin-top: 40px; font-size: 10px; color: #94a3b8; border-top: 1px dashed #cbd5e1; padding-top: 15px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1 class="title">WARUNG MAMA EVA</h1>
+          <p class="subtitle">${title}</p>
         </div>
-        <div style={{ display: "inline-block", border: "1px solid #ddd", borderRadius: 8, padding: "12px 20px", margin: 4, textAlign: "center", minWidth: 140 }}>
-          <div style={{ fontSize: 10, color: "#888" }}>Total Transaksi</div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "#2C3E50" }}>{totalTransactions}</div>
+        <div class="meta">
+          <div><strong>Periode Laporan:</strong> ${periode}</div>
+          <div><strong>Dicetak pada:</strong> ${printDate}</div>
         </div>
-        <div style={{ display: "inline-block", border: "1px solid #ddd", borderRadius: 8, padding: "12px 20px", margin: 4, textAlign: "center", minWidth: 140 }}>
-          <div style={{ fontSize: 10, color: "#888" }}>Rata-rata</div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "#2C3E50" }}>Rp {Math.round(avgTransaction).toLocaleString("id-ID")}</div>
+        ${summaryHtml}
+        ${tableHtml}
+        <div class="footer">
+          Dokumen ini dihasilkan secara otomatis oleh sistem pencatatan WarungSync.<br>
+          Halaman ini sah sebagai dokumen internal untuk keperluan evaluasi dan rekapitulasi.
         </div>
+        <script>
+          window.onload = () => { setTimeout(() => window.print(), 500); }
+        </script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-[60vh] flex-col items-center justify-center gap-4">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="text-muted-foreground animate-pulse">
+          Menghitung dan memuat data laporan...
+        </p>
       </div>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead><tr style={{ background: "#f0f0f0" }}>
-          <th style={{ padding: "8px 10px", textAlign: "left", fontSize: 11, borderBottom: "2px solid #ddd" }}>Tanggal</th>
-          <th style={{ padding: "8px 10px", textAlign: "center", fontSize: 11, borderBottom: "2px solid #ddd" }}>Pesanan</th>
-          <th style={{ padding: "8px 10px", textAlign: "right", fontSize: 11, borderBottom: "2px solid #ddd" }}>Total</th>
-        </tr></thead>
-        <tbody>
-          {dailyData.map(d => (
-            <tr key={d.date} style={{ borderBottom: "1px solid #eee" }}>
-              <td style={{ padding: "6px 10px", fontSize: 11 }}>{d.date}</td>
-              <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "center" }}>{d.count}</td>
-              <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "right", fontFamily: "monospace" }}>Rp {d.total.toLocaleString("id-ID")}</td>
-            </tr>
-          ))}
-          <tr style={{ background: "#e8f5e9", fontWeight: 700 }}>
-            <td colSpan={2} style={{ padding: "10px", borderTop: "2px solid #4CAF50" }}>Grand Total</td>
-            <td style={{ padding: "10px", textAlign: "right", borderTop: "2px solid #4CAF50", fontFamily: "monospace" }}>Rp {totalSales.toLocaleString("id-ID")}</td>
-          </tr>
-        </tbody>
-      </table>
-    </>
-  );
-
-  const TransactionsTable = () => (
-    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-      <thead><tr style={{ background: "#f0f0f0" }}>
-        <th style={{ padding: "8px 10px", textAlign: "left", fontSize: 11, borderBottom: "2px solid #ddd" }}>Waktu</th>
-        <th style={{ padding: "8px 10px", textAlign: "left", fontSize: 11, borderBottom: "2px solid #ddd" }}>Pelanggan</th>
-        <th style={{ padding: "8px 10px", textAlign: "center", fontSize: 11, borderBottom: "2px solid #ddd" }}>Tipe</th>
-        <th style={{ padding: "8px 10px", textAlign: "center", fontSize: 11, borderBottom: "2px solid #ddd" }}>Status</th>
-        <th style={{ padding: "8px 10px", textAlign: "center", fontSize: 11, borderBottom: "2px solid #ddd" }}>Bayar</th>
-        <th style={{ padding: "8px 10px", textAlign: "right", fontSize: 11, borderBottom: "2px solid #ddd" }}>Total</th>
-      </tr></thead>
-      <tbody>
-        {filtered.map(o => (
-          <tr key={o.id} style={{ borderBottom: "1px solid #eee" }}>
-            <td style={{ padding: "6px 10px", fontSize: 11 }}>{new Date(o.createdAt).toLocaleString("id-ID")}</td>
-            <td style={{ padding: "6px 10px", fontSize: 11, fontWeight: 500 }}>{o.customerName || "—"}</td>
-            <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "center" }}>{o.type === "pos" ? "POS" : "Online"}</td>
-            <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "center" }}>{o.status}</td>
-            <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "center" }}>{o.paymentMethod === "cash" ? "Cash" : "Transfer"}</td>
-            <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "right", fontFamily: "monospace" }}>Rp {o.total.toLocaleString("id-ID")}</td>
-          </tr>
-        ))}
-        <tr style={{ background: "#e8f5e9", fontWeight: 700 }}>
-          <td colSpan={5} style={{ padding: "10px", borderTop: "2px solid #4CAF50" }}>Total</td>
-          <td style={{ padding: "10px", textAlign: "right", borderTop: "2px solid #4CAF50", fontFamily: "monospace" }}>Rp {totalSales.toLocaleString("id-ID")}</td>
-        </tr>
-      </tbody>
-    </table>
-  );
-
-  const ProductsTable = () => (
-    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-      <thead><tr style={{ background: "#f0f0f0" }}>
-        <th style={{ padding: "8px 10px", textAlign: "left", fontSize: 11, borderBottom: "2px solid #ddd" }}>#</th>
-        <th style={{ padding: "8px 10px", textAlign: "left", fontSize: 11, borderBottom: "2px solid #ddd" }}>Produk</th>
-        <th style={{ padding: "8px 10px", textAlign: "center", fontSize: 11, borderBottom: "2px solid #ddd" }}>Terjual</th>
-        <th style={{ padding: "8px 10px", textAlign: "right", fontSize: 11, borderBottom: "2px solid #ddd" }}>Pendapatan</th>
-      </tr></thead>
-      <tbody>
-        {topProducts.map((p, i) => (
-          <tr key={p.name} style={{ borderBottom: "1px solid #eee" }}>
-            <td style={{ padding: "6px 10px", fontSize: 11 }}>{i + 1}</td>
-            <td style={{ padding: "6px 10px", fontSize: 11, fontWeight: 500 }}>{p.name}</td>
-            <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "center" }}>{p.qty}</td>
-            <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "right", fontFamily: "monospace" }}>Rp {p.revenue.toLocaleString("id-ID")}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-
-  const StockTable = () => (
-    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-      <thead><tr style={{ background: "#f0f0f0" }}>
-        <th style={{ padding: "8px 10px", textAlign: "left", fontSize: 11, borderBottom: "2px solid #ddd" }}>Waktu</th>
-        <th style={{ padding: "8px 10px", textAlign: "left", fontSize: 11, borderBottom: "2px solid #ddd" }}>Produk</th>
-        <th style={{ padding: "8px 10px", textAlign: "center", fontSize: 11, borderBottom: "2px solid #ddd" }}>Perubahan</th>
-        <th style={{ padding: "8px 10px", textAlign: "left", fontSize: 11, borderBottom: "2px solid #ddd" }}>Alasan</th>
-      </tr></thead>
-      <tbody>
-        {filteredLogs.slice(0, 50).map(l => (
-          <tr key={l.id} style={{ borderBottom: "1px solid #eee" }}>
-            <td style={{ padding: "6px 10px", fontSize: 11 }}>{new Date(l.createdAt).toLocaleString("id-ID")}</td>
-            <td style={{ padding: "6px 10px", fontSize: 11, fontWeight: 500 }}>{l.productName}</td>
-            <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "center", fontWeight: 700, color: l.change > 0 ? "#4CAF50" : "#e53935" }}>
-              {l.change > 0 ? `+${l.change}` : l.change}
-            </td>
-            <td style={{ padding: "6px 10px", fontSize: 11, color: "#666" }}>{l.reason}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-
-  const LowStockTable = () => (
-    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-      <thead><tr style={{ background: "#f0f0f0" }}>
-        <th style={{ padding: "8px 10px", textAlign: "left", fontSize: 11, borderBottom: "2px solid #ddd" }}>Produk</th>
-        <th style={{ padding: "8px 10px", textAlign: "center", fontSize: 11, borderBottom: "2px solid #ddd" }}>Stok</th>
-        <th style={{ padding: "8px 10px", textAlign: "center", fontSize: 11, borderBottom: "2px solid #ddd" }}>Status</th>
-      </tr></thead>
-      <tbody>
-        {lowStock.map(p => (
-          <tr key={p.id} style={{ borderBottom: "1px solid #eee" }}>
-            <td style={{ padding: "6px 10px", fontSize: 11, fontWeight: 500 }}>{p.name}</td>
-            <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "center", fontWeight: 700, color: "#e53935" }}>{p.stock}</td>
-            <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "center" }}>
-              <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, background: p.stock === 0 ? "#fce4ec" : "#fff3e0", color: p.stock === 0 ? "#c62828" : "#e65100" }}>
-                {p.stock === 0 ? "Habis" : "Menipis"}
-              </span>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
+    );
+  }
 
   return (
     <div className="space-y-6 animate-slide-in">
+      {/* DATA FILTER  */}
       <div className="flex flex-wrap items-end gap-4">
-        <div><Label>Dari</Label><Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} /></div>
-        <div><Label>Sampai</Label><Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} /></div>
+        <div>
+          <Label>Dari</Label>
+          <Input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+          />
+        </div>
+        <div>
+          <Label>Sampai</Label>
+          <Input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+          />
+        </div>
       </div>
 
+      {/* CARD STATISTIK */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm text-muted-foreground">Total Penjualan</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">
+              Total Penjualan
+            </CardTitle>
             <DollarSign className="h-4 w-4 text-primary" />
           </CardHeader>
-          <CardContent><p className="text-2xl font-bold text-foreground">Rp {totalSales.toLocaleString("id-ID")}</p></CardContent>
+          <CardContent>
+            <p className="text-2xl font-bold text-foreground">
+              Rp {totalSales.toLocaleString("id-ID")}
+            </p>
+          </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm text-muted-foreground">Total Transaksi</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">
+              Transaksi Selesai
+            </CardTitle>
             <ShoppingCart className="h-4 w-4 text-info" />
           </CardHeader>
-          <CardContent><p className="text-2xl font-bold text-foreground">{totalTransactions}</p></CardContent>
+          <CardContent>
+            <p className="text-2xl font-bold text-foreground">
+              {totalTransactions}
+            </p>
+          </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm text-muted-foreground">Rata-rata Transaksi</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">
+              Rata-rata Transaksi
+            </CardTitle>
             <TrendingUp className="h-4 w-4 text-accent" />
           </CardHeader>
-          <CardContent><p className="text-2xl font-bold text-foreground">Rp {Math.round(avgTransaction).toLocaleString("id-ID")}</p></CardContent>
+          <CardContent>
+            <p className="text-2xl font-bold text-foreground">
+              Rp {Math.round(avgTransaction).toLocaleString("id-ID")}
+            </p>
+          </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm text-muted-foreground">Stok Rendah</CardTitle>
+            <CardTitle className="text-sm text-muted-foreground">
+              Stok Rendah
+            </CardTitle>
             <AlertTriangle className="h-4 w-4 text-destructive" />
           </CardHeader>
-          <CardContent><p className="text-2xl font-bold text-destructive">{lowStock.length} produk</p></CardContent>
+          <CardContent>
+            <p className="text-2xl font-bold text-destructive">
+              {lowStock.length} produk
+            </p>
+          </CardContent>
         </Card>
       </div>
 
+      {/* DATA TABLE ON THE SCREEN */}
       <Tabs defaultValue="sales" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-5 bg-muted/50 p-1">
           <TabsTrigger value="sales">Penjualan</TabsTrigger>
           <TabsTrigger value="transactions">Transaksi</TabsTrigger>
           <TabsTrigger value="products">Produk</TabsTrigger>
@@ -239,31 +373,63 @@ const AdminReports = () => {
         </TabsList>
 
         <TabsContent value="sales">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+          <Card className="border-border/50 shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between bg-muted/20 border-b border-border/50 pb-4">
               <CardTitle className="text-base">📊 Laporan Penjualan</CardTitle>
-              <PrintReportButton title="Laporan Penjualan" dateRange={dateRange}><SalesTable /></PrintReportButton>
+              <Button
+                size="sm"
+                onClick={() =>
+                  handlePrintReport("sales", "Laporan Penjualan Harian")
+                }
+              >
+                <Printer className="w-4 h-4 mr-2" /> Cetak Laporan
+              </Button>
             </CardHeader>
-            <CardContent>
-              {dailyData.length === 0 ? <p className="text-sm text-muted-foreground">Belum ada data penjualan.</p> : (
+            <CardContent className="pt-6">
+              {dailyData.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">
+                  Belum ada data penjualan selesai.
+                </p>
+              ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead><tr className="border-b">
-                      <th className="px-3 py-2 text-left text-muted-foreground">Tanggal</th>
-                      <th className="px-3 py-2 text-center text-muted-foreground">Jumlah Pesanan</th>
-                      <th className="px-3 py-2 text-right text-muted-foreground">Total Penjualan</th>
-                    </tr></thead>
-                    <tbody>{dailyData.map(d => (
-                      <tr key={d.date} className="border-b last:border-0">
-                        <td className="px-3 py-2 font-medium text-foreground">{d.date}</td>
-                        <td className="px-3 py-2 text-center">{d.count}</td>
-                        <td className="px-3 py-2 text-right font-mono">Rp {d.total.toLocaleString("id-ID")}</td>
+                    <thead>
+                      <tr className="border-b">
+                        <th className="px-3 py-3 text-left text-muted-foreground font-semibold">
+                          Tanggal
+                        </th>
+                        <th className="px-3 py-3 text-center text-muted-foreground font-semibold">
+                          Jumlah Pesanan
+                        </th>
+                        <th className="px-3 py-3 text-right text-muted-foreground font-semibold">
+                          Total Penjualan
+                        </th>
                       </tr>
-                    ))}</tbody>
+                    </thead>
+                    <tbody>
+                      {dailyData.map((d) => (
+                        <tr
+                          key={d.date}
+                          className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors"
+                        >
+                          <td className="px-3 py-3 font-medium text-foreground">
+                            {d.date}
+                          </td>
+                          <td className="px-3 py-3 text-center">{d.count}</td>
+                          <td className="px-3 py-3 text-right font-mono font-medium">
+                            Rp {d.total.toLocaleString("id-ID")}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
                   </table>
-                  <div className="mt-4 rounded-lg bg-primary/10 p-3 flex justify-between">
-                    <span className="font-semibold text-foreground">Grand Total</span>
-                    <span className="font-bold text-primary">Rp {totalSales.toLocaleString("id-ID")}</span>
+                  <div className="mt-6 rounded-xl bg-primary/10 border border-primary/20 p-4 flex justify-between items-center">
+                    <span className="font-bold text-foreground">
+                      Grand Total Keseluruhan
+                    </span>
+                    <span className="font-black text-xl text-primary tracking-tight">
+                      Rp {totalSales.toLocaleString("id-ID")}
+                    </span>
                   </div>
                 </div>
               )}
@@ -272,33 +438,81 @@ const AdminReports = () => {
         </TabsContent>
 
         <TabsContent value="transactions">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base">📋 Laporan Transaksi</CardTitle>
-              <PrintReportButton title="Laporan Transaksi" dateRange={dateRange}><TransactionsTable /></PrintReportButton>
+          <Card className="border-border/50 shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between bg-muted/20 border-b border-border/50 pb-4">
+              <CardTitle className="text-base">
+                📋 Laporan Transaksi Selesai
+              </CardTitle>
+              <Button
+                size="sm"
+                onClick={() =>
+                  handlePrintReport(
+                    "transactions",
+                    "Rekapitulasi Transaksi Selesai",
+                  )
+                }
+              >
+                <Printer className="w-4 h-4 mr-2" /> Cetak Laporan
+              </Button>
             </CardHeader>
-            <CardContent>
-              {filtered.length === 0 ? <p className="text-sm text-muted-foreground">Belum ada transaksi.</p> : (
+            <CardContent className="pt-6">
+              {filtered.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">
+                  Belum ada transaksi selesai.
+                </p>
+              ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead><tr className="border-b">
-                      <th className="px-3 py-2 text-left text-muted-foreground">Waktu</th>
-                      <th className="px-3 py-2 text-left text-muted-foreground">Pelanggan</th>
-                      <th className="px-3 py-2 text-center text-muted-foreground">Tipe</th>
-                      <th className="px-3 py-2 text-center text-muted-foreground">Status</th>
-                      <th className="px-3 py-2 text-center text-muted-foreground">Bayar</th>
-                      <th className="px-3 py-2 text-right text-muted-foreground">Total</th>
-                    </tr></thead>
-                    <tbody>{filtered.map(o => (
-                      <tr key={o.id} className="border-b last:border-0">
-                        <td className="px-3 py-2 text-foreground text-xs">{new Date(o.createdAt).toLocaleString("id-ID")}</td>
-                        <td className="px-3 py-2 font-medium text-foreground">{o.customerName || "—"}</td>
-                        <td className="px-3 py-2 text-center"><span className="rounded-full bg-muted px-2 py-0.5 text-xs">{o.type === "pos" ? "POS" : "Online"}</span></td>
-                        <td className="px-3 py-2 text-center"><span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">{o.status}</span></td>
-                        <td className="px-3 py-2 text-center text-xs">{o.paymentMethod === "cash" ? "Cash" : "Transfer"}</td>
-                        <td className="px-3 py-2 text-right font-mono">Rp {o.total.toLocaleString("id-ID")}</td>
+                    <thead>
+                      <tr className="border-b">
+                        <th className="px-3 py-3 text-left text-muted-foreground font-semibold">
+                          Waktu
+                        </th>
+                        <th className="px-3 py-3 text-left text-muted-foreground font-semibold">
+                          Pelanggan
+                        </th>
+                        <th className="px-3 py-3 text-center text-muted-foreground font-semibold">
+                          Tipe
+                        </th>
+                        <th className="px-3 py-3 text-center text-muted-foreground font-semibold">
+                          Metode Bayar
+                        </th>
+                        <th className="px-3 py-3 text-right text-muted-foreground font-semibold">
+                          Total
+                        </th>
                       </tr>
-                    ))}</tbody>
+                    </thead>
+                    <tbody>
+                      {filtered.map((o) => (
+                        <tr
+                          key={o.id}
+                          className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors"
+                        >
+                          <td className="px-3 py-3 text-foreground text-xs">
+                            {new Date(o.createdAt).toLocaleString("id-ID", {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                            })}
+                          </td>
+                          <td className="px-3 py-3 font-medium text-foreground">
+                            {o.customerName || "—"}
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            <span className="rounded-full bg-muted border border-border/60 px-2.5 py-1 text-xs font-medium">
+                              {o.type === "pos" ? "POS Kasir" : "Online"}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3 text-center text-xs font-medium text-muted-foreground">
+                            {o.paymentMethod === "cash"
+                              ? "Tunai (COD)"
+                              : "Transfer"}
+                          </td>
+                          <td className="px-3 py-3 text-right font-mono font-medium">
+                            Rp {getOrderTotal(o).toLocaleString("id-ID")}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
                   </table>
                 </div>
               )}
@@ -307,29 +521,65 @@ const AdminReports = () => {
         </TabsContent>
 
         <TabsContent value="products">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+          <Card className="border-border/50 shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between bg-muted/20 border-b border-border/50 pb-4">
               <CardTitle className="text-base">🏆 Produk Terlaris</CardTitle>
-              <PrintReportButton title="Laporan Produk Terlaris" dateRange={dateRange}><ProductsTable /></PrintReportButton>
+              <Button
+                size="sm"
+                onClick={() =>
+                  handlePrintReport("products", "Statistik Produk Terlaris")
+                }
+              >
+                <Printer className="w-4 h-4 mr-2" /> Cetak Laporan
+              </Button>
             </CardHeader>
-            <CardContent>
-              {topProducts.length === 0 ? <p className="text-sm text-muted-foreground">Belum ada data.</p> : (
+            <CardContent className="pt-6">
+              {topProducts.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">
+                  Belum ada data penjualan produk.
+                </p>
+              ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead><tr className="border-b">
-                      <th className="px-3 py-2 text-left text-muted-foreground">#</th>
-                      <th className="px-3 py-2 text-left text-muted-foreground">Produk</th>
-                      <th className="px-3 py-2 text-center text-muted-foreground">Terjual</th>
-                      <th className="px-3 py-2 text-right text-muted-foreground">Pendapatan</th>
-                    </tr></thead>
-                    <tbody>{topProducts.map((p, i) => (
-                      <tr key={p.name} className="border-b last:border-0">
-                        <td className="px-3 py-2 text-muted-foreground">{i + 1}</td>
-                        <td className="px-3 py-2 font-medium text-foreground">{p.name}</td>
-                        <td className="px-3 py-2 text-center">{p.qty}</td>
-                        <td className="px-3 py-2 text-right font-mono">Rp {p.revenue.toLocaleString("id-ID")}</td>
+                    <thead>
+                      <tr className="border-b">
+                        <th className="px-3 py-3 text-left text-muted-foreground font-semibold w-16">
+                          #
+                        </th>
+                        <th className="px-3 py-3 text-left text-muted-foreground font-semibold">
+                          Nama Produk
+                        </th>
+                        <th className="px-3 py-3 text-center text-muted-foreground font-semibold">
+                          Jumlah Terjual
+                        </th>
+                        <th className="px-3 py-3 text-right text-muted-foreground font-semibold">
+                          Total Pendapatan
+                        </th>
                       </tr>
-                    ))}</tbody>
+                    </thead>
+                    <tbody>
+                      {topProducts.map((p, i) => (
+                        <tr
+                          key={p.name}
+                          className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors"
+                        >
+                          <td className="px-3 py-3 text-muted-foreground font-bold">
+                            {i + 1}
+                          </td>
+                          <td className="px-3 py-3 font-medium text-foreground">
+                            {p.name}
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            <span className="bg-primary/10 text-primary px-3 py-1 rounded-full font-bold">
+                              {p.qty}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3 text-right font-mono font-medium text-primary">
+                            Rp {p.revenue.toLocaleString("id-ID")}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
                   </table>
                 </div>
               )}
@@ -338,31 +588,72 @@ const AdminReports = () => {
         </TabsContent>
 
         <TabsContent value="stock">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base">📦 Riwayat Perubahan Stok</CardTitle>
-              <PrintReportButton title="Laporan Riwayat Stok" dateRange={dateRange}><StockTable /></PrintReportButton>
+          <Card className="border-border/50 shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between bg-muted/20 border-b border-border/50 pb-4">
+              <CardTitle className="text-base">
+                📦 Riwayat Perubahan Stok
+              </CardTitle>
+              <Button
+                size="sm"
+                onClick={() =>
+                  handlePrintReport("stock", "Log Riwayat Perubahan Stok")
+                }
+              >
+                <Printer className="w-4 h-4 mr-2" /> Cetak Laporan
+              </Button>
             </CardHeader>
-            <CardContent>
-              {filteredLogs.length === 0 ? <p className="text-sm text-muted-foreground">Belum ada riwayat stok.</p> : (
+            <CardContent className="pt-6">
+              {filteredLogs.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">
+                  Belum ada riwayat perubahan stok.
+                </p>
+              ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead><tr className="border-b">
-                      <th className="px-3 py-2 text-left text-muted-foreground">Waktu</th>
-                      <th className="px-3 py-2 text-left text-muted-foreground">Produk</th>
-                      <th className="px-3 py-2 text-center text-muted-foreground">Perubahan</th>
-                      <th className="px-3 py-2 text-left text-muted-foreground">Alasan</th>
-                    </tr></thead>
-                    <tbody>{filteredLogs.slice(0, 50).map(l => (
-                      <tr key={l.id} className="border-b last:border-0">
-                        <td className="px-3 py-2 text-foreground text-xs">{new Date(l.createdAt).toLocaleString("id-ID")}</td>
-                        <td className="px-3 py-2 font-medium text-foreground">{l.productName}</td>
-                        <td className={`px-3 py-2 text-center font-bold ${l.change > 0 ? "text-primary" : "text-destructive"}`}>
-                          {l.change > 0 ? `+${l.change}` : l.change}
-                        </td>
-                        <td className="px-3 py-2 text-muted-foreground">{l.reason}</td>
+                    <thead>
+                      <tr className="border-b">
+                        <th className="px-3 py-3 text-left text-muted-foreground font-semibold">
+                          Waktu Perubahan
+                        </th>
+                        <th className="px-3 py-3 text-left text-muted-foreground font-semibold">
+                          Produk
+                        </th>
+                        <th className="px-3 py-3 text-center text-muted-foreground font-semibold">
+                          Perubahan
+                        </th>
+                        <th className="px-3 py-3 text-left text-muted-foreground font-semibold">
+                          Alasan / Keterangan
+                        </th>
                       </tr>
-                    ))}</tbody>
+                    </thead>
+                    <tbody>
+                      {filteredLogs.slice(0, 50).map((l) => (
+                        <tr
+                          key={l.id}
+                          className="border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors"
+                        >
+                          <td className="px-3 py-3 text-foreground text-xs">
+                            {new Date(l.createdAt).toLocaleString("id-ID", {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                            })}
+                          </td>
+                          <td className="px-3 py-3 font-medium text-foreground">
+                            {l.productName}
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            <span
+                              className={`px-3 py-1 rounded-full text-xs font-bold ${l.change > 0 ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}
+                            >
+                              {l.change > 0 ? `+${l.change}` : l.change}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3 text-muted-foreground">
+                            {l.reason}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
                   </table>
                 </div>
               )}
@@ -371,31 +662,65 @@ const AdminReports = () => {
         </TabsContent>
 
         <TabsContent value="lowstock">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base">⚠️ Stok Rendah ({lowStock.length} produk)</CardTitle>
-              <PrintReportButton title="Laporan Stok Rendah" subtitle={`${lowStock.length} produk dengan stok ≤ 10`}><LowStockTable /></PrintReportButton>
+          <Card className="border-border/50 shadow-sm border-destructive/20">
+            <CardHeader className="flex flex-row items-center justify-between bg-destructive/5 border-b border-destructive/10 pb-4">
+              <CardTitle className="text-base text-destructive flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5" /> Stok Rendah (
+                {lowStock.length} produk)
+              </CardTitle>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() =>
+                  handlePrintReport("lowstock", "Daftar Barang Stok Rendah")
+                }
+              >
+                <Printer className="w-4 h-4 mr-2" /> Cetak Laporan
+              </Button>
             </CardHeader>
-            <CardContent>
-              {lowStock.length === 0 ? <p className="text-sm text-muted-foreground">Semua stok aman.</p> : (
+            <CardContent className="pt-6">
+              {lowStock.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">
+                  Semua stok barang dalam kondisi aman (lebih dari 10).
+                </p>
+              ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead><tr className="border-b">
-                      <th className="px-3 py-2 text-left text-muted-foreground">Produk</th>
-                      <th className="px-3 py-2 text-center text-muted-foreground">Stok Saat Ini</th>
-                      <th className="px-3 py-2 text-center text-muted-foreground">Status</th>
-                    </tr></thead>
-                    <tbody>{lowStock.map(p => (
-                      <tr key={p.id} className="border-b last:border-0">
-                        <td className="px-3 py-2 font-medium text-foreground">{p.name}</td>
-                        <td className="px-3 py-2 text-center font-bold text-destructive">{p.stock}</td>
-                        <td className="px-3 py-2 text-center">
-                          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${p.stock === 0 ? "bg-destructive/10 text-destructive" : "bg-accent/10 text-accent"}`}>
-                            {p.stock === 0 ? "Habis" : "Menipis"}
-                          </span>
-                        </td>
+                    <thead>
+                      <tr className="border-b border-destructive/20">
+                        <th className="px-3 py-3 text-left text-muted-foreground font-semibold">
+                          Nama Produk
+                        </th>
+                        <th className="px-3 py-3 text-center text-muted-foreground font-semibold w-32">
+                          Sisa Stok
+                        </th>
+                        <th className="px-3 py-3 text-center text-muted-foreground font-semibold w-40">
+                          Status
+                        </th>
                       </tr>
-                    ))}</tbody>
+                    </thead>
+                    <tbody>
+                      {lowStock.map((p) => (
+                        <tr
+                          key={p.id}
+                          className="border-b border-destructive/10 last:border-0 hover:bg-destructive/5 transition-colors"
+                        >
+                          <td className="px-3 py-3 font-medium text-foreground">
+                            {p.name}
+                          </td>
+                          <td className="px-3 py-3 text-center font-bold text-destructive text-lg">
+                            {p.stock}
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            <span
+                              className={`rounded-full px-3 py-1 text-xs font-bold ${p.stock === 0 ? "bg-destructive text-destructive-foreground shadow-sm" : "bg-warning/20 text-warning-foreground border border-warning/30"}`}
+                            >
+                              {p.stock === 0 ? "HABIS TOTAL" : "SEGERA RESTOCK"}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
                   </table>
                 </div>
               )}

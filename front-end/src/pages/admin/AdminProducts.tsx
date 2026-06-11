@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   getProductsFromAPI,
   getCategoriesFromAPI,
@@ -16,7 +16,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -44,6 +43,12 @@ import {
   Barcode,
   Banknote,
   Boxes,
+  Search,
+  AlertCircle,
+  Layers,
+  Eye,
+  X,
+  CheckCheck
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -66,9 +71,13 @@ const AdminProducts = () => {
   const [editing, setEditing] = useState<Product | null>(null);
   const [form, setForm] = useState<Omit<Product, "id">>(emptyProduct);
   const [imagePreview, setImagePreview] = useState("");
+  
   const [dialogOpen, setDialogOpen] = useState(false);
   const [catDialogOpen, setCatDialogOpen] = useState(false);
   const [newCatName, setNewCatName] = useState("");
+  
+  // new state for search feature
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     loadData();
@@ -185,22 +194,39 @@ const AdminProducts = () => {
     }
   };
 
+  // Filter product based on search
+  const filteredProducts = useMemo(() => {
+    if (!searchQuery.trim()) return products;
+    const lowerQuery = searchQuery.toLowerCase();
+    return products.filter(
+      p => 
+        p.name.toLowerCase().includes(lowerQuery) || 
+        (p.barcode && p.barcode.toLowerCase().includes(lowerQuery))
+    );
+  }, [products, searchQuery]);
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex h-[60vh] flex-col items-center justify-center gap-4">
+        <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+        <p className="text-sm font-medium text-muted-foreground animate-pulse">Memuat Katalog Produk...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="space-y-4 py-12">
-        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-center">
-          <h3 className="mb-2 text-lg font-semibold text-destructive">Gagal memuat produk</h3>
-          <p className="mb-4 text-sm text-muted-foreground">{error}</p>
-          <Button onClick={loadData} variant="outline">
-            Coba lagi
+      <div className="space-y-4 py-12 animate-in fade-in">
+        <div className="mx-auto max-w-lg rounded-2xl border border-destructive/20 bg-destructive/5 p-8 text-center shadow-sm">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+            <AlertCircle className="h-6 w-6 text-destructive" />
+          </div>
+          <h3 className="mb-2 text-lg font-bold text-destructive">Koneksi Terputus</h3>
+          <p className="mb-6 text-sm text-muted-foreground leading-relaxed">{error}</p>
+          <Button onClick={loadData} className="shadow-md shadow-primary/20">
+            Coba Muat Ulang
           </Button>
         </div>
       </div>
@@ -208,290 +234,375 @@ const AdminProducts = () => {
   }
 
   return (
-    <div className="space-y-6 animate-slide-in">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+      
+      {/* Header Section */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-card p-6 rounded-3xl border border-border/50 shadow-sm relative overflow-hidden">
+        <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-primary/5 to-transparent pointer-events-none"></div>
+        
         <div>
-          <h2 className="font-display text-xl font-bold text-foreground">Produk</h2>
-          <p className="text-sm text-muted-foreground">{products.length} item terdaftar</p>
+          <h2 className="font-display text-2xl font-bold text-foreground flex items-center gap-2">
+            <Layers className="h-6 w-6 text-primary" /> Katalog Produk
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">Kelola daftar barang, harga, dan ketersediaan stok.</p>
         </div>
-        <div className="flex gap-2">
+
+        <div className="flex flex-wrap items-center gap-3 relative z-10">
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input 
+              placeholder="Cari nama atau barcode..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 bg-background/50 h-10 border-border/60 focus-visible:bg-background"
+            />
+          </div>
+
           <Dialog open={catDialogOpen} onOpenChange={setCatDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Tag className="h-4 w-4" />
-                Kategori
+              <Button variant="secondary" className="gap-2 h-10 border border-border/50">
+                <Tag className="h-4 w-4 text-primary" />
+                <span className="hidden sm:inline">Kategori</span>
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md rounded-2xl">
               <DialogHeader>
-                <DialogTitle>Kelola Kategori</DialogTitle>
-                <DialogDescription>Tambah atau hapus kategori produk toko Anda.</DialogDescription>
+                <DialogTitle className="flex items-center gap-2">
+                  <Tag className="h-5 w-5 text-primary" /> Kelola Kategori
+                </DialogTitle>
+                <DialogDescription>Kelompokkan produk agar mudah dicari pelanggan.</DialogDescription>
               </DialogHeader>
-              <div className="flex gap-2">
+              
+              <div className="flex gap-2 my-2">
                 <Input
-                  placeholder="Nama kategori baru"
+                  placeholder="Ketik nama kategori baru..."
                   value={newCatName}
                   onChange={(e) => setNewCatName(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleAddCategory()}
+                  className="bg-muted/30 focus-visible:bg-background"
                 />
-                <Button onClick={handleAddCategory} disabled={saving} size="icon">
-                  <Plus className="h-4 w-4" />
+                <Button onClick={handleAddCategory} disabled={saving} className="px-3 shadow-md shadow-primary/20">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                 </Button>
               </div>
-              <div className="max-h-48 space-y-2 overflow-y-auto">
-                {categories.map((c) => (
-                  <div
-                    key={c.id}
-                    className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2"
-                  >
-                    <span className="text-sm font-medium">{c.name}</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-destructive"
-                      onClick={() => handleDeleteCategory(c.id)}
-                      disabled={saving}
+
+              <div className="mt-4 flex flex-wrap gap-2 max-h-60 overflow-y-auto custom-scrollbar p-1">
+                {categories.length === 0 ? (
+                  <p className="text-sm text-muted-foreground w-full text-center py-4">Belum ada kategori.</p>
+                ) : (
+                  categories.map((c) => (
+                    <div
+                      key={c.id}
+                      className="group flex items-center gap-1.5 rounded-full border border-border bg-card shadow-sm pl-3 pr-1 py-1 transition-colors hover:border-primary/40"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                ))}
+                      <span className="text-sm font-medium text-foreground">{c.name}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 rounded-full text-muted-foreground opacity-50 transition-all hover:bg-destructive/10 hover:text-destructive hover:opacity-100"
+                        onClick={() => handleDeleteCategory(c.id)}
+                        disabled={saving}
+                      >
+                        <X className="h-3.5 w-3.5" /> 
+                      </Button>
+                    </div>
+                  ))
+                )}
               </div>
             </DialogContent>
           </Dialog>
-          <Button size="sm" className="gap-2" onClick={openAdd}>
+
+          <Button className="gap-2 h-10 shadow-md shadow-primary/20" onClick={openAdd}>
             <Plus className="h-4 w-4" />
-            Tambah Produk
+            <span className="hidden sm:inline">Tambah Produk</span>
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {products.map((p) => (
-          <Card key={p.id} className="overflow-hidden transition-shadow hover:shadow-md">
-            <div className="aspect-square bg-muted">
-              <img
-                src={getProductImage(p)}
-                alt={p.name}
-                className="h-full w-full object-cover"
-                loading="lazy"
-              />
-            </div>
-            <CardContent className="p-4">
-              <h3 className="font-semibold text-foreground line-clamp-1">{p.name}</h3>
-              <p className="text-sm font-bold text-primary">
-                Rp {p.price.toLocaleString("id-ID")}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Stok: {p.stock} · {categories.find((c) => c.id === p.category)?.name || "—"}
-              </p>
-              {p.barcode && (
-                <p className="mt-0.5 font-mono text-[10px] text-muted-foreground">{p.barcode}</p>
-              )}
-              <div className="mt-3 flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1 gap-1" onClick={() => openEdit(p)}>
-                  <Pencil className="h-3 w-3" />
-                  Edit
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-destructive"
-                  onClick={() => handleDelete(p.id)}
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {/* Product Grid */}
+      {filteredProducts.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 px-4 text-center border-2 border-dashed border-border/60 rounded-3xl bg-card/30">
+          <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+            <Package className="h-10 w-10 text-primary/60" />
+          </div>
+          <h3 className="text-lg font-bold text-foreground">Tidak ada produk ditemukan</h3>
+          <p className="text-sm text-muted-foreground mt-1 max-w-sm">
+            {searchQuery ? `Tidak ada barang yang cocok dengan kata kunci "${searchQuery}".` : "Toko Anda belum memiliki produk apapun. Klik 'Tambah Produk' untuk mulai berjualan."}
+          </p>
+          {searchQuery && (
+             <Button variant="outline" className="mt-4" onClick={() => setSearchQuery("")}>Bersihkan Pencarian</Button>
+          )}
+        </div>
+      ) : (
+        <div className="grid gap-5 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {filteredProducts.map((p) => (
+            <Card key={p.id} className="group overflow-hidden border-border/60 shadow-sm transition-all hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 bg-card flex flex-col relative rounded-2xl">
+              
+              {/* Image Section */}
+              <div className="relative aspect-[4/3] bg-muted overflow-hidden">
+                <img
+                  src={getProductImage(p)}
+                  alt={p.name}
+                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  loading="lazy"
+                />
+                
+                {/* Category Badge */}
+                <div className="absolute top-2 left-2 z-10">
+                  <span className="backdrop-blur-md bg-background/80 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase text-foreground shadow-sm border border-border/50">
+                    {categories.find((c) => c.id === p.category)?.name || "Lainnya"}
+                  </span>
+                </div>
 
+                {/* Floating Actions Overlay */}
+                <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] opacity-0 transition-opacity duration-300 group-hover:opacity-100 flex items-center justify-center gap-3 z-20">
+                  <Button size="icon" variant="secondary" className="h-10 w-10 rounded-full shadow-lg bg-background hover:bg-primary hover:text-primary-foreground text-foreground transition-colors" onClick={() => openEdit(p)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button size="icon" variant="destructive" className="h-10 w-10 rounded-full shadow-lg opacity-90 hover:opacity-100" onClick={() => handleDelete(p.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Content Section */}
+              <CardContent className="p-4 flex flex-col flex-1">
+                <h3 className="font-bold text-foreground text-sm line-clamp-2 leading-tight group-hover:text-primary transition-colors">
+                  {p.name}
+                </h3>
+                
+                <div className="mt-auto pt-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="font-black text-primary text-base">
+                      Rp {p.price.toLocaleString("id-ID")}
+                    </p>
+                    
+                    {/* Stock Badge */}
+                    <div className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${
+                      p.stock === 0 ? "bg-destructive/10 text-destructive border-destructive/20" :
+                      p.stock <= 10 ? "bg-warning/10 text-warning border-warning/20" : 
+                      "bg-success/10 text-success border-success/20"
+                    }`}>
+                      {p.stock === 0 ? "HABIS" : `Sisa ${p.stock}`}
+                    </div>
+                  </div>
+                  
+                  {p.barcode ? (
+                    <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground bg-muted/40 px-2 py-1 rounded-md w-fit border border-border/50">
+                      <Barcode className="h-3 w-3" /> {p.barcode}
+                    </div>
+                  ) : (
+                    <div className="h-5"></div> /* Placeholder for keep the same height */
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Main Dialog: Add/Edit Product */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[90vh] gap-0 overflow-hidden p-0 sm:max-w-2xl">
-          <DialogHeader className="border-b px-6 py-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                <Package className="h-5 w-5 text-primary" />
+        <DialogContent className="max-h-[90vh] gap-0 overflow-hidden p-0 sm:max-w-4xl rounded-3xl">
+          <DialogHeader className="border-b border-border/50 px-6 py-5 bg-card/50 backdrop-blur-sm">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 shadow-inner">
+                <Package className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <DialogTitle>{editing ? "Edit Produk" : "Tambah Produk"}</DialogTitle>
-                <DialogDescription>
-                  {editing ? "Perbarui detail produk di katalog toko." : "Isi informasi produk baru."}
+                <DialogTitle className="text-xl">{editing ? "Edit Detail Produk" : "Tambah Produk Baru"}</DialogTitle>
+                <DialogDescription className="text-sm">
+                  {editing ? "Perbarui informasi, harga, dan ketersediaan stok." : "Lengkapi form berikut untuk memasukkan barang ke etalase."}
                 </DialogDescription>
               </div>
             </div>
           </DialogHeader>
 
-          <div className="max-h-[calc(90vh-8rem)] overflow-y-auto px-6 py-5">
-            <div className="grid gap-6 lg:grid-cols-5">
-              {/* Preview */}
-              <div className="lg:col-span-2">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Pratinjau
+          <div className="max-h-[calc(90vh-140px)] overflow-y-auto px-6 py-6 bg-secondary/5 custom-scrollbar">
+            <div className="grid gap-8 lg:grid-cols-12">
+              
+              {/* Kolom Kiri: original preview (True Preview) */}
+              <div className="lg:col-span-4 space-y-4">
+                <p className="flex items-center gap-2 text-sm font-bold text-foreground">
+                  <Eye className="h-4 w-4 text-primary" /> Pratinjau Tampilan
                 </p>
-                <div className="overflow-hidden rounded-xl border bg-muted/40">
-                  <div className="aspect-square bg-muted">
+                
+                <div className="rounded-2xl overflow-hidden border border-border/60 shadow-md bg-card mx-auto max-w-[240px] lg:max-w-none">
+                  <div className="relative aspect-[4/3] bg-muted overflow-hidden">
                     {imagePreview ? (
-                      <img
-                        src={imagePreview}
-                        alt="Preview"
-                        className="h-full w-full object-cover"
-                        onError={() => setImagePreview("")}
-                      />
+                      <img src={imagePreview} alt="Preview" className="h-full w-full object-cover" onError={() => setImagePreview("")} />
                     ) : (
-                      <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
-                        <ImageIcon className="h-10 w-10 opacity-40" />
-                        <span className="text-xs">Belum ada gambar</span>
+                      <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground bg-muted/50">
+                        <ImageIcon className="h-10 w-10 opacity-20" />
                       </div>
                     )}
+                    <div className="absolute top-2 left-2 z-10">
+                      <span className="backdrop-blur-md bg-background/80 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase text-foreground border border-border/50">
+                        {categories.find((c) => c.id === form.category)?.name || "Kategori"}
+                      </span>
+                    </div>
                   </div>
-                  <div className="space-y-1 border-t bg-card p-3">
-                    <p className="font-semibold text-foreground line-clamp-1">
-                      {form.name || "Nama produk"}
-                    </p>
-                    <p className="text-sm font-bold text-primary">
-                      Rp {(form.price || 0).toLocaleString("id-ID")}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Stok: {form.stock ?? 0}</p>
+                  <div className="p-4 flex flex-col">
+                    <h3 className="font-bold text-foreground text-sm line-clamp-2 leading-tight">
+                      {form.name || "Nama Produk Akan Tampil Disini"}
+                    </h3>
+                    <div className="mt-3 flex items-center justify-between">
+                      <p className="font-black text-primary text-base">
+                        Rp {(form.price || 0).toLocaleString("id-ID")}
+                      </p>
+                      <div className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${form.stock === 0 ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-success/10 text-success border-success/20"}`}>
+                        Sisa {form.stock || 0}
+                      </div>
+                    </div>
                   </div>
+                </div>
+
+                <div className="p-4 bg-primary/10 rounded-xl border border-primary/20 text-xs text-primary/80 leading-relaxed font-medium">
+                  Informasi di atas adalah tampilan persis bagaimana pelanggan melihat produk Anda di etalase.
                 </div>
               </div>
 
-              {/* Fields */}
-              <div className="space-y-5 lg:col-span-3">
-                <div>
-                  <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    <Package className="h-3.5 w-3.5" />
-                    Informasi dasar
-                  </p>
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="product-name">Nama produk</Label>
-                      <Input
-                        id="product-name"
-                        placeholder="Contoh: Es Teh Manis"
-                        value={form.name}
-                        onChange={(e) => setForm({ ...form, name: e.target.value })}
-                        disabled={saving}
-                      />
+              {/* right column: Form Inputs */}
+              <div className="lg:col-span-8 space-y-8">
+                
+                {/* Section 1: basic information */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 border-b border-border/50 pb-2">
+                    <Package className="h-4 w-4 text-primary" />
+                    <h3 className="font-bold text-foreground">Informasi Utama</h3>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="product-name">Nama Produk <span className="text-destructive">*</span></Label>
+                    <Input
+                      id="product-name"
+                      placeholder="Contoh: Es Teh Manis Jumbo"
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      disabled={saving}
+                      className="h-11 bg-background"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Kategori <span className="text-destructive">*</span></Label>
+                      <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                        <SelectTrigger disabled={saving} className="h-11 bg-background">
+                          <SelectValue placeholder="Pilih kategori barang" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label htmlFor="product-price" className="flex items-center gap-1">
-                          <Banknote className="h-3 w-3" />
-                          Harga (Rp)
-                        </Label>
+                    <div className="space-y-2">
+                      <Label htmlFor="product-barcode" className="flex justify-between">
+                        Barcode <span className="text-xs text-muted-foreground font-normal">Opsional (Scan POS)</span>
+                      </Label>
+                      <div className="relative">
+                        <Barcode className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          id="product-barcode"
+                          placeholder="0123456789"
+                          value={form.barcode || ""}
+                          onChange={(e) => setForm({ ...form, barcode: e.target.value })}
+                          disabled={saving}
+                          className="h-11 pl-10 font-mono text-sm bg-background"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: price & stock */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 border-b border-border/50 pb-2">
+                    <Banknote className="h-4 w-4 text-primary" />
+                    <h3 className="font-bold text-foreground">Harga & Ketersediaan</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="product-price">Harga Jual (Rp) <span className="text-destructive">*</span></Label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">Rp</span>
                         <Input
                           id="product-price"
                           type="number"
                           min={0}
                           placeholder="0"
                           value={form.price || ""}
-                          onChange={(e) =>
-                            setForm({ ...form, price: Number(e.target.value) || 0 })
-                          }
+                          onChange={(e) => setForm({ ...form, price: Number(e.target.value) || 0 })}
                           disabled={saving}
+                          className="h-11 pl-10 font-bold bg-background"
                         />
                       </div>
-                      <div className="space-y-1.5">
-                        <Label htmlFor="product-stock" className="flex items-center gap-1">
-                          <Boxes className="h-3 w-3" />
-                          Stok
-                        </Label>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="product-stock">Jumlah Stok <span className="text-destructive">*</span></Label>
+                      <div className="relative">
+                        <Boxes className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                         <Input
                           id="product-stock"
                           type="number"
                           min={0}
                           placeholder="0"
                           value={form.stock || ""}
-                          onChange={(e) =>
-                            setForm({ ...form, stock: Number(e.target.value) || 0 })
-                          }
+                          onChange={(e) => setForm({ ...form, stock: Number(e.target.value) || 0 })}
                           disabled={saving}
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label>Kategori</Label>
-                        <Select
-                          value={form.category}
-                          onValueChange={(v) => setForm({ ...form, category: v })}
-                        >
-                          <SelectTrigger disabled={saving}>
-                            <SelectValue placeholder="Pilih kategori" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {categories.map((c) => (
-                              <SelectItem key={c.id} value={c.id}>
-                                {c.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label htmlFor="product-barcode" className="flex items-center gap-1">
-                          <Barcode className="h-3 w-3" />
-                          Barcode
-                        </Label>
-                        <Input
-                          id="product-barcode"
-                          placeholder="Opsional"
-                          value={form.barcode || ""}
-                          onChange={(e) => setForm({ ...form, barcode: e.target.value })}
-                          disabled={saving}
-                          className="font-mono text-sm"
+                          className="h-11 pl-10 bg-background"
                         />
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <Separator />
-
-                <div>
-                  <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    <ImageIcon className="h-3.5 w-3.5" />
-                    Media & deskripsi
-                  </p>
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="product-image">URL gambar</Label>
-                      <Input
-                        id="product-image"
-                        placeholder="https://..."
-                        value={form.image}
-                        onChange={(e) => setForm({ ...form, image: e.target.value })}
-                        disabled={saving}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="product-desc">Deskripsi</Label>
-                      <Textarea
-                        id="product-desc"
-                        placeholder="Deskripsi singkat produk..."
-                        rows={3}
-                        value={form.description}
-                        onChange={(e) => setForm({ ...form, description: e.target.value })}
-                        disabled={saving}
-                        className="resize-none"
-                      />
-                    </div>
+                {/* Section 3: Media & Description */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 border-b border-border/50 pb-2">
+                    <ImageIcon className="h-4 w-4 text-primary" />
+                    <h3 className="font-bold text-foreground">Media & Detail</h3>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="product-image">URL Gambar (Tautan Link)</Label>
+                    <Input
+                      id="product-image"
+                      placeholder="https://contoh.com/gambar-produk.jpg"
+                      value={form.image}
+                      onChange={(e) => setForm({ ...form, image: e.target.value })}
+                      disabled={saving}
+                      className="h-11 bg-background"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="product-desc">Deskripsi Produk <span className="text-xs text-muted-foreground font-normal">(Muncul di e-commerce)</span></Label>
+                    <Textarea
+                      id="product-desc"
+                      placeholder="Jelaskan detail ukuran, rasa, atau spesifikasi barang ini..."
+                      rows={4}
+                      value={form.description}
+                      onChange={(e) => setForm({ ...form, description: e.target.value })}
+                      disabled={saving}
+                      className="resize-none bg-background custom-scrollbar"
+                    />
                   </div>
                 </div>
+
               </div>
             </div>
           </div>
 
-          <DialogFooter className="border-t bg-muted/30 px-6 py-4">
-            <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>
+          <DialogFooter className="border-t border-border/50 bg-card px-6 py-4 flex flex-row items-center justify-between sm:justify-between">
+            <Button variant="ghost" onClick={() => setDialogOpen(false)} disabled={saving} className="text-muted-foreground">
               Batal
             </Button>
-            <Button onClick={handleSave} disabled={saving} className="min-w-28 gap-2">
-              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-              {editing ? "Simpan perubahan" : "Tambah produk"}
+            <Button onClick={handleSave} disabled={saving} className="min-w-32 gap-2 h-11 shadow-md shadow-primary/20">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCheck className="h-4 w-4" />}
+              {editing ? "Simpan Perubahan" : "Tambahkan Produk"}
             </Button>
           </DialogFooter>
         </DialogContent>

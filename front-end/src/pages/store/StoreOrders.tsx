@@ -25,6 +25,7 @@ const StoreOrders = () => {
   if (!storeId) {
     return <Navigate to="/stores" replace />;
   }
+  
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -35,16 +36,24 @@ const StoreOrders = () => {
       return;
     }
 
-    fetchOrders({
-      userId: session.id,
-      type: "online",
-    })
-      .then((rows) => setOrders(rows))
+    // FIX 1: delete argumen fetchOrders and filter it manually
+    fetchOrders()
+      .then((rows) => {
+        const myOrders = rows.filter((o: Order) => (o as any).userId === session.id && o.type === "online");
+        setOrders(myOrders);
+      })
       .catch((error: any) => {
         toast.error(error?.message || "Gagal memuat pesanan");
       })
       .finally(() => setLoading(false));
   }, [session?.id]);
+
+  // FIX 2: Calculator saver if value 'total' null
+  const getOrderTotal = (order: Order) => {
+    if (typeof order.total === 'number') return order.total;
+    const itemsTotal = (order.items || []).reduce((sum, i) => sum + ((i.product?.price || 0) * i.quantity), 0);
+    return itemsTotal + ((order as any).shippingFee || 0);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -76,12 +85,12 @@ const StoreOrders = () => {
                 </div>
                 <div className="mt-2 space-y-1">
                   {o.items.map(i => (
-                    <p key={i.product.id} className="text-sm text-foreground">{i.product.image} {i.product.name} x{i.quantity}</p>
+                    <p key={i.product.id} className="text-sm text-foreground">{i.product.name} x{i.quantity}</p>
                   ))}
                 </div>
                 <div className="mt-2 border-t pt-2 flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">{o.fulfillment === "delivery" ? "Delivery" : "Pickup"}</span>
-                  <span className="font-bold text-primary">Rp {o.total.toLocaleString("id-ID")}</span>
+                  <span className="text-sm text-muted-foreground">{o.fulfillment === "delivery" ? "Diantar Kurir" : "Ambil Sendiri"}</span>
+                  <span className="font-bold text-primary">Rp {getOrderTotal(o).toLocaleString("id-ID")}</span>
                 </div>
               </div>
             ))}

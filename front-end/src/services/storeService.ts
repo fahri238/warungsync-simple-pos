@@ -57,17 +57,17 @@ export const fetchStoreById = async (id: string): Promise<Store> => {
   } catch {
     const fallback = DEFAULT_STORES.find((s) => s.id === id);
     if (fallback) return fallback;
-    throw new Error("Toko tidak ditemukan");
+    return DEFAULT_STORES[0]; 
   }
 };
 
 export const fetchShippingRates = async (storeId: string): Promise<ShippingRate[]> => {
   try {
     const response = await apiCall(`/${storeId}/shipping-rates`);
-    return response.data?.length
-      ? response.data
-      : DEFAULT_RATES.filter((r) => r.storeId === storeId);
+    if (response.data && response.data.length > 0) return response.data;
+    throw new Error("Data API Kosong");
   } catch {
-    return DEFAULT_RATES.filter((r) => r.storeId === storeId);
+    const filtered = DEFAULT_RATES.filter((r) => r.storeId === storeId);
+    return filtered.length > 0 ? filtered : DEFAULT_RATES;
   }
 };

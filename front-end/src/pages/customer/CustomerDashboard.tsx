@@ -41,13 +41,23 @@ const CustomerDashboard = () => {
       return;
     }
 
-    fetchOrders({ userId: session.id, type: "online" })
-      .then((orders) => setAllOrders(orders))
+    // FIX: Remove arguments from fetchOrders and filter manually
+    fetchOrders()
+      .then((orders) => {
+        const myOnlineOrders = orders.filter((o: Order) => (o as any).userId === session.id && o.type === "online");
+        setAllOrders(myOnlineOrders);
+      })
       .catch((error: any) => {
         toast.error(error?.message || "Gagal memuat data pesanan");
       })
       .finally(() => setLoadingOrders(false));
   }, [session]);
+
+  const getOrderTotal = (order: Order) => {
+    if (typeof order.total === 'number') return order.total;
+    const itemsTotal = (order.items || []).reduce((sum, i) => sum + ((i.product?.price || 0) * i.quantity), 0);
+    return itemsTotal + ((order as any).shippingFee || 0);
+  };
 
   const filteredOrders = useMemo(() => {
     return allOrders.filter(o => {
@@ -58,7 +68,7 @@ const CustomerDashboard = () => {
     });
   }, [allOrders, dateFrom, dateTo]);
 
-  const totalSpending = filteredOrders.reduce((s, o) => s + o.total, 0);
+  const totalSpending = filteredOrders.reduce((s, o) => s + getOrderTotal(o), 0);
   const totalOrders = filteredOrders.length;
   const completedOrders = filteredOrders.filter(o => o.status === "completed").length;
 
@@ -68,7 +78,7 @@ const CustomerDashboard = () => {
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     const label = d.toLocaleDateString("id-ID", { year: "numeric", month: "long" });
     if (!monthlySpending[key]) monthlySpending[key] = { month: label, total: 0, count: 0 };
-    monthlySpending[key].total += o.total;
+    monthlySpending[key].total += getOrderTotal(o);
     monthlySpending[key].count += 1;
   });
   const monthlyData = Object.values(monthlySpending).reverse();
@@ -77,7 +87,7 @@ const CustomerDashboard = () => {
   filteredOrders.forEach(o => o.items.forEach(i => {
     if (!productFreq[i.product.id]) productFreq[i.product.id] = { name: i.product.name, qty: 0, spent: 0 };
     productFreq[i.product.id].qty += i.quantity;
-    productFreq[i.product.id].spent += i.product.price * i.quantity;
+    productFreq[i.product.id].spent += (i.product?.price || 0) * i.quantity;
   }));
   const favoriteProducts = Object.values(productFreq).sort((a, b) => b.qty - a.qty);
 
@@ -101,7 +111,6 @@ const CustomerDashboard = () => {
     );
   }
 
-  // Print table components
   const OrderHistoryTable = () => (
     <table style={{ width: "100%", borderCollapse: "collapse" }}>
       <thead><tr style={{ background: "#f0f0f0" }}>
@@ -118,7 +127,7 @@ const CustomerDashboard = () => {
             <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "center" }}>
               <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, background: "#e8f5e9", color: "#2e7d32" }}>{statusLabels[o.status]}</span>
             </td>
-            <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "right", fontFamily: "monospace" }}>Rp {o.total.toLocaleString("id-ID")}</td>
+            <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "right", fontFamily: "monospace" }}>Rp {getOrderTotal(o).toLocaleString("id-ID")}</td>
           </tr>
         ))}
         <tr style={{ background: "#e8f5e9", fontWeight: 700 }}>
@@ -244,7 +253,7 @@ const CustomerDashboard = () => {
                       <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[o.status]}`}>
                         {statusLabels[o.status]}
                       </span>
-                      <p className="mt-1 text-sm font-bold text-primary">Rp {o.total.toLocaleString("id-ID")}</p>
+                      <p className="mt-1 text-sm font-bold text-primary">Rp {getOrderTotal(o).toLocaleString("id-ID")}</p>
                     </div>
                   </div>
                 ))}
@@ -315,7 +324,7 @@ const CustomerDashboard = () => {
                             <td className="px-3 py-2 text-center">
                               <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[o.status]}`}>{statusLabels[o.status]}</span>
                             </td>
-                            <td className="px-3 py-2 text-right font-mono">Rp {o.total.toLocaleString("id-ID")}</td>
+                            <td className="px-3 py-2 text-right font-mono">Rp {getOrderTotal(o).toLocaleString("id-ID")}</td>
                           </tr>
                         ))}</tbody>
                       </table>

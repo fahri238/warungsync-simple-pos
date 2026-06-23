@@ -14,7 +14,7 @@ import { useStoreContext } from "@/context/StoreContext";
 import type { OrderItem, Product } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, ShoppingCart, Plus, User, Loader2, MapPin } from "lucide-react";
+import { Search, ShoppingCart, Plus, User, Loader2, MapPin, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
 const StorePage = () => {
@@ -67,31 +67,40 @@ const StorePage = () => {
     return products.filter((p) => {
       const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
       const matchCat = catFilter === "all" || p.category === catFilter;
-      return matchSearch && matchCat && p.stock > 0;
+      return matchSearch && matchCat;
     });
   }, [products, search, catFilter]);
 
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
 
   const addToCart = (p: Product) => {
+    if (p.stock <= 0) {
+      toast.error(`Mohon maaf, ${p.name} sedang habis.`);
+      return;
+    }
+
     setCart((prev) => {
       const existing = prev.find((i) => i.product.id === p.id);
       let updated: OrderItem[];
+      
       if (existing) {
         if (existing.quantity >= p.stock) {
-          toast.error("Stok tidak cukup");
+          toast.error(`Sisa stok ${p.name} hanya ${p.stock} buah.`);
           return prev;
         }
+        
         updated = prev.map((i) =>
           i.product.id === p.id ? { ...i, quantity: i.quantity + 1 } : i,
         );
+        toast.success(`${p.name} ditambahkan ke keranjang`);
       } else {
         updated = [...prev, { product: p, quantity: 1 }];
+        toast.success(`${p.name} ditambahkan ke keranjang`);
       }
+      
       saveCart(storeId, updated);
       return updated;
     });
-    toast.success("Ditambahkan ke keranjang");
   };
 
   return (
@@ -192,33 +201,63 @@ const StorePage = () => {
 
         {!loading && (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {filtered.map((p) => (
-              <div
-                key={p.id}
-                className="group overflow-hidden rounded-xl border bg-card transition-shadow hover:shadow-md"
-              >
-                <div className="aspect-square bg-muted">
-                  <img
-                    src={getProductImage(p)}
-                    alt={p.name}
-                    className="h-full w-full object-cover"
-                    loading="lazy"
-                  />
-                </div>
-                <div className="p-3">
-                  <h3 className="font-semibold text-foreground line-clamp-1">{p.name}</h3>
-                  <p className="text-xs text-muted-foreground line-clamp-1">{p.description}</p>
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className="text-sm font-bold text-primary">
-                      Rp {p.price.toLocaleString("id-ID")}
-                    </span>
-                    <Button size="icon" className="h-8 w-8" onClick={() => addToCart(p)}>
-                      <Plus className="h-4 w-4" />
-                    </Button>
+            {filtered.map((p) => {
+              const itemInCart = cart.find(i => i.product.id === p.id);
+              const qtyInCart = itemInCart ? itemInCart.quantity : 0;
+              
+              // LOGIKA BARU: Hitung sisa stok yang benar-benar bisa dibeli
+              const availableStock = Math.max(0, p.stock - qtyInCart);
+              
+              const isMaxedOut = availableStock <= 0 && p.stock > 0;
+              const isOutOfStock = p.stock === 0;
+
+              return (
+                <div
+                  key={p.id}
+                  className={`group relative overflow-hidden rounded-xl border bg-card transition-all ${isOutOfStock ? 'opacity-70 grayscale-[50%]' : 'hover:shadow-md'}`}
+                >
+                  <div className="absolute top-2 left-2 z-10">
+                    {isOutOfStock ? (
+                      <span className="flex items-center gap-1 rounded-md bg-destructive/90 px-2 py-1 text-[10px] font-bold text-white shadow-sm backdrop-blur-sm">
+                        <AlertCircle className="h-3 w-3" /> Habis
+                      </span>
+                    ) : (
+                      <span className={`rounded-md px-2 py-1 text-[10px] font-bold shadow-sm backdrop-blur-sm ${availableStock <= 0 ? 'bg-destructive/90 text-white' : availableStock <= 5 ? 'bg-orange-500/90 text-white' : 'bg-background/90 text-foreground border border-border/50'}`}>
+                        {availableStock <= 0 ? 'Maksimal' : `Sisa: ${availableStock}`}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="aspect-square bg-muted relative">
+                    <img
+                      src={getProductImage(p)}
+                      alt={p.name}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                  
+                  <div className="p-3">
+                    <h3 className="font-semibold text-foreground line-clamp-1">{p.name}</h3>
+                    <p className="text-xs text-muted-foreground line-clamp-1">{p.description}</p>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className={`text-sm font-bold ${isOutOfStock ? 'text-muted-foreground line-through' : 'text-primary'}`}>
+                        Rp {p.price.toLocaleString("id-ID")}
+                      </span>
+                      
+                      <Button 
+                        size="icon" 
+                        className={`h-8 w-8 transition-colors ${isMaxedOut || isOutOfStock ? 'bg-muted text-muted-foreground hover:bg-muted cursor-not-allowed' : ''}`}
+                        onClick={() => addToCart(p)}
+                        disabled={isMaxedOut || isOutOfStock}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

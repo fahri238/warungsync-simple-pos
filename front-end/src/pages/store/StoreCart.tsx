@@ -4,6 +4,7 @@ import { getCart, saveCart, getProductImage } from "@/lib/store";
 import type { OrderItem } from "@/types";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Plus, Minus, Trash2, ShoppingBag } from "lucide-react";
+import { toast } from "sonner"; // Tambahkan import toast
 
 const StoreCart = () => {
   const { storeId } = useParams<{ storeId: string }>();
@@ -16,11 +17,18 @@ const StoreCart = () => {
   const total = cart.reduce((s, i) => s + i.product.price * i.quantity, 0);
 
   const updateQty = (id: string, delta: number) => {
+    // FIX: Cek limit stok sebelum mengupdate state keranjang
+    const item = cart.find(i => i.product.id === id);
+    if (item && delta > 0 && item.quantity >= item.product.stock) {
+      toast.error(`Maksimal pembelian tercapai! Sisa stok hanya ${item.product.stock} barang.`);
+      return;
+    }
+
     setCart((prev) => {
       const updated = prev.map((i) => {
         if (i.product.id === id) {
           const newQty = i.quantity + delta;
-          if (newQty <= 0 || newQty > i.product.stock) return i;
+          if (newQty <= 0) return i;
           return { ...i, quantity: newQty };
         }
         return i;
@@ -36,6 +44,7 @@ const StoreCart = () => {
       saveCart(storeId, updated);
       return updated;
     });
+    toast.success("Barang dihapus dari keranjang");
   };
 
   return (

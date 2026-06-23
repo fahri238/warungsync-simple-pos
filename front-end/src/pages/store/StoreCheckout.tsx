@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
-import { getCart, saveCart, getDeliverySettings, getSession } from "@/lib/store";
+import { getCart, saveCart, getDeliverySettings, getSession, updateStock } from "@/lib/store";
 import { fetchShippingRates } from "@/services/storeService";
 import type { ShippingRate } from "@/types";
 import DeliveryLocationPicker from "@/components/maps/DeliveryLocationPicker";
@@ -45,7 +45,7 @@ const StoreCheckout = () => {
 
   const cart = getCart(storeId);
   const delivery = getDeliverySettings();
-  const session = getSession() as any; // Cast as any jika tipe session belum memiliki latitude/longitude
+  const session = getSession() as any;
   const subtotal = cart.reduce((s, i) => s + i.product.price * i.quantity, 0);
 
   const [name, setName] = useState(session?.name || "");
@@ -56,11 +56,9 @@ const StoreCheckout = () => {
   const [village, setVillage] = useState("");
   const [rates, setRates] = useState<ShippingRate[]>([]);
   
-  // Ambil lokasi dari session jika ada, jika tidak null
   const [latitude, setLatitude] = useState<number | null>(session?.latitude ?? null);
   const [longitude, setLongitude] = useState<number | null>(session?.longitude ?? null);
   
-  // Kamera peta menyesuaikan dengan lokasi yang tersimpan atau default
   const [mapCenter, setMapCenter] = useState<[number, number]>(
     session?.latitude && session?.longitude 
       ? [session.latitude, session.longitude] 
@@ -72,14 +70,9 @@ const StoreCheckout = () => {
   const [isLocating, setIsLocating] = useState(false);
 
   useEffect(() => {
-    fetchShippingRates(storeId).then(setRates).catch(() => {});
-  }, [storeId]);
-
-  useEffect(() => {
     fetchShippingRates(storeId)
       .then(setRates)
       .catch(() => {
-        // Mock data if backend is offline
         setRates([
           { id: "v-1", storeId : "001", villageName: "Banjarmasin Tengah", rate: 5000 },
           { id: "v-2",storeId : '002', villageName: "Banjarmasin Barat", rate: 8000 },
@@ -126,10 +119,6 @@ const StoreCheckout = () => {
         toast.error("Isi alamat pengiriman");
         return;
       }
-      // if (!village) {
-      //   toast.error("Pilih desa/kelurahan untuk ongkir");
-      //   return;
-      // }
       if (latitude == null || longitude == null) {
         toast.error("Tandai lokasi pengiriman di peta");
         return;
@@ -164,6 +153,10 @@ const StoreCheckout = () => {
         status: "pending",
         items: cart,
       });
+
+      // === FITUR SINKRONISASI STOK DAN INVENTARIS ===
+      updateStock(cart); // Ini akan memotong stok permanen dan mengisi Stock Logs!
+      
       saveCart(storeId, []);
       toast.success("Pesanan berhasil dibuat!");
       navigate(`/store/${storeId}/orders`);
@@ -194,7 +187,6 @@ const StoreCheckout = () => {
 
   return (
     <div className="min-h-screen bg-secondary/5 pb-20">
-      {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur shadow-sm">
         <div className="container mx-auto flex items-center gap-4 px-4 py-4 max-w-6xl">
           <Button variant="outline" size="icon" className="h-9 w-9 rounded-full" asChild>
@@ -212,10 +204,8 @@ const StoreCheckout = () => {
       <div className="container mx-auto max-w-6xl px-4 py-8">
         <div className="grid lg:grid-cols-12 gap-8 items-start">
           
-          {/* KOLOM KIRI: Form Pengisian */}
           <div className="lg:col-span-7 xl:col-span-8 space-y-6">
             
-            {/* 1. Informasi Kontak */}
             <div className="rounded-2xl border bg-card p-6 shadow-sm">
               <h3 className="mb-4 font-bold text-foreground flex items-center gap-2 text-lg">
                 <User className="h-5 w-5 text-primary" /> Informasi Kontak
@@ -248,7 +238,6 @@ const StoreCheckout = () => {
               </div>
             </div>
 
-            {/* 2. Metode Pengiriman */}
             <div className="rounded-2xl border bg-card p-6 shadow-sm">
               <h3 className="mb-4 font-bold text-foreground flex items-center gap-2 text-lg">
                 <Truck className="h-5 w-5 text-primary" /> Metode Pengiriman
@@ -289,7 +278,6 @@ const StoreCheckout = () => {
                 )}
               </RadioGroup>
 
-              {/* 2.b Detail Alamat (Hanya Muncul Jika Delivery) */}
               {fulfillment === "delivery" && (
                 <div className="mt-6 pt-6 border-t space-y-5 animate-in fade-in slide-in-from-top-4">
                   <div className="grid sm:grid-cols-2 gap-4">
@@ -341,7 +329,6 @@ const StoreCheckout = () => {
                         }}
                         height="300px"
                       />
-                      {/* Indikator lokasi sudah diisi dari profil */}
                       {latitude != null && longitude != null && session?.latitude === latitude && (
                         <div className="absolute top-3 left-3 z-[400] bg-primary text-primary-foreground text-xs font-semibold px-3 py-1.5 rounded-full shadow-md">
                           Titik otomatis dari profil Anda
@@ -353,7 +340,6 @@ const StoreCheckout = () => {
               )}
             </div>
 
-            {/* 3. Metode Pembayaran */}
             <div className="rounded-2xl border bg-card p-6 shadow-sm">
               <h3 className="mb-4 font-bold text-foreground flex items-center gap-2 text-lg">
                 <Banknote className="h-5 w-5 text-primary" /> Metode Pembayaran
@@ -393,7 +379,6 @@ const StoreCheckout = () => {
 
               {payment === "transfer" && (
                 <div className="mt-5 space-y-4 animate-in fade-in slide-in-from-top-2">
-                  {/* Kotak Informasi Rekening */}
                   <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 shadow-sm">
                     <p className="mb-3 text-sm font-semibold text-primary">Transfer ke Rekening Berikut:</p>
                     <div className="flex items-center justify-between rounded-lg border border-border/60 bg-background p-3 shadow-sm">
@@ -419,7 +404,6 @@ const StoreCheckout = () => {
                     </p>
                   </div>
 
-                  {/* Area Upload Bukti */}
                   <div className="p-5 bg-muted/30 rounded-xl border border-dashed border-border/80">
                     <Label className="flex items-center gap-2 mb-3 font-semibold">
                       <Receipt className="h-4 w-4 text-muted-foreground" /> Unggah Bukti Transfer
@@ -440,7 +424,6 @@ const StoreCheckout = () => {
 
           </div>
 
-          {/* KOLOM KANAN: Ringkasan Pesanan (Sticky) */}
           <div className="lg:col-span-5 xl:col-span-4">
             <div className="rounded-2xl border bg-card p-6 shadow-xl shadow-primary/5 sticky top-24">
               <h3 className="mb-4 font-bold text-foreground text-lg border-b pb-4">Ringkasan Belanja</h3>
@@ -448,7 +431,6 @@ const StoreCheckout = () => {
               <div className="space-y-3 mb-6 max-h-[30vh] overflow-y-auto custom-scrollbar pr-2">
                 {cart.map((i) => (
                   <div key={i.product.id} className="flex gap-3 text-sm">
-                    {/* Placeholder image (opsional) */}
                     <div className="h-12 w-12 rounded-md bg-secondary/10 flex items-center justify-center shrink-0 overflow-hidden">
                       {i.product.image ? (
                          <img src={i.product.image} alt={i.product.name} className="h-full w-full object-cover" />

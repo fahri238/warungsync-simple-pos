@@ -4,6 +4,7 @@ import {
   getCategoriesFromAPI,
   getProductImage,
   DEFAULT_STORE_ID,
+  updateStock // <-- Fungsi Sinkronisasi Stok diimpor ke sini
 } from "@/lib/store";
 import { fetchProductByBarcode } from "@/services/productService";
 import type { Product, OrderItem } from "@/types";
@@ -59,12 +60,10 @@ const AdminPOS = () => {
   const [submitting, setSubmitting] = useState(false);
 
   // Receipt
-  const [completedSale, setCompletedSale] = useState<CompletedSale | null>(
-    null,
-  );
+  const [completedSale, setCompletedSale] = useState<CompletedSale | null>(null);
 
   useEffect(() => {
-    setLoading(true); // start loading
+    setLoading(true);
     Promise.all([getProductsFromAPI(storeId), getCategoriesFromAPI(storeId)])
       .then(([prods, cats]) => {
         setProducts(prods);
@@ -74,7 +73,7 @@ const AdminPOS = () => {
         toast.error("Gagal memuat data POS");
       })
       .finally(() => {
-        setLoading(false); // end loading if it's either success or failed
+        setLoading(false);
       });
   }, []);
 
@@ -127,7 +126,6 @@ const AdminPOS = () => {
   const removeFromCart = (id: string) =>
     setCart((prev) => prev.filter((i) => i.product.id !== id));
 
-  // Step 1: Click "Bayar" → open payment dialog
   const handlePayClick = () => {
     if (cart.length === 0) return;
     setCashInput("");
@@ -135,7 +133,6 @@ const AdminPOS = () => {
     setTimeout(() => cashInputRef.current?.focus(), 100);
   };
 
-  // Step 2: Confirm payment with cash amount
   const confirmPayment = async () => {
     const cash = parseInt(cashInput.replace(/\D/g, ""), 10);
     if (!cash || cash < total) {
@@ -158,10 +155,11 @@ const AdminPOS = () => {
         status: "completed",
         items: cart,
       });
-      const orderId =
-        response?.data?.id || `POS-${Date.now().toString().slice(-6)}`;
+      const orderId = response?.data?.id || `POS-${Date.now().toString().slice(-6)}`;
 
-      // Show receipt
+      // === FITUR SINKRONISASI STOK DAN INVENTARIS ===
+      updateStock(cart); // Ini akan memotong stok permanen di Database/Local Storage dan memicu Stock Log!
+
       setCompletedSale({
         orderId,
         items: [...cart],
@@ -173,6 +171,8 @@ const AdminPOS = () => {
 
       setCart([]);
       setShowPayment(false);
+      
+      // Sinkronisasi pembaruan visual agar kasir tidak perlu merefresh browser
       setProducts((prev) =>
         prev.map((product) => {
           const cartItem = cart.find((item) => item.product.id === product.id);
@@ -183,7 +183,7 @@ const AdminPOS = () => {
           };
         }),
       );
-      toast.success("Transaksi kasir berhasil!");
+      toast.success("Transaksi kasir berhasil dan Stok telah disinkronkan!");
     } catch (error: any) {
       toast.error(error?.message || "Transaksi gagal diproses");
     } finally {
@@ -191,15 +191,12 @@ const AdminPOS = () => {
     }
   };
 
-  // Print receipt
-  // Print receipt (Diperbarui agar setara dengan fitur cetak lainnya)
   const printReceipt = () => {
     if (!completedSale) return;
 
     const printWindow = window.open("", "_blank", "width=400,height=600");
     if (!printWindow) return;
 
-    // Build the items list HTML
     const itemsHtml = completedSale.items
       .map(
         (i) => `
@@ -223,30 +220,10 @@ const AdminPOS = () => {
         <title>Struk Pembelian #${completedSale.orderId.slice(-6)}</title>
         <style>
           @page { size: 80mm auto; margin: 0; }
-          body { 
-            font-family: 'Courier New', Courier, monospace; 
-            font-size: 12px; 
-            width: 80mm; 
-            margin: 0 auto; 
-            padding: 15px; 
-            color: #000; 
-            box-sizing: border-box;
-          }
-          @media screen {
-            body { 
-              background-color: white; 
-              border: 1px solid #ccc; 
-              box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
-              margin-top: 20px; 
-              min-height: 200px; 
-            }
-            html { background-color: #f0f0f0; }
-          }
-          .center { text-align: center; }
-          .bold { font-weight: bold; }
-          .divider { border-top: 1px dashed #000; margin: 10px 0; }
-          .row { display: flex; justify-content: space-between; margin-bottom: 2px; }
-          .item-name { font-weight: bold; word-break: break-word; }
+          body { font-family: 'Courier New', Courier, monospace; font-size: 12px; width: 80mm; margin: 0 auto; padding: 15px; color: #000; box-sizing: border-box;}
+          @media screen { body { background-color: white; border: 1px solid #ccc; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-top: 20px; min-height: 200px; } html { background-color: #f0f0f0; } }
+          .center { text-align: center; } .bold { font-weight: bold; } .divider { border-top: 1px dashed #000; margin: 10px 0; }
+          .row { display: flex; justify-content: space-between; margin-bottom: 2px; } .item-name { font-weight: bold; word-break: break-word; }
           .title { font-size: 16px; font-weight: bold; letter-spacing: 1px; margin-bottom: 4px; text-transform: uppercase;}
         </style>
       </head>
@@ -257,14 +234,11 @@ const AdminPOS = () => {
           <div style="color: #333; font-size: 10px; margin-top: 4px;">${formattedDate}</div>
           <div style="color: #333; font-size: 10px; margin-top: 2px;">Order ID: #${completedSale.orderId.slice(0, 8).toUpperCase()}</div>
         </div>
-        
         <div class="divider"></div>
         <div>Customer: <span class="bold">Walk-in</span></div>
         <div>Kasir: <span class="bold">Admin</span></div>
-        
         <div class="divider"></div>
         ${itemsHtml}
-        
         <div class="divider"></div>
         <div class="row bold" style="font-size: 14px; margin-top: 5px;">
           <span>TOTAL</span>
@@ -278,17 +252,11 @@ const AdminPOS = () => {
           <span>Kembalian</span>
           <span>${formatCurrency(completedSale.change)}</span>
         </div>
-        
         <div class="divider"></div>
         <div class="center" style="margin-top: 15px; font-size: 10px; color: #333;">
           Terima kasih atas kunjungan Anda!<br/>Barang yang sudah dibeli tidak dapat ditukar/dikembalikan.
         </div>
-        
-        <script>
-          window.onload = function() {
-            setTimeout(function() { window.print(); }, 500);
-          }
-        </script>
+        <script> window.onload = function() { setTimeout(function() { window.print(); }, 500); } </script>
       </body>
       </html>
     `);
@@ -301,11 +269,7 @@ const AdminPOS = () => {
   const formatDate = (iso: string) => {
     const d = new Date(iso);
     return (
-      d.toLocaleDateString("id-ID", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      }) +
+      d.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric", }) +
       " • " +
       d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
     );
@@ -341,7 +305,6 @@ const AdminPOS = () => {
     }
   };
 
-  // Quick Amount Buttons untuk Kasir
   const quickAmounts = [
     total,
     Math.ceil(total / 50000) * 50000,
@@ -402,7 +365,6 @@ const AdminPOS = () => {
         {/* Product Grid Layout */}
         <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
           {loading ? (
-            // show Loading Spinner
             <div className="flex h-full flex-col items-center justify-center gap-4">
               <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -412,7 +374,6 @@ const AdminPOS = () => {
               </p>
             </div>
           ) : filtered.length === 0 ? (
-            // show empty (if only loading end)
             <div className="flex h-full flex-col items-center justify-center text-center p-8 border-2 border-dashed border-border/60 rounded-3xl bg-card/30">
               <PackageOpen className="h-12 w-12 text-muted-foreground/30 mb-3" />
               <p className="text-lg font-bold text-foreground">
@@ -445,7 +406,6 @@ const AdminPOS = () => {
                     {p.name}
                   </span>
 
-                  {/* Wrapper price & Barcode */}
                   <div className="mt-auto pt-2 w-full flex flex-col items-start">
                     <span className="text-sm font-black text-primary">
                       Rp {p.price.toLocaleString("id-ID")}
@@ -455,7 +415,7 @@ const AdminPOS = () => {
                         <Barcode className="h-3 w-3" /> {p.barcode}
                       </div>
                     ) : (
-                      <div className="h-6 mt-1.5"></div> /* Placeholder space guard */
+                      <div className="h-6 mt-1.5"></div>
                     )}
                   </div>
                 </button>
@@ -479,7 +439,6 @@ const AdminPOS = () => {
         </CardHeader>
 
         <CardContent className="flex flex-1 flex-col gap-0 p-0 overflow-hidden bg-background/50">
-          {/* Cart Items List */}
           <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3">
             {cart.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center opacity-50">
@@ -549,7 +508,6 @@ const AdminPOS = () => {
             )}
           </div>
 
-          {/* Checkout Bottom Area */}
           <div className="border-t border-border/50 bg-card p-6 shadow-[0_-10px_40px_rgba(0,0,0,0.03)] z-10">
             <div className="mb-4 flex items-center justify-between rounded-xl bg-primary/5 border border-primary/20 p-4">
               <span className="text-sm font-bold text-foreground">

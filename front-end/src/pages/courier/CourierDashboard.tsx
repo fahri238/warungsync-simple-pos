@@ -232,7 +232,6 @@ const CourierDashboard = () => {
               <p className="text-sm md:text-base text-muted-foreground mt-2 max-w-sm mx-auto">Anda bisa beristirahat sekarang. Tidak ada pengiriman yang tertunda.</p>
             </div>
           ) : (
-            // UBAH: 1 Kolom Saja, Merentang Penuh Menutupi Area Kosong!
             <div className="space-y-5 md:space-y-6 items-start">
               {activeOrders.map(o => {
                 const tagihan = getOrderTotal(o);
@@ -251,31 +250,54 @@ const CourierDashboard = () => {
                       </span>
                     </div>
 
-                    {/* UBAH: Isi kartu membelah dua di layar Desktop */}
                     <CardContent className="p-5 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                       
-                      {/* Bagian Kiri: Timeline Alamat */}
-                      <div className="flex gap-4">
-                        <div className="flex flex-col items-center mt-1">
-                          <div className="h-3 w-3 md:h-3.5 md:w-3.5 rounded-full bg-secondary ring-4 ring-secondary/20 z-10" />
-                          <div className="w-0.5 h-full min-h-[3rem] bg-border -my-1" />
-                          <div className="h-3 w-3 md:h-3.5 md:w-3.5 rounded-full bg-primary ring-4 ring-primary/20 z-10" />
-                        </div>
-                        <div className="flex-1 space-y-4 md:space-y-6">
-                          <div>
-                            <p className="text-[11px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Ambil di</p>
-                            <div className="flex items-center gap-1.5 text-sm md:text-base font-semibold text-foreground">
-                              <Store className="h-4 w-4 md:h-5 md:w-5 text-secondary" /> Warung Mama Eva
+                      {/* Bagian Kiri: Timeline Alamat & Rincian Barang */}
+                      <div className="flex flex-col gap-5 md:gap-6">
+                        
+                        {/* Timeline Alamat */}
+                        <div className="flex gap-4">
+                          <div className="flex flex-col items-center mt-1">
+                            <div className="h-3 w-3 md:h-3.5 md:w-3.5 rounded-full bg-secondary ring-4 ring-secondary/20 z-10" />
+                            <div className="w-0.5 h-full min-h-[3rem] bg-border -my-1" />
+                            <div className="h-3 w-3 md:h-3.5 md:w-3.5 rounded-full bg-primary ring-4 ring-primary/20 z-10" />
+                          </div>
+                          <div className="flex-1 space-y-4 md:space-y-6">
+                            <div>
+                              <p className="text-[11px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Ambil di</p>
+                              <div className="flex items-center gap-1.5 text-sm md:text-base font-semibold text-foreground">
+                                <Store className="h-4 w-4 md:h-5 md:w-5 text-secondary" /> Warung Mama Eva
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-[11px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Antar ke</p>
+                              <div className="flex items-start gap-1.5 text-sm md:text-base font-semibold text-foreground">
+                                <MapPin className="h-4 w-4 md:h-5 md:w-5 text-primary shrink-0 mt-0.5" />
+                                <span className="leading-snug">{alamatTujuan}</span>
+                              </div>
                             </div>
                           </div>
-                          <div>
-                            <p className="text-[11px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Antar ke</p>
-                            <div className="flex items-start gap-1.5 text-sm md:text-base font-semibold text-foreground">
-                              <MapPin className="h-4 w-4 md:h-5 md:w-5 text-primary shrink-0 mt-0.5" />
-                              <span className="leading-snug">{alamatTujuan}</span>
-                            </div>
+                        </div>
+
+                        {/* Rincian Barang (List Item) */}
+                        <div className="pl-7 md:pl-8">
+                          <p className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                            <Package className="h-3.5 w-3.5" /> Rincian Barang
+                          </p>
+                          <div className="bg-muted/30 rounded-xl p-3 md:p-4 border border-border/50 max-h-[140px] overflow-y-auto custom-scrollbar space-y-2.5">
+                            {o.items.map((item, idx) => (
+                              <div key={idx} className="flex justify-between items-start gap-3 border-b border-border/50 last:border-0 pb-2 last:pb-0">
+                                <span className="text-sm font-medium text-foreground leading-snug">
+                                  {item.product.name}
+                                </span>
+                                <span className="text-xs font-bold bg-primary/10 text-primary px-2 py-1 rounded-md shrink-0">
+                                  {item.quantity}x
+                                </span>
+                              </div>
+                            ))}
                           </div>
                         </div>
+
                       </div>
 
                       {/* Bagian Kanan: Kontak, Total, dan Aksi */}

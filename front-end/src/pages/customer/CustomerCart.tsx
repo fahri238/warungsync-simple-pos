@@ -4,20 +4,20 @@ import { getCart, saveCart, getProductImage } from "@/lib/store";
 import type { OrderItem } from "@/types";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Plus, Minus, Trash2, ShoppingBag } from "lucide-react";
-import { toast } from "sonner"; // Tambahkan import toast
+import { toast } from "sonner"; 
 
-const StoreCart = () => {
+const CustomerCart = () => {
   const { storeId } = useParams<{ storeId: string }>();
 
   if (!storeId) {
-    return <Navigate to="/stores" replace />;
+    // FIX ROUTE
+    return <Navigate to="/customer/stores" replace />;
   }
 
   const [cart, setCart] = useState<OrderItem[]>(() => getCart(storeId));
   const total = cart.reduce((s, i) => s + i.product.price * i.quantity, 0);
 
   const updateQty = (id: string, delta: number) => {
-    // FIX: Cek limit stok sebelum mengupdate state keranjang
     const item = cart.find(i => i.product.id === id);
     if (item && delta > 0 && item.quantity >= item.product.stock) {
       toast.error(`Maksimal pembelian tercapai! Sisa stok hanya ${item.product.stock} barang.`);
@@ -52,7 +52,8 @@ const StoreCart = () => {
       <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur">
         <div className="container mx-auto flex items-center gap-3 px-4 py-3">
           <Button variant="ghost" size="icon" asChild>
-            <Link to={`/store/${storeId}`}>
+            {/* FIX ROUTE */}
+            <Link to={`/customer/store/${storeId}`}>
               <ArrowLeft className="h-5 w-5" />
             </Link>
           </Button>
@@ -66,7 +67,8 @@ const StoreCart = () => {
             <ShoppingBag className="mx-auto mb-3 h-12 w-12 text-muted-foreground" />
             <p className="text-muted-foreground">Keranjang kosong</p>
             <Button className="mt-4" asChild>
-              <Link to={`/store/${storeId}`}>Mulai Belanja</Link>
+              {/* FIX ROUTE */}
+              <Link to={`/customer/store/${storeId}`}>Mulai Belanja</Link>
             </Button>
           </div>
         ) : (
@@ -127,7 +129,8 @@ const StoreCart = () => {
                 </span>
               </div>
               <Button className="mt-4 w-full" size="lg" asChild>
-                <Link to={`/store/${storeId}/checkout`}>Checkout</Link>
+                {/* FIX ROUTE */}
+                <Link to={`/customer/store/${storeId}/checkout`}>Checkout</Link>
               </Button>
             </div>
           </>
@@ -137,4 +140,4 @@ const StoreCart = () => {
   );
 };
 
-export default StoreCart;
+export default CustomerCart;

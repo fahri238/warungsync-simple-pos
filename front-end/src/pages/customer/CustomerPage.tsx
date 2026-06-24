@@ -17,13 +17,14 @@ import { Input } from "@/components/ui/input";
 import { Search, ShoppingCart, Plus, User, Loader2, MapPin, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
-const StorePage = () => {
+const CustomerPage = () => {
   const { storeId } = useParams<{ storeId: string }>();
   const { setSelectedStore } = useStoreContext();
   const session = getSession();
 
   if (!storeId) {
-    return <Navigate to="/stores" replace />;
+    // FIX ROUTE: Arahkan ke /customer/stores
+    return <Navigate to="/customer/stores" replace />;
   }
 
   const [storeName, setStoreName] = useState("");
@@ -108,20 +109,23 @@ const StorePage = () => {
       <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur">
         <div className="container mx-auto flex items-center justify-between px-4 py-3">
           <div className="flex min-w-0 flex-col">
-            <Link to="/stores" className="text-xs text-muted-foreground hover:text-foreground">
+            {/* FIX ROUTE */}
+            <Link to="/customer/stores" className="text-xs text-muted-foreground hover:text-foreground">
               Ganti toko
             </Link>
             <span className="truncate font-bold text-foreground">{storeName || "Toko"}</span>
           </div>
           <div className="flex items-center gap-3">
+            {/* FIX ROUTE */}
             <Link
-              to={`/store/${storeId}/orders`}
+              to={`/customer/store/${storeId}/orders`}
               className="text-sm font-medium text-muted-foreground hover:text-foreground"
             >
               Pesanan
             </Link>
+            {/* FIX ROUTE */}
             <Button variant="outline" size="sm" className="gap-2" asChild>
-              <Link to={`/store/${storeId}/cart`}>
+              <Link to={`/customer/store/${storeId}/cart`}>
                 <ShoppingCart className="h-4 w-4" />
                 {cartCount > 0 && (
                   <span className="rounded-full bg-primary px-1.5 text-xs text-primary-foreground">
@@ -130,26 +134,15 @@ const StorePage = () => {
                 )}
               </Link>
             </Button>
-            {session ? (
-              <Button variant="ghost" size="sm" className="gap-1" asChild>
-                <Link
-                  to={
-                    session.role === "admin"
-                      ? "/admin"
-                      : session.role === "courier"
-                        ? "/courier"
-                        : "/customer"
-                  }
-                >
-                  <User className="h-4 w-4" />
-                  {session.name}
-                </Link>
-              </Button>
-            ) : (
-              <Button variant="ghost" size="sm" asChild>
-                <Link to="/login">Masuk</Link>
-              </Button>
-            )}
+
+            {/* FIX LOGIKA HEADER: Karena ini pasti CustomerLayout, langsung ke /customer */}
+            <Button variant="ghost" size="sm" className="gap-1" asChild>
+              <Link to="/customer">
+                <User className="h-4 w-4" />
+                {session?.name || "Profil"}
+              </Link>
+            </Button>
+            
           </div>
         </div>
       </header>
@@ -202,12 +195,10 @@ const StorePage = () => {
         {!loading && (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {filtered.map((p) => {
+              // LOGIKA REAL-TIME STOK DIKEMBALIKAN!
               const itemInCart = cart.find(i => i.product.id === p.id);
               const qtyInCart = itemInCart ? itemInCart.quantity : 0;
-              
-              // LOGIKA BARU: Hitung sisa stok yang benar-benar bisa dibeli
               const availableStock = Math.max(0, p.stock - qtyInCart);
-              
               const isMaxedOut = availableStock <= 0 && p.stock > 0;
               const isOutOfStock = p.stock === 0;
 
@@ -271,4 +262,4 @@ const StorePage = () => {
   );
 };
 
-export default StorePage;
+export default CustomerPage;

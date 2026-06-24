@@ -231,10 +231,10 @@ const CustomerDashboard = () => {
 
         <div className="grid grid-cols-2 gap-4">
           <Button className="h-20 flex-col gap-2" asChild>
-            <Link to="/stores"><ShoppingBag className="h-6 w-6" />Belanja</Link>
+            <Link to="/customer/stores"><ShoppingBag className="h-6 w-6" />Belanja</Link>
           </Button>
           <Button variant="outline" className="h-20 flex-col gap-2" asChild>
-            <Link to="/store/orders"><Package className="h-6 w-6" />Pesanan Saya</Link>
+            <Link to="/customer/store/DEFAULT_STORE_ID/orders"><Package className="h-6 w-6" />Pesanan Saya</Link>
           </Button>
         </div>
 

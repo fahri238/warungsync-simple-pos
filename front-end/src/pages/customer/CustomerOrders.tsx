@@ -18,12 +18,13 @@ const statusColors: Record<OrderStatus, string> = {
   completed: "bg-primary/10 text-primary",
 };
 
-const StoreOrders = () => {
+const CustomerOrders = () => {
   const { storeId } = useParams<{ storeId: string }>();
   const session = getSession();
 
   if (!storeId) {
-    return <Navigate to="/stores" replace />;
+    // FIX ROUTE: Arahkan kembali ke pemilihan toko versi customer
+    return <Navigate to="/customer/stores" replace />;
   }
   
   const [orders, setOrders] = useState<Order[]>([]);
@@ -59,7 +60,12 @@ const StoreOrders = () => {
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur">
         <div className="container mx-auto flex items-center gap-3 px-4 py-3">
-          <Button variant="ghost" size="icon" asChild><Link to={`/store/${storeId}`}><ArrowLeft className="h-5 w-5" /></Link></Button>
+          {/* FIX ROUTE: Kembali ke halaman toko versi customer */}
+          <Button variant="ghost" size="icon" asChild>
+            <Link to={`/customer/store/${storeId}`}>
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+          </Button>
           <h1 className="font-bold text-foreground">Pesanan Saya</h1>
         </div>
       </header>
@@ -71,7 +77,10 @@ const StoreOrders = () => {
           <div className="py-16 text-center">
             <Package className="mx-auto mb-3 h-12 w-12 text-muted-foreground" />
             <p className="text-muted-foreground">Belum ada pesanan</p>
-            <Button className="mt-4" asChild><Link to={`/store/${storeId}`}>Mulai Belanja</Link></Button>
+            {/* FIX ROUTE: Mulai belanja ke halaman toko versi customer */}
+            <Button className="mt-4" asChild>
+              <Link to={`/customer/store/${storeId}`}>Mulai Belanja</Link>
+            </Button>
           </div>
         ) : (
           <div className="space-y-3">
@@ -101,4 +110,4 @@ const StoreOrders = () => {
   );
 };
 
-export default StoreOrders;
+export default CustomerOrders;

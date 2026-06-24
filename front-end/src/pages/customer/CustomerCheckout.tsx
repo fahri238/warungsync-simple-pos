@@ -35,12 +35,13 @@ import { createOrder } from "@/services/orderService";
 
 const DEFAULT_CENTER: [number, number] = [-3.316694, 114.590111]; // Banjarmasin
 
-const StoreCheckout = () => {
+const CustomerCheckout = () => {
   const { storeId } = useParams<{ storeId: string }>();
   const navigate = useNavigate();
 
   if (!storeId) {
-    return <Navigate to="/stores" replace />;
+    // FIX ROUTE: Sesuaikan ke halaman stores milik customer
+    return <Navigate to="/customer/stores" replace />;
   }
 
   const cart = getCart(storeId);
@@ -155,11 +156,12 @@ const StoreCheckout = () => {
       });
 
       // === FITUR SINKRONISASI STOK DAN INVENTARIS ===
-      updateStock(cart); // Ini akan memotong stok permanen dan mengisi Stock Logs!
+      updateStock(cart);
       
       saveCart(storeId, []);
       toast.success("Pesanan berhasil dibuat!");
-      navigate(`/store/${storeId}/orders`);
+      // FIX ROUTE: Sesuaikan navigasi halaman orders milik customer
+      navigate(`/customer/store/${storeId}/orders`);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Gagal membuat pesanan";
       toast.error(message);
@@ -178,7 +180,8 @@ const StoreCheckout = () => {
           <h2 className="text-xl font-bold">Keranjang Anda Kosong</h2>
           <p className="text-muted-foreground">Pilih produk favorit Anda terlebih dahulu.</p>
           <Button className="mt-2" asChild>
-            <Link to={`/store/${storeId}`}>Mulai Belanja</Link>
+            {/* FIX ROUTE: Sesuaikan ke toko versi customer */}
+            <Link to={`/customer/store/${storeId}`}>Mulai Belanja</Link>
           </Button>
         </div>
       </div>
@@ -187,10 +190,12 @@ const StoreCheckout = () => {
 
   return (
     <div className="min-h-screen bg-secondary/5 pb-20">
+      {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur shadow-sm">
         <div className="container mx-auto flex items-center gap-4 px-4 py-4 max-w-6xl">
           <Button variant="outline" size="icon" className="h-9 w-9 rounded-full" asChild>
-            <Link to={`/store/${storeId}/cart`}>
+            {/* FIX ROUTE: Sesuaikan rute kembali ke keranjang customer */}
+            <Link to={`/customer/store/${storeId}/cart`}>
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
@@ -204,8 +209,10 @@ const StoreCheckout = () => {
       <div className="container mx-auto max-w-6xl px-4 py-8">
         <div className="grid lg:grid-cols-12 gap-8 items-start">
           
+          {/* KOLOM KIRI: Form Pengisian */}
           <div className="lg:col-span-7 xl:col-span-8 space-y-6">
             
+            {/* 1. Informasi Kontak */}
             <div className="rounded-2xl border bg-card p-6 shadow-sm">
               <h3 className="mb-4 font-bold text-foreground flex items-center gap-2 text-lg">
                 <User className="h-5 w-5 text-primary" /> Informasi Kontak
@@ -238,6 +245,7 @@ const StoreCheckout = () => {
               </div>
             </div>
 
+            {/* 2. Metode Pengiriman */}
             <div className="rounded-2xl border bg-card p-6 shadow-sm">
               <h3 className="mb-4 font-bold text-foreground flex items-center gap-2 text-lg">
                 <Truck className="h-5 w-5 text-primary" /> Metode Pengiriman
@@ -278,6 +286,7 @@ const StoreCheckout = () => {
                 )}
               </RadioGroup>
 
+              {/* 2.b Detail Alamat (Hanya Muncul Jika Delivery) */}
               {fulfillment === "delivery" && (
                 <div className="mt-6 pt-6 border-t space-y-5 animate-in fade-in slide-in-from-top-4">
                   <div className="grid sm:grid-cols-2 gap-4">
@@ -340,6 +349,7 @@ const StoreCheckout = () => {
               )}
             </div>
 
+            {/* 3. Metode Pembayaran */}
             <div className="rounded-2xl border bg-card p-6 shadow-sm">
               <h3 className="mb-4 font-bold text-foreground flex items-center gap-2 text-lg">
                 <Banknote className="h-5 w-5 text-primary" /> Metode Pembayaran
@@ -424,6 +434,7 @@ const StoreCheckout = () => {
 
           </div>
 
+          {/* KOLOM KANAN: Ringkasan Pesanan (Sticky) */}
           <div className="lg:col-span-5 xl:col-span-4">
             <div className="rounded-2xl border bg-card p-6 shadow-xl shadow-primary/5 sticky top-24">
               <h3 className="mb-4 font-bold text-foreground text-lg border-b pb-4">Ringkasan Belanja</h3>
@@ -494,4 +505,4 @@ const StoreCheckout = () => {
   );
 };
 
-export default StoreCheckout;
+export default CustomerCheckout;

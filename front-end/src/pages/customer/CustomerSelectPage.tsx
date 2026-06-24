@@ -6,14 +6,16 @@ import { useStoreContext } from "@/context/StoreContext";
 import StoreMap from "@/components/maps/StoreMap";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { MapPin, Store as StoreIcon, Loader2, ArrowRight } from "lucide-react";
+import { MapPin, Store as StoreIcon, Loader2, ArrowRight, User } from "lucide-react";
 import { toast } from "sonner";
+import { getSession } from "@/lib/store";
 
-const StoreSelectPage = () => {
+const CustomerSelectPage = () => {
   const navigate = useNavigate();
   const { setSelectedStore } = useStoreContext();
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
+  const session = getSession();
 
   useEffect(() => {
     fetchStores()
@@ -24,18 +26,23 @@ const StoreSelectPage = () => {
 
   const chooseStore = (store: Store) => {
     setSelectedStore(store);
-    navigate(`/store/${store.id}`);
+    // PERBAIKAN RUTE: Mengarah ke dalam payung /customer
+    navigate(`/customer/store/${store.id}`);
   };
 
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
         <div className="container mx-auto flex items-center justify-between px-4 py-4">
-          <Link to="/">
+          {/* PERBAIKAN RUTE: Logo mengarah ke dashboard customer */}
+          <Link to="/customer">
             <WarungSyncLogo size="sm" />
           </Link>
           <Button variant="outline" size="sm" asChild>
-            <Link to="/login">Masuk</Link>
+            {/* PERBAIKAN RUTE: Tombol diubah menjadi Profil karena user pasti sudah login */}
+            <Link to="/customer" className="gap-2">
+              <User className="h-4 w-4" /> {session?.name?.split(" ")[0] || "Profil"}
+            </Link>
           </Button>
         </div>
       </header>
@@ -88,4 +95,4 @@ const StoreSelectPage = () => {
   );
 };
 
-export default StoreSelectPage;
+export default CustomerSelectPage;

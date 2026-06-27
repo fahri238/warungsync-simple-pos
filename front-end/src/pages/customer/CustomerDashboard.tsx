@@ -34,24 +34,31 @@ const CustomerDashboard = () => {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
+  // SOLUSI INFINITE LOOP: Ekstrak ID dan Role sebagai variabel primitif
+  const sessionId = session?.id;
+  const sessionRole = session?.role;
+
   useEffect(() => {
-    if (!session || session.role !== "customer") {
+    // Gunakan variabel primitif untuk pengecekan
+    if (!sessionId || sessionRole !== "customer") {
       setAllOrders([]);
       setLoadingOrders(false);
       return;
     }
 
-    // FIX: Remove arguments from fetchOrders and filter manually
     fetchOrders()
       .then((orders) => {
-        const myOnlineOrders = orders.filter((o: Order) => (o as any).userId === session.id && o.type === "online");
+        // Filter menggunakan sessionId
+        const myOnlineOrders = orders.filter((o: Order) => (o as any).userId === sessionId && o.type === "online");
         setAllOrders(myOnlineOrders);
       })
       .catch((error: any) => {
         toast.error(error?.message || "Gagal memuat data pesanan");
       })
       .finally(() => setLoadingOrders(false));
-  }, [session]);
+      
+  // Hanya jalankan useEffect jika ID atau Role berubah, bukan seluruh objek session
+  }, [sessionId, sessionRole]);
 
   const getOrderTotal = (order: Order) => {
     if (typeof order.total === 'number') return order.total;
@@ -99,21 +106,21 @@ const CustomerDashboard = () => {
   };
 
   if (!session || session.role !== "customer") {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-secondary/10 px-4">
-      <Card className="w-full max-w-sm text-center shadow-lg border-0 rounded-3xl">
-        <CardContent className="py-10">
-          <div className="mx-auto h-20 w-20 bg-background rounded-full flex items-center justify-center shadow-inner mb-6">
-            <User className="h-10 w-10 text-muted-foreground opacity-50" />
-          </div>
-          <h2 className="text-xl font-bold mb-2">Akses Ditolak</h2>
-          <p className="mb-6 text-muted-foreground text-sm">Sesi pelanggan Anda tidak ditemukan atau sudah kadaluarsa.</p>
-          <Button asChild className="w-full rounded-xl h-12 text-base"><Link to="/login">Masuk Kembali</Link></Button>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-secondary/10 px-4">
+        <Card className="w-full max-w-sm text-center shadow-lg border-0 rounded-3xl">
+          <CardContent className="py-10">
+            <div className="mx-auto h-20 w-20 bg-background rounded-full flex items-center justify-center shadow-inner mb-6">
+              <User className="h-10 w-10 text-muted-foreground opacity-50" />
+            </div>
+            <h2 className="text-xl font-bold mb-2">Akses Ditolak</h2>
+            <p className="mb-6 text-muted-foreground text-sm">Sesi pelanggan Anda tidak ditemukan atau sudah kadaluarsa.</p>
+            <Button asChild className="w-full rounded-xl h-12 text-base"><Link to="/login">Masuk Kembali</Link></Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const OrderHistoryTable = () => (
     <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -204,7 +211,7 @@ const CustomerDashboard = () => {
         <div className="container mx-auto flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" asChild>
-              <Link to="/login"><ArrowLeft className="h-4 w-4" /></Link>
+              <Link to="/"><ArrowLeft className="h-4 w-4" /></Link>
             </Button>
             <Link to="/">
               <WarungSyncLogo size="sm" />
@@ -234,7 +241,8 @@ const CustomerDashboard = () => {
             <Link to="/customer/stores"><ShoppingBag className="h-6 w-6" />Belanja</Link>
           </Button>
           <Button variant="outline" className="h-20 flex-col gap-2" asChild>
-            <Link to="/customer/store/DEFAULT_STORE_ID/orders"><Package className="h-6 w-6" />Pesanan Saya</Link>
+            {/* Rute disesuaikan menuju orders untuk ID 'all' atau generik */}
+            <Link to="/customer/store/all/orders"><Package className="h-6 w-6" />Pesanan Saya</Link>
           </Button>
         </div>
 

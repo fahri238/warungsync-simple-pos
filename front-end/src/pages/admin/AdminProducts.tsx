@@ -2,13 +2,8 @@ import { useState, useEffect, useMemo } from "react";
 import {
   getProductsFromAPI,
   getCategoriesFromAPI,
-  addProductToAPI,
-  updateProductInAPI,
-  deleteProductFromAPI,
-  addCategoryToAPI,
-  deleteCategoryFromAPI,
   getProductImage,
-  DEFAULT_STORE_ID,
+  getSession,
 } from "@/lib/store";
 import type { Product } from "@/types";
 import { Card, CardContent } from "@/components/ui/card";
@@ -48,9 +43,11 @@ import {
   Layers,
   Eye,
   X,
-  CheckCheck
+  CheckCheck,
+  ShieldAlert
 } from "lucide-react";
 import { toast } from "sonner";
+import { Link } from "react-router-dom";
 
 const emptyProduct: Omit<Product, "id"> = {
   name: "",
@@ -63,6 +60,8 @@ const emptyProduct: Omit<Product, "id"> = {
 };
 
 const AdminProducts = () => {
+  const session = getSession();
+  
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,12 +75,12 @@ const AdminProducts = () => {
   const [catDialogOpen, setCatDialogOpen] = useState(false);
   const [newCatName, setNewCatName] = useState("");
   
-  // new state for search feature
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     loadData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.store_id]);
 
   useEffect(() => {
     if (form.image && form.image.length > 5) {
@@ -92,12 +91,19 @@ const AdminProducts = () => {
   }, [form.image]);
 
   const loadData = async () => {
+    if (!session || !session.store_id) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError("");
+      
+      const storeIdStr = session.store_id.toString();
       const [prods, cats] = await Promise.all([
-        getProductsFromAPI(DEFAULT_STORE_ID),
-        getCategoriesFromAPI(DEFAULT_STORE_ID),
+        getProductsFromAPI(storeIdStr),
+        getCategoriesFromAPI(storeIdStr),
       ]);
       setProducts(prods);
       setCategories(cats);
@@ -194,7 +200,6 @@ const AdminProducts = () => {
     }
   };
 
-  // Filter product based on search
   const filteredProducts = useMemo(() => {
     if (!searchQuery.trim()) return products;
     const lowerQuery = searchQuery.toLowerCase();
@@ -204,6 +209,29 @@ const AdminProducts = () => {
         (p.barcode && p.barcode.toLowerCase().includes(lowerQuery))
     );
   }, [products, searchQuery]);
+
+  // Pengamanan rute: Jika bukan admin, tolak akses
+  if (!session || session.role !== "admin") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-secondary/10 px-4 animate-in fade-in zoom-in duration-500">
+        <Card className="w-full max-w-sm text-center shadow-2xl border-0 rounded-[2rem] overflow-hidden relative">
+          <div className="h-2 bg-destructive w-full absolute top-0 left-0"></div>
+          <CardContent className="py-12">
+            <div className="mx-auto h-24 w-24 bg-destructive/10 rounded-full flex items-center justify-center mb-6 ring-8 ring-destructive/5">
+              <ShieldAlert className="h-12 w-12 text-destructive" />
+            </div>
+            <h2 className="text-2xl font-black tracking-tight mb-2 text-foreground">Akses Ditolak</h2>
+            <p className="mb-8 text-muted-foreground text-sm px-4">
+              Sesi admin Anda tidak ditemukan atau Anda tidak memiliki izin untuk mengakses halaman ini.
+            </p>
+            <Button asChild className="w-full rounded-xl h-14 text-base font-bold shadow-lg shadow-primary/20">
+              <Link to="/login">Masuk Kembali</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

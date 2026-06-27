@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { getProducts, getOrders, getProductImage, getSession } from "@/lib/store";
+import { getProductImage, getSession, apiFetch } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   DollarSign,
@@ -22,12 +22,47 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { Button } from "@/components/ui/button";
+import type { Product, Order } from "@/types";
+import { toast } from "sonner";
 
 const AdminDashboard = () => {
   const session = getSession();
-  const products = getProducts();
-  const orders = getOrders();
 
+  // State dinamis untuk menampung data riil dari Database Backend
+  const [products, setProducts] = useState<Product[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  // Ambil data produk dan pesanan berdasarkan hak akses Store ID Admin yang sedang login
+  useEffect(() => {
+    if (!session || session.role !== "admin" || !session.store_id) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        
+        // 1. Tembak API produk berdasarkan storeId
+        const productsRes = await apiFetch(`/products?storeId=${session.store_id}`);
+        setProducts(productsRes.data || []);
+
+        // 2. Tembak API pesanan berdasarkan storeId
+        const ordersRes = await apiFetch(`/orders?storeId=${session.store_id}`);
+        setOrders(ordersRes.data || []);
+      } catch (error: any) {
+        console.error("Gagal memuat data dasbor admin:", error);
+        toast.error(error?.message || "Gagal menyinkronkan data ke server");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [session?.store_id]);
+
+  // Kalkulasi statistik laporan penjualan toko menggunakan useMemo
   const stats = useMemo(() => {
     const today = new Date().toDateString();
     const todayOrders = orders.filter(
@@ -35,7 +70,7 @@ const AdminDashboard = () => {
     );
     const todaySales = todayOrders.reduce((sum, o) => sum + o.total, 0);
 
-    // Most sold product
+    // Hitung produk paling banyak terjual
     const productSales: Record<string, number> = {};
     orders.forEach((o) =>
       o.items.forEach((i) => {
@@ -49,12 +84,11 @@ const AdminDashboard = () => {
 
     const lowStock = products.filter((p) => p.stock <= 10);
 
-    // Generate Chart Data (7 Hari Terakhir)
+    // Generate Chart Data (7 Hari Terakhir) dari histori transaksi riil database
     const chartData = Array.from({ length: 7 }).map((_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (6 - i));
 
-      // Hitung total dari orders di hari ini
       const daySales = orders
         .filter(
           (o) => new Date(o.createdAt).toDateString() === d.toDateString(),
@@ -63,7 +97,7 @@ const AdminDashboard = () => {
 
       return {
         name: d.toLocaleDateString("id-ID", { weekday: "short" }),
-        total: daySales || Math.floor(Math.random() * 500000) + 100000, // Fallback dummy agar grafiknya tidak kosong total
+        total: daySales,
       };
     });
 
@@ -77,11 +111,11 @@ const AdminDashboard = () => {
     };
   }, [products, orders]);
 
-  // PENGECEKAN KEAMANAN (Akses Ditolak) DITEMPATKAN DI SINI
+  // PENGECEKAN KEAMANAN (Akses Ditolak jika bukan Admin)
   if (!session || session.role !== "admin") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-secondary/10 px-4 animate-in fade-in zoom-in duration-500">
-        <Card className="w-full max-w-sm text-center shadow-2xl border-0 rounded-[2rem] overflow-hidden">
+        <Card className="w-full max-w-sm text-center shadow-2xl border-0 rounded-[2rem] overflow-hidden relative">
           <div className="h-2 bg-destructive w-full absolute top-0 left-0"></div>
           <CardContent className="py-12">
             <div className="mx-auto h-24 w-24 bg-destructive/10 rounded-full flex items-center justify-center mb-6 ring-8 ring-destructive/5">
@@ -100,11 +134,20 @@ const AdminDashboard = () => {
     );
   }
 
+  if (loading) {
+    return (
+      <div className="flex min-h-[400px] flex-col items-center justify-center text-muted-foreground">
+        <Package className="h-10 w-10 animate-bounce mb-2 opacity-50 text-primary" />
+        <p className="text-sm font-medium">Memuat statistik performa toko...</p>
+      </div>
+    );
+  }
+
   const cards = [
     {
       title: "Penjualan Hari Ini",
       value: `Rp ${stats.todaySales.toLocaleString("id-ID")}`,
-      trend: "+12.5%",
+      trend: "Data Aktual",
       icon: DollarSign,
       color: "text-primary",
       bg: "bg-primary/10",
@@ -112,7 +155,7 @@ const AdminDashboard = () => {
     {
       title: "Pesanan Masuk",
       value: stats.todayOrders.toString(),
-      trend: "+5.2%",
+      trend: "Hari ini",
       icon: ShoppingCart,
       color: "text-info",
       bg: "bg-info/10",
@@ -120,7 +163,7 @@ const AdminDashboard = () => {
     {
       title: "Produk Terlaris",
       value: stats.topProduct ? `${stats.topProduct[0]}` : "Belum ada",
-      trend: stats.topProduct ? `${stats.topProduct[1]} terjual` : "",
+      trend: stats.topProduct ? `${stats.topProduct[1]} terjual` : "Belum ada transaksi",
       icon: TrendingUp,
       color: "text-accent",
       bg: "bg-accent/10",
@@ -128,7 +171,7 @@ const AdminDashboard = () => {
     {
       title: "Perlu Restock",
       value: `${stats.lowStock.length} produk`,
-      trend: "Cek inventori",
+      trend: "Stok m-10",
       icon: AlertTriangle,
       color: "text-destructive",
       bg: "bg-destructive/10",
@@ -175,7 +218,7 @@ const AdminDashboard = () => {
             <CardContent>
               <div className="flex items-center text-xs font-medium text-muted-foreground gap-1 mt-1">
                 <ArrowUpRight className="h-3 w-3 text-primary" />
-                <span className={c.trend.includes("+") ? "text-primary" : ""}>
+                <span className="text-primary">
                   {c.trend}
                 </span>
               </div>
@@ -334,7 +377,7 @@ const AdminDashboard = () => {
             </p>
           </div>
           <Button variant="outline" size="sm" asChild>
-            <a href="/admin/orders">Lihat Semua</a>
+            <Link to="/admin/orders">Lihat Semua</Link>
           </Button>
         </CardHeader>
         <CardContent>
@@ -347,15 +390,11 @@ const AdminDashboard = () => {
               <table className="w-full text-sm text-left">
                 <thead className="text-xs text-muted-foreground uppercase bg-muted/50 border-b border-border/80">
                   <tr>
-                    <th className="px-4 py-3 font-medium rounded-tl-lg">
-                      Pelanggan
-                    </th>
+                    <th className="px-4 py-3 font-medium rounded-tl-lg">Pelanggan</th>
                     <th className="px-4 py-3 font-medium">Tanggal</th>
                     <th className="px-4 py-3 font-medium">Items</th>
                     <th className="px-4 py-3 font-medium">Total Harga</th>
-                    <th className="px-4 py-3 font-medium text-right rounded-tr-lg">
-                      Status
-                    </th>
+                    <th className="px-4 py-3 font-medium text-right rounded-tr-lg">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/50">

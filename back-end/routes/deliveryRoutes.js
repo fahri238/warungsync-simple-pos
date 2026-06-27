@@ -4,8 +4,15 @@ const {
   assignCourier,
   completeDelivery,
 } = require("../controllers/deliveryController");
+const { verifyToken } = require("../middleware/authMiddleware");
 
-router.post("/assign", assignCourier);
-router.put("/:id/complete", completeDelivery);
+// ================= PROTECTED ROUTES =================
+// Wajib menyertakan token JWT (Hanya Admin atau Kurir yang sudah login)
+
+// Rute untuk menugaskan pesanan ke kurir
+router.post("/assign", verifyToken, assignCourier);
+
+// Rute untuk menandai bahwa pengiriman telah selesai
+router.put("/:id/complete", verifyToken, completeDelivery);
 
 module.exports = router;

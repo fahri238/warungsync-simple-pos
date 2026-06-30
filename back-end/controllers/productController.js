@@ -11,6 +11,17 @@ const getResolvedStoreId = (req) => {
 
 // ================= KATEGORI =================
 
+const storeFilter = (req, column = "id_toko") => {
+  const storeId =
+    req.query.storeId ||
+    req.user?.id_toko ||
+    req.body?.storeId ||
+    req.body?.id_toko ||
+    null;
+  if (!storeId) return { clause: "", params: [] };
+  return { clause: ` AND ${column} = ?`, params: [storeId] };
+};
+
 // 1. Ambil Semua Kategori (GET)
 const getCategories = async (req, res) => {
   const storeId = getResolvedStoreId(req);

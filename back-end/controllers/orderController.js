@@ -191,6 +191,15 @@ const createOrder = async (req, res) => {
         throw new Error("Format item pesanan tidak valid");
       }
 
+      let productQuery =
+        "SELECT id, nama, harga, stok, id_toko FROM produk WHERE id = ?";
+      const productParams = [productId];
+      if (resolvedStoreId) {
+        productQuery += " AND (id_toko = ? OR id_toko IS NULL)";
+        productParams.push(resolvedStoreId);
+      }
+      productQuery += " FOR UPDATE";
+
       const [productRows] = await connection.query(
         "SELECT id, nama, harga, stok FROM products WHERE id = ? AND store_id = ? FOR UPDATE",
         [productId, resolvedStoreId]

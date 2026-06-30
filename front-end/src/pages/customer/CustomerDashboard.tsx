@@ -66,6 +66,12 @@ const CustomerDashboard = () => {
     return itemsTotal + ((order as any).shippingFee || 0);
   };
 
+  const getOrderTotal = (order: Order) => {
+    if (typeof order.total === 'number') return order.total;
+    const itemsTotal = (order.items || []).reduce((sum, i) => sum + ((i.product?.price || 0) * i.quantity), 0);
+    return itemsTotal + ((order as any).shippingFee || 0);
+  };
+
   const filteredOrders = useMemo(() => {
     return allOrders.filter(o => {
       const d = new Date(o.createdAt);

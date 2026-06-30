@@ -57,10 +57,19 @@ export const loginUser = async (email: string, password: string) => {
     }),
   });
 
-  return {
-    token: response.data.token as string,
-    user: mapUser(response.data.user as BackendUser),
-  };
+    return {
+      token: response.data.token as string,
+      user: mapUser(response.data.user as BackendUser),
+    };
+  } catch (error) {
+    console.warn("Backend offline, menggunakan data lokal (Demo Mode).");
+    const result = localLogin(email, password);
+    if (typeof result === "string") throw new Error(result); // result fill it with string error if failed
+    return {
+      token: `dummy-token-${result.id}`,
+      user: result as AuthUser,
+    };
+  }
 };
 
 // ================= FUNGSI PROSES REGISTRASI =================

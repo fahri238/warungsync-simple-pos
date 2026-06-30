@@ -60,7 +60,9 @@ const AdminPOS = () => {
   const [submitting, setSubmitting] = useState(false);
 
   // Receipt
-  const [completedSale, setCompletedSale] = useState<CompletedSale | null>(null);
+  const [completedSale, setCompletedSale] = useState<CompletedSale | null>(
+    null,
+  );
 
   useEffect(() => {
     setLoading(true);

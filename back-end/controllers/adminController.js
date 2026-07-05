@@ -296,7 +296,7 @@ const getReports = async (req, res) => {
              IFNULL(u.nama, 'Pelanggan Umum') as nama_pelanggan
       FROM orders o
       LEFT JOIN stores s ON o.store_id = s.id
-      LEFT JOIN users u ON o.user_id = u.id
+      LEFT JOIN users u ON o.id_pengguna = u.id
       WHERE 1=1 ${dateFilter.replace(/tanggal_dibuat/g, 'o.tanggal_dibuat')}
       ORDER BY o.tanggal_dibuat DESC
     `);
@@ -304,13 +304,13 @@ const getReports = async (req, res) => {
     // 3. DATA PERFORMA TOKO
     const [toko] = await db.query(`
       SELECT s.id, s.nama,
-             IFNULL(u.nama, 'Tanpa Owner') as nama_owner,
+             IFNULL(MAX(u.nama), 'Tanpa Owner') as nama_owner,
              COUNT(o.id) as total_pesanan,
              IFNULL(SUM(o.total_harga), 0) as omzet
       FROM stores s
       LEFT JOIN users u ON u.store_id = s.id AND u.peran = 'owner'
       LEFT JOIN orders o ON o.store_id = s.id AND o.status = 'selesai' ${dateFilter.replace(/tanggal_dibuat/g, 'o.tanggal_dibuat')}
-      GROUP BY s.id
+      GROUP BY s.id, s.nama
       ORDER BY omzet DESC
     `);
 

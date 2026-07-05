@@ -23,6 +23,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/deliveries', deliveryRoutes);
 app.use('/api/stores', storeRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/notifications", require("./routes/notificationRoutes"));
 
 // Route Test Koneksi
 app.get('/', async (req, res) => {

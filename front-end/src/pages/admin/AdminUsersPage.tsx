@@ -207,8 +207,11 @@ const AdminUsersPage = () => {
 
       {/* Mini Stats Grid */}
       <div className="grid gap-4 grid-cols-2 md:grid-cols-5">
-        <Card className="border-border/50 shadow-sm bg-gradient-to-br from-background to-muted/30">
+        <Card className="border-border/50 shadow-sm">
           <CardContent className="p-4 flex flex-col justify-center items-center text-center gap-1">
+             <div className="h-8 w-8 rounded-full bg-purple-500/10 flex items-center justify-center mb-1">
+              <Users className="h-4 w-4 text-purple-500" />
+            </div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total User</p>
             <h3 className="text-2xl font-black">{stats.total}</h3>
           </CardContent>

@@ -256,14 +256,6 @@ const LoginPage = () => {
               </Link>
             </p>
 
-            <div className="mt-8 flex flex-col gap-2 sm:flex-row sm:justify-center">
-              <Button variant="outline" size="sm" className="gap-2" asChild>
-                <Link to="/stores">
-                  <ShoppingBag className="h-4 w-4" />
-                  Belanja tanpa login
-                </Link>
-              </Button>
-            </div>
           </div>
         </div>
       </div>

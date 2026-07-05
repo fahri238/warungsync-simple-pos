@@ -22,7 +22,8 @@ const CourierDashboard = () => {
   const [loadingOrders, setLoadingOrders] = useState(true);
 
   useEffect(() => {
-    if (!session || session.role !== "courier") {
+    // PERBAIKAN 1: Terima 'courier' atau 'kurir'
+    if (!session || ((session.role as string) !== "courier" && (session.role as string) !== "kurir")) {
       setOrders([]);
       setLoadingOrders(false);
       return;
@@ -145,7 +146,8 @@ const CourierDashboard = () => {
     printWindow.document.close();
   };
 
-  if (!session || session.role !== "courier") {
+  // PERBAIKAN 2: Render Guard pelindung komponen
+  if (!session || ((session.role as string) !== "courier" && (session.role as string) !== "kurir")) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-secondary/10 px-4">
         <Card className="w-full max-w-sm text-center shadow-lg border-0 rounded-3xl">

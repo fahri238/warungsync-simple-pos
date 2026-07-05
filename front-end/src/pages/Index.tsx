@@ -174,12 +174,9 @@ const Index = () => {
             </a>
           </nav>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="hidden sm:inline-flex" asChild>
-              <Link to="/login">Masuk</Link>
-            </Button>
             <Button size="sm" className="gap-1.5 shadow-md shadow-primary/20" asChild>
-              <Link to="/stores">
-                Mulai Belanja
+              <Link to="/login">
+                Login
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </Button>
@@ -386,8 +383,8 @@ const Index = () => {
               </p>
               <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                 <Button size="lg" className="h-12 gap-2 px-8 shadow-lg" asChild>
-                  <Link to="/stores">
-                    Jelajahi Toko
+                  <Link to="/register">
+                    Daftar Sekarang
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
@@ -397,7 +394,7 @@ const Index = () => {
                   className="h-12 border-secondary-foreground/20 bg-transparent px-8 text-secondary-foreground hover:bg-secondary-foreground/10 hover:text-secondary-foreground"
                   asChild
                 >
-                  <Link to="/admin">Panel Admin</Link>
+                  <Link to="/login">Login</Link>
                 </Button>
               </div>
             </div>

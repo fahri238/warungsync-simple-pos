@@ -16,11 +16,13 @@ const authRoutes = require('./routes/authRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const deliveryRoutes = require('./routes/deliveryRoutes');
 const storeRoutes = require('./routes/storeRoutes');
+const adminRoutes = require("./routes/adminRoutes");
 app.use('/api/products', productRoutes);
 app.use('/api/users', authRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/deliveries', deliveryRoutes);
 app.use('/api/stores', storeRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Route Test Koneksi
 app.get('/', async (req, res) => {

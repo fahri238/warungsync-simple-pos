@@ -65,9 +65,9 @@ export interface User {
   email: string;
   phone?: string;
   kontak?: string;
-  role: "admin" | "customer" | "courier";
+  role: "admin" | "owner" | "customer" | "courier"; // <--- SUDAH DIPERBAIKI
   address?: string;
-  token?: string; // Token JWT dari backend
+  token?: string;
 }
 
 export function getSession(): User | null {
@@ -106,7 +106,7 @@ export async function register(
   email: string,
   password: string,
   phone: string,
-  role: "customer" | "courier" | "admin" = "customer",
+  role: "customer" | "courier" | "admin" | "owner" = "customer",
   address?: string,
   storeId?: string | null
 ): Promise<User | string> {
@@ -224,14 +224,63 @@ export async function getCategoriesFromAPI(storeId?: string): Promise<Category[]
 
 // ⚠️ CATATAN PENTING:
 // Dulu fungsi updateStock ini secara manual memotong localStorage.
-// Sekarang kita BIAKAN KOSONG, karena pemotongan stok dan riwayat sudah
+// Sekarang kita BIARKAN KOSONG, karena pemotongan stok dan riwayat sudah
 // otomatis ditangani oleh Backend secara presisi menggunakan Database Transaction!
 export function updateStock(items: OrderItem[]): boolean {
   console.log("Pengurangan stok diserahkan sepenuhnya ke Backend (Order Controller)");
   return true;
 }
 
-// ================= DELIVERY SETTINGS =================
-export function getDeliverySettings(): DeliverySettings {
-  return get("warungsync_delivery", { enabled: true });
-}
+// ==========================================================
+// FUNGSI API UNTUK CRUD PRODUK & KATEGORI (REAL DATABASE)
+// ==========================================================
+
+export const addProductToAPI = async (productData: any) => {
+  return await apiFetch("/products", {
+    method: "POST",
+    body: JSON.stringify(productData),
+  });
+};
+
+export const updateProductInAPI = async (id: string | number, productData: any) => {
+  return await apiFetch(`/products/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(productData),
+  });
+};
+
+export const deleteProductFromAPI = async (id: string | number) => {
+  return await apiFetch(`/products/${id}`, {
+    method: "DELETE",
+  });
+};
+
+export const addCategoryToAPI = async (categoryData: { name: string }) => {
+  return await apiFetch("/categories", {
+    method: "POST",
+    body: JSON.stringify(categoryData),
+  });
+};
+
+export const deleteCategoryFromAPI = async (id: string | number) => {
+  return await apiFetch(`/categories/${id}`, {
+    method: "DELETE",
+  });
+};
+
+// ==========================================================
+// FUNGSI SEMENTARA UNTUK LAPORAN STOK & PENGATURAN WARUNG
+// ==========================================================
+
+export const getStockLogs = (): StockLog[] => {
+  return [];
+};
+
+export const getDeliverySettings = () => {
+  const saved = localStorage.getItem("warungsync_delivery_settings");
+  return saved ? JSON.parse(saved) : { enabled: true };
+};
+
+export const saveDeliverySettings = (settings: { enabled: boolean }) => {
+  localStorage.setItem("warungsync_delivery_settings", JSON.stringify(settings));
+};

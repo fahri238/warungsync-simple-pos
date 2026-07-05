@@ -3,8 +3,7 @@ import {
   getProductsFromAPI,
   getCategoriesFromAPI,
   getProductImage,
-  DEFAULT_STORE_ID,
-  updateStock // <-- Fungsi Sinkronisasi Stok diimpor ke sini
+  getSession,
 } from "@/lib/store";
 import { fetchProductByBarcode } from "@/services/productService";
 import type { Product, OrderItem } from "@/types";
@@ -30,9 +29,11 @@ import {
   PackageOpen,
   Wallet,
   Loader2,
+  ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 import { createOrder } from "@/services/orderService";
+import { Link } from "react-router-dom";
 
 interface CompletedSale {
   orderId: string;
@@ -43,7 +44,9 @@ interface CompletedSale {
   createdAt: string;
 }
 
-const AdminPOS = () => {
+const OwnerPOS = () => {
+  const session = getSession();
+
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [cart, setCart] = useState<OrderItem[]>([]);
@@ -51,8 +54,7 @@ const AdminPOS = () => {
   const [barcodeInput, setBarcodeInput] = useState("");
   const [catFilter, setCatFilter] = useState("all");
   const [loading, setLoading] = useState(true); 
-  const storeId = DEFAULT_STORE_ID;
-
+  
   // Payment flow
   const [showPayment, setShowPayment] = useState(false);
   const [cashInput, setCashInput] = useState("");
@@ -60,13 +62,21 @@ const AdminPOS = () => {
   const [submitting, setSubmitting] = useState(false);
 
   // Receipt
-  const [completedSale, setCompletedSale] = useState<CompletedSale | null>(
-    null,
-  );
+  const [completedSale, setCompletedSale] = useState<CompletedSale | null>(null);
 
   useEffect(() => {
+    if (!session || session.role !== "owner" || !session.store_id) {
+      setLoading(false);
+      return;
+    }
+
+    const storeIdStr = session.store_id.toString();
     setLoading(true);
-    Promise.all([getProductsFromAPI(storeId), getCategoriesFromAPI(storeId)])
+
+    Promise.all([
+      getProductsFromAPI(storeIdStr), 
+      getCategoriesFromAPI(storeIdStr)
+    ])
       .then(([prods, cats]) => {
         setProducts(prods);
         setCategories(cats);
@@ -77,7 +87,7 @@ const AdminPOS = () => {
       .finally(() => {
         setLoading(false);
       });
-  }, []);
+  }, [session?.store_id, session?.role]);
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
@@ -108,7 +118,7 @@ const AdminPOS = () => {
     });
   }, []);
 
-  const updateQty = (id: string, delta: number) => {
+  const updateQty = (id: string | number, delta: number) => {
     setCart((prev) =>
       prev.map((i) => {
         if (i.product.id === id) {
@@ -125,7 +135,7 @@ const AdminPOS = () => {
     );
   };
 
-  const removeFromCart = (id: string) =>
+  const removeFromCart = (id: string | number) =>
     setCart((prev) => prev.filter((i) => i.product.id !== id));
 
   const handlePayClick = () => {
@@ -142,13 +152,17 @@ const AdminPOS = () => {
       return;
     }
 
+    if (!session?.store_id) return;
+
     const change = cash - total;
     const createdAt = new Date().toISOString();
 
     try {
       setSubmitting(true);
+      
+      // Kirim pesanan ke backend (Backend akan otomatis memotong stok produk)
       const response = await createOrder({
-        storeId,
+        storeId: session.store_id.toString(),
         customerName: "Pelanggan Toko (Walk-in)",
         customerPhone: "-",
         type: "pos",
@@ -157,10 +171,8 @@ const AdminPOS = () => {
         status: "completed",
         items: cart,
       });
+      
       const orderId = response?.data?.id || `POS-${Date.now().toString().slice(-6)}`;
-
-      // === FITUR SINKRONISASI STOK DAN INVENTARIS ===
-      updateStock(cart); // Ini akan memotong stok permanen di Database/Local Storage dan memicu Stock Log!
 
       setCompletedSale({
         orderId,
@@ -174,7 +186,7 @@ const AdminPOS = () => {
       setCart([]);
       setShowPayment(false);
       
-      // Sinkronisasi pembaruan visual agar kasir tidak perlu merefresh browser
+      // Sinkronisasi pembaruan visual stok kasir agar tidak perlu reload browser
       setProducts((prev) =>
         prev.map((product) => {
           const cartItem = cart.find((item) => item.product.id === product.id);
@@ -185,7 +197,7 @@ const AdminPOS = () => {
           };
         }),
       );
-      toast.success("Transaksi kasir berhasil dan Stok telah disinkronkan!");
+      toast.success("Transaksi kasir berhasil diproses!");
     } catch (error: any) {
       toast.error(error?.message || "Transaksi gagal diproses");
     } finally {
@@ -219,7 +231,7 @@ const AdminPOS = () => {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Struk Pembelian #${completedSale.orderId.slice(-6)}</title>
+        <title>Struk Pembelian #${completedSale.orderId.toString().slice(-6)}</title>
         <style>
           @page { size: 80mm auto; margin: 0; }
           body { font-family: 'Courier New', Courier, monospace; font-size: 12px; width: 80mm; margin: 0 auto; padding: 15px; color: #000; box-sizing: border-box;}
@@ -231,14 +243,14 @@ const AdminPOS = () => {
       </head>
       <body>
         <div class="center">
-          <div class="title">WARUNG MAMA EVA</div>
+          <div class="title">Toko ${session?.name?.split(" ")[0] || "Kita"}</div>
           <div style="font-size: 11px; margin-top: 4px;">STRUK PEMBELIAN KASIR (POS)</div>
           <div style="color: #333; font-size: 10px; margin-top: 4px;">${formattedDate}</div>
-          <div style="color: #333; font-size: 10px; margin-top: 2px;">Order ID: #${completedSale.orderId.slice(0, 8).toUpperCase()}</div>
+          <div style="color: #333; font-size: 10px; margin-top: 2px;">Order ID: #${completedSale.orderId.toString().slice(0, 8).toUpperCase()}</div>
         </div>
         <div class="divider"></div>
         <div>Customer: <span class="bold">Walk-in</span></div>
-        <div>Kasir: <span class="bold">Admin</span></div>
+        <div>Kasir: <span class="bold">${session?.name || "Owner"}</span></div>
         <div class="divider"></div>
         ${itemsHtml}
         <div class="divider"></div>
@@ -280,12 +292,14 @@ const AdminPOS = () => {
   const handleBarcodeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const code = barcodeInput.trim();
-    if (!code) return;
+    if (!code || !session?.store_id) return;
 
+    const storeIdStr = session.store_id.toString();
     let product = products.find((p) => p.barcode === code);
+    
     if (!product) {
       try {
-        const fromApi = await fetchProductByBarcode(storeId, code);
+        const fromApi = await fetchProductByBarcode(storeIdStr, code);
         if (fromApi) {
           product = fromApi;
           setProducts((prev) =>
@@ -312,6 +326,29 @@ const AdminPOS = () => {
     Math.ceil(total / 50000) * 50000,
     Math.ceil(total / 100000) * 100000,
   ].filter((v, i, a) => a.indexOf(v) === i && v >= total);
+
+  // PENGECEKAN KEAMANAN UNTUK OWNER
+  if (!session || session.role !== "owner") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-secondary/10 px-4 animate-in fade-in zoom-in duration-500">
+        <Card className="w-full max-w-sm text-center shadow-2xl border-0 rounded-[2rem] overflow-hidden relative">
+          <div className="h-2 bg-destructive w-full absolute top-0 left-0"></div>
+          <CardContent className="py-12">
+            <div className="mx-auto h-24 w-24 bg-destructive/10 rounded-full flex items-center justify-center mb-6 ring-8 ring-destructive/5">
+              <ShieldAlert className="h-12 w-12 text-destructive" />
+            </div>
+            <h2 className="text-2xl font-black tracking-tight mb-2 text-foreground">Akses Ditolak</h2>
+            <p className="mb-8 text-muted-foreground text-sm px-4">
+              Sesi pemilik warung (owner) Anda tidak ditemukan atau Anda tidak memiliki izin untuk mengakses halaman ini.
+            </p>
+            <Button asChild className="w-full rounded-xl h-14 text-base font-bold shadow-lg shadow-primary/20">
+              <Link to="/login">Masuk Kembali</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-[calc(100vh-8rem)] flex-col lg:flex-row gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-4">
@@ -646,7 +683,7 @@ const AdminPOS = () => {
               >
                 <div className="text-center mb-3">
                   <p className="text-sm font-bold uppercase tracking-widest">
-                    Warung Mama Eva
+                    {session?.name?.split(" ")[0] || "Toko"}
                   </p>
                   <p className="text-[10px] text-gray-500 mt-1">
                     Struk Pembelian Kasir
@@ -655,7 +692,7 @@ const AdminPOS = () => {
                     {formatDate(completedSale.createdAt)}
                   </p>
                   <p className="text-[10px] text-gray-500 mt-0.5">
-                    Order ID: #{completedSale.orderId.slice(0, 8)}
+                    Order ID: #{completedSale.orderId.toString().slice(0, 8)}
                   </p>
                 </div>
                 <div className="border-t border-dashed border-gray-300 my-2" />
@@ -715,4 +752,4 @@ const AdminPOS = () => {
   );
 };
 
-export default AdminPOS;
+export default OwnerPOS;

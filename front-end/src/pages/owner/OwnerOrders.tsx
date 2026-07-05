@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import type { Order, OrderStatus } from "@/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,10 +7,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Printer, Truck, CheckCircle, Package } from "lucide-react";
+import { Printer, Truck, CheckCircle, Package, ShieldAlert } from "lucide-react";
 import { fetchOrders, updateOrderStatus as updateOrderStatusApi } from "@/services/orderService";
 import { fetchUsersByRole } from "@/services/authService";
 import { assignCourier } from "@/services/deliveryService";
+import { getSession } from "@/lib/store";
 
 const statusLabels: Record<OrderStatus, string> = {
   pending: "Menunggu", processing: "Diproses", ready: "Siap Ambil", delivering: "Sedang Diantar", completed: "Selesai"
@@ -22,7 +24,10 @@ const statusColors: Record<OrderStatus, string> = {
   completed: "bg-success/10 text-success",
 };
 
-const AdminOrders = () => {
+// PERUBAHAN: Nama komponen disesuaikan menjadi OwnerOrders
+const OwnerOrders = () => {
+  const session = getSession();
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [couriers, setCouriers] = useState<any[]>([]);
@@ -32,18 +37,30 @@ const AdminOrders = () => {
   const [selectedCourierId, setSelectedCourierId] = useState<string>("");
 
   const refresh = async () => {
-    const data = await fetchOrders();
-    setOrders(data);
+    if (!session?.store_id) return;
+    // Mengambil pesanan berdasarkan toko yang sedang login
+    const data = await fetchOrders(session.store_id as any);
+    setOrders(data || []);
   };
 
   useEffect(() => {
-    Promise.all([fetchOrders(), fetchUsersByRole("kurir" as any)])
+    if (!session || session.role !== "owner") {
+      setLoading(false);
+      return;
+    }
+
+    // PERUBAHAN: "kurir" as any diganti menjadi "courier" karena tipe di authService sudah sinkron
+    Promise.all([
+      fetchOrders(session.store_id as any), 
+      fetchUsersByRole("courier")
+    ])
       .then(([orderRows, courierRows]) => {
-        setOrders(orderRows);
-        setCouriers(courierRows);
+        setOrders(orderRows || []);
+        setCouriers(courierRows || []);
       })
+      .catch(() => toast.error("Gagal memuat data"))
       .finally(() => setLoading(false));
-  }, []);
+  }, [session?.store_id, session?.role]);
 
   const getOrderTotal = (order: Order) => {
     if (typeof order.total === 'number') return order.total;
@@ -115,7 +132,7 @@ const AdminOrders = () => {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Invoice #${order.id.slice(-6)}</title>
+        <title>Invoice #${order.id.toString().slice(-6)}</title>
         <style>
           @page { size: 80mm auto; margin: 0; }
           body { font-family: 'Courier New', monospace; font-size: 12px; width: 80mm; margin: 0 auto; padding: 15px; color: #000; box-sizing: border-box; }
@@ -127,10 +144,10 @@ const AdminOrders = () => {
       </head>
       <body>
         <div class="center">
-          <div class="title">WARUNG MAMA EVA</div>
+          <div class="title">Toko ${session?.name?.split(' ')[0] || 'Kita'}</div>
           <div>Invoice / Struk Belanja</div>
           <div style="color: #555; font-size: 10px; margin-top: 4px;">${formattedDate}</div>
-          <div style="color: #555; font-size: 10px;">ID: #${order.id.slice(-8).toUpperCase()}</div>
+          <div style="color: #555; font-size: 10px;">ID: #${order.id.toString().slice(-8).toUpperCase()}</div>
         </div>
         <div class="divider"></div>
         <div>Customer: <span class="bold">${order.customerName || 'Walk-in'}</span></div>
@@ -152,6 +169,29 @@ const AdminOrders = () => {
     `);
     printWindow.document.close();
   };
+
+  // PENGECEKAN KEAMANAN UNTUK OWNER
+  if (!session || session.role !== "owner") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-secondary/10 px-4 animate-in fade-in zoom-in duration-500">
+        <Card className="w-full max-w-sm text-center shadow-2xl border-0 rounded-[2rem] overflow-hidden relative">
+          <div className="h-2 bg-destructive w-full absolute top-0 left-0"></div>
+          <CardContent className="py-12">
+            <div className="mx-auto h-24 w-24 bg-destructive/10 rounded-full flex items-center justify-center mb-6 ring-8 ring-destructive/5">
+              <ShieldAlert className="h-12 w-12 text-destructive" />
+            </div>
+            <h2 className="text-2xl font-black tracking-tight mb-2 text-foreground">Akses Ditolak</h2>
+            <p className="mb-8 text-muted-foreground text-sm px-4">
+              Sesi pemilik warung (owner) Anda tidak ditemukan atau Anda tidak memiliki izin untuk mengakses halaman ini.
+            </p>
+            <Button asChild className="w-full rounded-xl h-14 text-base font-bold shadow-lg shadow-primary/20">
+              <Link to="/login">Masuk Kembali</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // --- CARD ORDERS KOMPONEN  ---
   const renderOrderCard = (o: Order) => {
@@ -184,7 +224,7 @@ const AdminOrders = () => {
             
             {/* btn action based on status logic */}
             {st === "pending" && (
-              <Button size="sm" variant="outline" className="w-full bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 border-blue-200" onClick={() => handleProcessOrder(o.id)}>
+              <Button size="sm" variant="outline" className="w-full bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 border-blue-200" onClick={() => handleProcessOrder(o.id.toString())}>
                 Proses Pesanan
               </Button>
             )}
@@ -196,7 +236,7 @@ const AdminOrders = () => {
             )}
 
             {st === "processing" && o.fulfillment === "pickup" && (
-              <Button size="sm" className="w-full gap-2 bg-green-500 hover:bg-green-600" onClick={() => handleCompletePickup(o.id)}>
+              <Button size="sm" className="w-full gap-2 bg-green-500 hover:bg-green-600" onClick={() => handleCompletePickup(o.id.toString())}>
                 <CheckCircle className="h-4 w-4" /> Selesai (Diambil)
               </Button>
             )}
@@ -253,8 +293,8 @@ const AdminOrders = () => {
                 </SelectTrigger>
                 <SelectContent>
                   {couriers.map(c => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name} ({c.phone})
+                    <SelectItem key={c.id} value={c.id.toString()}>
+                      {c.name} {c.phone ? `(${c.phone})` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -274,4 +314,4 @@ const AdminOrders = () => {
   );
 };
 
-export default AdminOrders;
+export default OwnerOrders;

@@ -2,6 +2,11 @@ import { useState, useEffect, useMemo } from "react";
 import {
   getProductsFromAPI,
   getCategoriesFromAPI,
+  addProductToAPI,
+  updateProductInAPI,
+  deleteProductFromAPI,
+  addCategoryToAPI,
+  deleteCategoryFromAPI,
   getProductImage,
   getSession,
 } from "@/lib/store";
@@ -59,7 +64,8 @@ const emptyProduct: Omit<Product, "id"> = {
   description: "",
 };
 
-const AdminProducts = () => {
+// PERUBAHAN: Nama komponen menjadi OwnerProducts
+const OwnerProducts = () => {
   const session = getSession();
   
   const [products, setProducts] = useState<Product[]>([]);
@@ -210,8 +216,8 @@ const AdminProducts = () => {
     );
   }, [products, searchQuery]);
 
-  // Pengamanan rute: Jika bukan admin, tolak akses
-  if (!session || session.role !== "admin") {
+  // PERUBAHAN: Pengamanan rute untuk Owner
+  if (!session || session.role !== "owner") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-secondary/10 px-4 animate-in fade-in zoom-in duration-500">
         <Card className="w-full max-w-sm text-center shadow-2xl border-0 rounded-[2rem] overflow-hidden relative">
@@ -222,7 +228,7 @@ const AdminProducts = () => {
             </div>
             <h2 className="text-2xl font-black tracking-tight mb-2 text-foreground">Akses Ditolak</h2>
             <p className="mb-8 text-muted-foreground text-sm px-4">
-              Sesi admin Anda tidak ditemukan atau Anda tidak memiliki izin untuk mengakses halaman ini.
+              Sesi pemilik warung (owner) Anda tidak ditemukan atau Anda tidak memiliki izin untuk mengakses halaman ini.
             </p>
             <Button asChild className="w-full rounded-xl h-14 text-base font-bold shadow-lg shadow-primary/20">
               <Link to="/login">Masuk Kembali</Link>
@@ -639,4 +645,4 @@ const AdminProducts = () => {
   );
 };
 
-export default AdminProducts;
+export default OwnerProducts;

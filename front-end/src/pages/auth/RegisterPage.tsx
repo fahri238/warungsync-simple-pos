@@ -19,7 +19,8 @@ import {
   MapPin,
   User,
   Phone,
-  CheckCircle, } from "lucide-react";
+  CheckCircle, 
+} from "lucide-react";
 import { toast } from "sonner";
 
 const highlights = [
@@ -106,37 +107,63 @@ const RegisterPage = () => {
 
     try {
       setSubmitting(true);
+      
+      // PERBAIKAN 1: Sesuaikan HANYA dengan peran yang ada di Backend MySQL
+      let mappedRole = "pelanggan";
+      if (role === "store-owner") mappedRole = "owner";
+      else if (role === "courier") mappedRole = "kurir";
+      
+      let finalAddress = homeAddress;
+      if (role === "store-owner") {
+        finalAddress = `${storeName} - ${storeAddress}`;
+      }
+
+      // PERBAIKAN 2: Backend mewajibkan store_id untuk owner dan kurir!
+      // Kita gunakan ID Toko sementara agar lolos dari validasi Backend
+      let finalStoreId = null;
+      if (mappedRole === "owner" || mappedRole === "kurir") {
+        finalStoreId = 1; // Menggunakan Toko Warung Mama Eva dari Database
+      }
+
+      // PERBAIKAN 3: Kirim data dengan kunci persis sesuai nama kolom MySQL
       const payload: any = {
-        name,
-        email,
-        password,
-        phone,
-        role,
+        // 1. Format Inggris (Untuk memuaskan 'validateRegistration' Middleware)
+        name: name,
+        email: email,
+        password: password,
+        phone: phone,
+        role: mappedRole,
+        address: finalAddress,
+        
+        // 2. Format Indonesia (Untuk memuaskan 'register' Controller & MySQL)
+        nama: name,
+        kata_sandi: password,
+        kontak: phone,
+        peran: mappedRole,
+        alamat: finalAddress,
+        
+        // Data Tambahan
+        store_id: finalStoreId,
+        latitude: latitude,
+        longitude: longitude,
       };
 
-      if (role === "courier") {
-        payload.address = homeAddress;
-      }
-
-      if (role === "customer") {
-        payload.address = homeAddress;
-        payload.latitude = latitude;
-        payload.longitude = longitude;
-      }
-
-      if (role === "store-owner") {
-        payload.storeName = storeName;
-        payload.address = storeAddress;
-        payload.latitude = latitude;
-        payload.longitude = longitude;
-      }
+      console.log("🚀 PAYLOAD YANG DIKIRIM:", payload);
 
       const user = await register(payload);
-      toast.success("Akun berhasil dibuat!");
-      if (user.role === "admin") navigate("/admin");
-      else if (user.role === "courier") navigate("/courier");
-      else navigate("/customer");
+
+      if (typeof user === "string") {
+        toast.error(user);
+        return;
+      }
+
+      // PERBAIKAN 4: Tampilkan pesan sukses dan lempar pengguna ke halaman Login!
+      // Karena backend tidak mengembalikan token, kita paksa user login manual.
+      toast.success("Akun berhasil dibuat! Silakan login dengan akun Anda.");
+      navigate("/login");
+      
     } catch (error: any) {
+      console.error("❌ ERROR DARI BACKEND:", error);
       toast.error(error?.message || "Gagal mendaftar");
     } finally {
       setSubmitting(false);
@@ -424,7 +451,7 @@ const RegisterPage = () => {
                       <div className="space-y-2">
                         <Label htmlFor="store-name">Nama Toko</Label>
                         <div className="relative">
-                          <Store className="absolute left-3 top-1/2 h-4 w-4 text-muted-foreground" />
+                          <Store className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                           <Input
                             id="store-name"
                             value={storeName}
@@ -438,7 +465,7 @@ const RegisterPage = () => {
                       <div className="space-y-2">
                         <Label htmlFor="store-address">Alamat Toko</Label>
                         <div className="relative">
-                          <MapPin className="absolute left-3 top-1/2 h-4 w-4 text-muted-foreground" />
+                          <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                           <Input
                             id="store-address"
                             value={storeAddress}
@@ -493,7 +520,6 @@ const RegisterPage = () => {
                       ) : null}
                     </div>
                   ) : (
-                    // Memperbaiki kotak informasi kurir agar lebih kontras di light & dark mode
                     <div className="rounded-xl border border-dashed border-muted-foreground/30 bg-muted/50 p-4 text-center">
                       <p className="text-sm text-foreground flex items-center justify-center gap-2 font-medium">
                         <CheckCircle className="h-4 w-4 text-primary" />

@@ -1,24 +1,44 @@
-const ORDERS_STORAGE_KEY = "warungsync_demo_orders";
+import { apiFetch } from "@/lib/store";
+import type { Order } from "@/types";
 
-export const createOrder = async (payload: any) => {
-  const orders = JSON.parse(localStorage.getItem(ORDERS_STORAGE_KEY) || "[]");
-  const newOrder = {
-    ...payload,
-    id: `ORD-${Date.now()}`,
-    createdAt: new Date().toISOString(),
-  };
-  orders.unshift(newOrder);
-  localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders));
-  return { data: newOrder };
+// PERUBAHAN: Menambahkan parameter storeId (opsional) untuk Multi-Warung
+export const fetchOrders = async (storeId?: string | number): Promise<Order[]> => {
+  try {
+    // Jika storeId ada, tambahkan sebagai query parameter (hanya ambil pesanan toko tsb)
+    const endpoint = storeId ? `/orders?storeId=${storeId}` : "/orders";
+    const response = await apiFetch(endpoint);
+    return response.data || [];
+  } catch (error) {
+    console.error("Gagal mengambil data pesanan:", error);
+    return [];
+  }
 };
 
-export const fetchOrders = async () => {
-  return JSON.parse(localStorage.getItem(ORDERS_STORAGE_KEY) || "[]");
+export const fetchOrderById = async (orderId: string): Promise<Order | null> => {
+  try {
+    const response = await apiFetch(`/orders/${orderId}`);
+    return response.data;
+  } catch (error) {
+    console.error("Gagal mengambil detail pesanan:", error);
+    return null;
+  }
 };
 
-export const updateOrderStatus = async (id: string, payload: { status: string; courierId?: string }) => {
-  let orders = JSON.parse(localStorage.getItem(ORDERS_STORAGE_KEY) || "[]");
-  orders = orders.map((o: any) => o.id === id ? { ...o, status: payload.status, courierId: payload.courierId } : o);
-  localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders));
-  return { success: true };
+// PERUBAHAN: Mengirim data ke API, bukan ke Local Storage lagi
+export const createOrder = async (orderData: any) => {
+  return await apiFetch("/orders", {
+    method: "POST",
+    body: JSON.stringify(orderData),
+  });
+};
+
+// PERUBAHAN: Update status ke API Backend
+export const updateOrderStatus = async (
+  orderId: string, 
+  data: { status: string; courierId?: string }
+) => {
+  return await apiFetch(`/orders/${orderId}/status`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
 };

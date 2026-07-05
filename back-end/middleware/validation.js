@@ -45,49 +45,32 @@ const validateCategory = (req, res, next) => {
 // ================= AUTH VALIDATION =================
 
 const validateRegistration = (req, res, next) => {
-  const { nama, email, kata_sandi, no_hp, peran } = req.body;
+  // PERBAIKAN: Ubah no_hp menjadi kontak agar seragam dengan Controller
+  const { nama, email, kata_sandi, kontak, peran } = req.body;
 
-  // Validate nama
   if (!nama || typeof nama !== "string" || nama.trim() === "") {
-    return res.status(400).json({
-      success: false,
-      message: "Nama harus diisi dan tidak boleh kosong"
-    });
+    return res.status(400).json({ success: false, message: "Nama harus diisi" });
   }
 
-  // Validate email format
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!email || !emailRegex.test(email)) {
-    return res.status(400).json({
-      success: false,
-      message: "Email tidak valid"
-    });
+    return res.status(400).json({ success: false, message: "Email tidak valid" });
   }
 
-  // Validate kata_sandi (password)
   if (!kata_sandi || typeof kata_sandi !== "string" || kata_sandi.length < 6) {
-    return res.status(400).json({
-      success: false,
-      message: "Kata sandi harus minimal 6 karakter"
-    });
+    return res.status(400).json({ success: false, message: "Kata sandi minimal 6 karakter" });
   }
 
-  // Validate no_hp
-  if (!no_hp || typeof no_hp !== "string" || no_hp.trim() === "") {
-    return res.status(400).json({
-      success: false,
-      message: "Nomor HP harus diisi"
-    });
+  // PERBAIKAN: Validasi kontak, bukan no_hp
+  if (!kontak || typeof kontak !== "string" || kontak.trim() === "") {
+    return res.status(400).json({ success: false, message: "Nomor HP (Kontak) harus diisi" });
   }
 
-  // Validate peran if provided
   if (peran) {
-    const validRoles = ["admin", "pelanggan", "kurir"];
+    // PERBAIKAN: Tambahkan "owner" ke dalam daftar yang sah
+    const validRoles = ["admin", "owner", "pelanggan", "kurir"];
     if (!validRoles.includes(peran)) {
-      return res.status(400).json({
-        success: false,
-        message: "Peran tidak valid"
-      });
+      return res.status(400).json({ success: false, message: "Peran tidak valid" });
     }
   }
 

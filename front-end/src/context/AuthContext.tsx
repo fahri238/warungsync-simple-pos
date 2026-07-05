@@ -22,14 +22,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<AuthUser>;
-  register: (payload: {
-    name: string;
-    email: string;
-    password: string;
-    phone: string;
-    role: "customer" | "courier";
-    address?: string;
-  }) => Promise<AuthUser>;
+  register: (payload: any) => Promise<any>;
   logout: () => void;
 }
 
@@ -40,18 +33,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const applyAuthState = useCallback((nextToken: string, nextUser: AuthUser) => {
+  const applyAuthState = useCallback((nextToken: string, nextUser: any) => {
     setToken(nextToken);
     setUser(nextUser);
     localStorage.setItem(TOKEN_STORAGE_KEY, nextToken);
+    
     setSession({
       id: nextUser.id,
       name: nextUser.name,
       email: nextUser.email,
-      phone: nextUser.phone || "",
+      phone: nextUser.phone,
+      kontak: nextUser.phone,
       role: nextUser.role,
-      storeId: nextUser.storeId,
+      store_id: nextUser.store_id || nextUser.storeId,
       address: nextUser.address,
+      token: nextToken,
     });
   }, []);
 
@@ -69,10 +65,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setLoading(false);
         return;
       }
-
       try {
-        const me = await fetchCurrentUser(persistedToken);
-        applyAuthState(persistedToken, me);
+        const me = await fetchCurrentUser();
+        // TRANSLATOR: Ubah data MySQL (Indo) ke React (Inggris) saat refresh web
+        const normalizedUser = {
+          ...me,
+          name: me.nama || me.name,
+          role: me.peran || me.role,
+          phone: me.kontak || me.phone,
+          address: me.alamat || me.address,
+        };
+        applyAuthState(persistedToken, normalizedUser);
       } catch {
         clearAuthState();
       } finally {
@@ -85,24 +88,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const login = useCallback(async (email: string, password: string) => {
     const result = await loginUser(email, password);
-    applyAuthState(result.token, result.user);
-    return result.user;
+    // TRANSLATOR: Ubah data MySQL (Indo) ke React (Inggris) saat login
+    const normalizedUser = {
+      ...result.user,
+      name: result.user.nama || result.user.name,
+      role: result.user.peran || result.user.role,
+      phone: result.user.kontak || result.user.phone,
+      address: result.user.alamat || result.user.address,
+    };
+    
+    applyAuthState(result.token, normalizedUser);
+    return normalizedUser;
   }, [applyAuthState]);
 
   const register = useCallback(
-    async (payload: {
-      name: string;
-      email: string;
-      password: string;
-      phone: string;
-      role: "customer" | "courier";
-      address?: string;
-    }) => {
+    async (payload: any) => {
       const result = await registerUser(payload);
-      applyAuthState(result.token, result.user);
-      return result.user;
+      return result;
     },
-    [applyAuthState],
+    []
   );
 
   const logout = useCallback(() => {

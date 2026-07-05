@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect } from "react";
+import { Link } from "react-router-dom";
 import {
   getStockLogs,
-  DEFAULT_STORE_ID,
   getProductsFromAPI,
+  getSession,
 } from "@/lib/store";
 import { fetchOrders } from "@/services/orderService";
 import type { Order, Product, StockLog } from "@/types";
@@ -17,10 +18,13 @@ import {
   AlertTriangle,
   Printer,
   Loader2,
+  ShieldAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const AdminReports = () => {
+const OwnerReports = () => {
+  const session = getSession();
+
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [stockLogs, setStockLogs] = useState<StockLog[]>([]);
@@ -29,20 +33,26 @@ const AdminReports = () => {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
-  // take data from API (that has demo mode fallback)
   useEffect(() => {
+    if (!session || session.role !== "owner" || !session.store_id) {
+      setLoading(false);
+      return;
+    }
+
+    const storeIdStr = session.store_id.toString();
     setLoading(true);
+
     Promise.all([
-      fetchOrders().catch(() => []),
-      getProductsFromAPI(DEFAULT_STORE_ID).catch(() => []),
+      fetchOrders(storeIdStr).catch(() => []),
+      getProductsFromAPI(storeIdStr).catch(() => []),
     ])
       .then(([orderData, productData]) => {
-        setOrders(orderData);
-        setProducts(productData);
+        setOrders(orderData || []);
+        setProducts(productData || []);
 
         let logs = getStockLogs();
-        // MOCK DATA:
-        if (logs.length === 0 && productData.length > 0) {
+        // MOCK DATA (Demo):
+        if (logs.length === 0 && productData && productData.length > 0) {
           logs = [
             {
               id: "log-1",
@@ -75,7 +85,7 @@ const AdminReports = () => {
       .finally(() => {
         setLoading(false);
       });
-  }, []);
+  }, [session?.store_id, session?.role]);
 
   const getOrderTotal = (order: Order) => {
     if (typeof order.total === "number") return order.total;
@@ -89,7 +99,7 @@ const AdminReports = () => {
 
   const filtered = useMemo(() => {
     return orders.filter((o) => {
-      if (o.status !== "completed") return false; // report only take success transactions
+      if (o.status !== "completed") return false; 
       const d = new Date(o.createdAt);
       if (dateFrom && d < new Date(dateFrom)) return false;
       if (dateTo && d > new Date(dateTo + "T23:59:59")) return false;
@@ -99,8 +109,7 @@ const AdminReports = () => {
 
   const totalSales = filtered.reduce((s, o) => s + getOrderTotal(o), 0);
   const totalTransactions = filtered.length;
-  const avgTransaction =
-    totalTransactions > 0 ? totalSales / totalTransactions : 0;
+  const avgTransaction = totalTransactions > 0 ? totalSales / totalTransactions : 0;
 
   const productSales: Record<
     string,
@@ -145,7 +154,7 @@ const AdminReports = () => {
     return true;
   });
 
-  // --- PRINT FUNCTION REPORTS (A4 PROFESINAL FORMAT) ---
+  // --- PRINT FUNCTION REPORTS ---
   const handlePrintReport = (type: string, title: string) => {
     const printWindow = window.open("", "_blank", "width=900,height=700");
     if (!printWindow) return;
@@ -251,7 +260,7 @@ const AdminReports = () => {
       </head>
       <body>
         <div class="header">
-          <h1 class="title">WARUNG MAMA EVA</h1>
+          <h1 class="title">Toko ${session?.name?.split(' ')[0] || 'Kita'}</h1>
           <p class="subtitle">${title}</p>
         </div>
         <div class="meta">
@@ -272,6 +281,29 @@ const AdminReports = () => {
     `);
     printWindow.document.close();
   };
+
+  // PENGECEKAN KEAMANAN UNTUK OWNER
+  if (!session || session.role !== "owner") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-secondary/10 px-4 animate-in fade-in zoom-in duration-500">
+        <Card className="w-full max-w-sm text-center shadow-2xl border-0 rounded-[2rem] overflow-hidden relative">
+          <div className="h-2 bg-destructive w-full absolute top-0 left-0"></div>
+          <CardContent className="py-12">
+            <div className="mx-auto h-24 w-24 bg-destructive/10 rounded-full flex items-center justify-center mb-6 ring-8 ring-destructive/5">
+              <ShieldAlert className="h-12 w-12 text-destructive" />
+            </div>
+            <h2 className="text-2xl font-black tracking-tight mb-2 text-foreground">Akses Ditolak</h2>
+            <p className="mb-8 text-muted-foreground text-sm px-4">
+              Sesi pemilik warung (owner) Anda tidak ditemukan atau Anda tidak memiliki izin untuk mengakses halaman ini.
+            </p>
+            <Button asChild className="w-full rounded-xl h-14 text-base font-bold shadow-lg shadow-primary/20">
+              <Link to="/login">Masuk Kembali</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -732,4 +764,4 @@ const AdminReports = () => {
   );
 };
 
-export default AdminReports;
+export default OwnerReports;

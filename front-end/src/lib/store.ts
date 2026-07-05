@@ -10,7 +10,6 @@ import {
 import { defaultProductImages } from "@/lib/product-images";
 
 // ================= KONFIGURASI API =================
-// Sesuaikan PORT dengan backend Anda (misal: 5000)
 const API_BASE_URL = "http://localhost:5000/api";
 
 const SESSION_KEY = "warungsync_session";
@@ -32,7 +31,6 @@ function set<T>(key: string, value: T) {
 }
 
 // ================= HELPER API FETCH =================
-// Fungsi sakti untuk mengambil data dari backend dengan otomatis menyisipkan Token JWT
 export async function apiFetch(endpoint: string, options: RequestInit = {}) {
   const session = getSession();
   const headers: Record<string, string> = {
@@ -40,7 +38,6 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
     ...((options.headers as Record<string, string>) || {}),
   };
 
-  // Jika sudah login, sisipkan token untuk rute yang dilindungi (Protected Routes)
   if (session?.token) {
     headers["Authorization"] = `Bearer ${session.token}`;
   }
@@ -54,7 +51,7 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
   if (!response.ok) {
     throw new Error(data.message || "Terjadi kesalahan pada server");
   }
-  return data; // Backend kita mereturn { success, data, message }
+  return data;
 }
 
 // ================= USER & AUTHENTICATION =================
@@ -65,7 +62,7 @@ export interface User {
   email: string;
   phone?: string;
   kontak?: string;
-  role: "admin" | "owner" | "customer" | "courier"; // <--- SUDAH DIPERBAIKI
+  role: "admin" | "owner" | "customer" | "courier";
   address?: string;
   token?: string;
 }
@@ -83,7 +80,6 @@ export function clearSession() {
   localStorage.removeItem(SESSION_KEY);
 }
 
-// FUNGSI LOGIN VIA API
 export async function login(email: string, password: string): Promise<User | string> {
   try {
     const res = await apiFetch("/users/login", {
@@ -91,16 +87,14 @@ export async function login(email: string, password: string): Promise<User | str
       body: JSON.stringify({ email, kata_sandi: password }),
     });
     
-    // Gabungkan data user dan token, lalu simpan ke Local Storage
     const sessionData = { ...res.data.user, token: res.data.token };
     setSession(sessionData);
     return sessionData;
   } catch (error: any) {
-    return error.message; // Return string pesan error jika gagal
+    return error.message;
   }
 }
 
-// FUNGSI REGISTER VIA API
 export async function register(
   name: string,
   email: string,
@@ -129,7 +123,6 @@ export async function register(
   }
 }
 
-// FUNGSI UPDATE PROFIL VIA API
 export async function updateProfile(
   updates: { nama?: string; kontak?: string; alamat?: string }
 ): Promise<User | string> {
@@ -154,7 +147,6 @@ function migrateLegacyCart(): CartByStore {
   const legacy = get<OrderItem[]>(CART_KEY, []);
   const byStore = get<CartByStore>(CART_BY_STORE_KEY, {});
   if (legacy.length > 0 && Object.keys(byStore).length === 0) {
-    // Migrasi darurat jika ada cart model lama
     byStore["store-mama-eva"] = legacy; 
     set(CART_BY_STORE_KEY, byStore);
     localStorage.removeItem(CART_KEY);
@@ -220,12 +212,6 @@ export async function getCategoriesFromAPI(storeId?: string): Promise<Category[]
   }
 }
 
-// ================= STOCK & ORDERS =================
-
-// ⚠️ CATATAN PENTING:
-// Dulu fungsi updateStock ini secara manual memotong localStorage.
-// Sekarang kita BIARKAN KOSONG, karena pemotongan stok dan riwayat sudah
-// otomatis ditangani oleh Backend secara presisi menggunakan Database Transaction!
 export function updateStock(items: OrderItem[]): boolean {
   console.log("Pengurangan stok diserahkan sepenuhnya ke Backend (Order Controller)");
   return true;
@@ -236,16 +222,58 @@ export function updateStock(items: OrderItem[]): boolean {
 // ==========================================================
 
 export const addProductToAPI = async (productData: any) => {
+  const session = getSession(); 
+  
+  // PERBAIKAN: Ubah menjadi String agar validasi middleware lolos
+  const categoryIdStr = String(productData.category);
+
+  const payload = {
+    ...productData,
+    id_kategori: categoryIdStr,
+    kategori: categoryIdStr,
+    category: categoryIdStr, 
+    nama: productData.name,
+    harga: Number(productData.price),
+    harga_modal: Number(productData.capitalPrice || 0),
+    capitalPrice: Number(productData.capitalPrice || 0),
+    stok: Number(productData.stock || 0),
+    url_gambar: productData.image,
+    deskripsi: productData.description,
+    storeId: session?.store_id,
+    store_id: session?.store_id,
+  };
+
   return await apiFetch("/products", {
     method: "POST",
-    body: JSON.stringify(productData),
+    body: JSON.stringify(payload),
   });
 };
 
 export const updateProductInAPI = async (id: string | number, productData: any) => {
+  const session = getSession();
+  
+  // PERBAIKAN: Ubah menjadi String agar validasi middleware lolos
+  const categoryIdStr = String(productData.category);
+
+  const payload = {
+    ...productData,
+    id_kategori: categoryIdStr,
+    kategori: categoryIdStr,
+    category: categoryIdStr,
+    nama: productData.name,
+    harga: Number(productData.price),
+    harga_modal: Number(productData.capitalPrice || 0),
+    capitalPrice: Number(productData.capitalPrice || 0),
+    stok: Number(productData.stock || 0),
+    url_gambar: productData.image,
+    deskripsi: productData.description,
+    storeId: session?.store_id,
+    store_id: session?.store_id,
+  };
+
   return await apiFetch(`/products/${id}`, {
     method: "PUT",
-    body: JSON.stringify(productData),
+    body: JSON.stringify(payload),
   });
 };
 
@@ -256,14 +284,19 @@ export const deleteProductFromAPI = async (id: string | number) => {
 };
 
 export const addCategoryToAPI = async (categoryData: { name: string }) => {
-  return await apiFetch("/categories", {
+  const session = getSession();
+  return await apiFetch("/products/categories", { // PERBAIKAN: Menyesuaikan route endpoint
     method: "POST",
-    body: JSON.stringify(categoryData),
+    body: JSON.stringify({
+        ...categoryData,
+        storeId: session?.store_id,
+        store_id: session?.store_id
+    }),
   });
 };
 
 export const deleteCategoryFromAPI = async (id: string | number) => {
-  return await apiFetch(`/categories/${id}`, {
+  return await apiFetch(`/products/categories/${id}`, { // PERBAIKAN: Menyesuaikan route endpoint
     method: "DELETE",
   });
 };

@@ -54,9 +54,22 @@ import {
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 
-const emptyProduct: Omit<Product, "id"> = {
+// PERBAIKAN: Mendefinisikan tipe form secara lokal agar TypeScript mengenali capitalPrice
+interface ProductFormState {
+  name: string;
+  price: number;
+  capitalPrice: number;
+  stock: number;
+  category: string;
+  barcode: string;
+  image: string;
+  description: string;
+}
+
+const emptyProduct: ProductFormState = {
   name: "",
   price: 0,
+  capitalPrice: 0,
   stock: 0,
   category: "",
   barcode: "",
@@ -64,7 +77,6 @@ const emptyProduct: Omit<Product, "id"> = {
   description: "",
 };
 
-// PERUBAHAN: Nama komponen menjadi OwnerProducts
 const OwnerProducts = () => {
   const session = getSession();
   
@@ -74,7 +86,7 @@ const OwnerProducts = () => {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
-  const [form, setForm] = useState<Omit<Product, "id">>(emptyProduct);
+  const [form, setForm] = useState<ProductFormState>(emptyProduct);
   const [imagePreview, setImagePreview] = useState("");
   
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -137,6 +149,8 @@ const OwnerProducts = () => {
     setForm({
       name: p.name,
       price: p.price,
+      // PERBAIKAN: Mengambil capitalPrice dari database (gunakan fallback ke 0 jika kosong)
+      capitalPrice: (p as any).capitalPrice || 0, 
       stock: p.stock,
       category: p.category,
       barcode: p.barcode || "",
@@ -148,13 +162,20 @@ const OwnerProducts = () => {
   };
 
   const handleSave = async () => {
+    // Tambahan validasi: Harga Jual sebaiknya tidak lebih kecil dari Harga Modal
     if (!form.name || !form.category || form.price <= 0) {
-      toast.error("Lengkapi nama, kategori, dan harga");
+      toast.error("Lengkapi nama, kategori, dan harga jual");
+      return;
+    }
+    
+    if (form.capitalPrice > form.price) {
+      toast.error("Peringatan: Harga Modal lebih besar dari Harga Jual!");
       return;
     }
 
     try {
       setSaving(true);
+      // Data yang dikirim sekarang sudah mengandung capitalPrice
       if (editing) {
         await updateProductInAPI(editing.id, form);
         toast.success("Produk diperbarui");
@@ -216,7 +237,6 @@ const OwnerProducts = () => {
     );
   }, [products, searchQuery]);
 
-  // PERUBAHAN: Pengamanan rute untuk Owner
   if (!session || session.role !== "owner") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-secondary/10 px-4 animate-in fade-in zoom-in duration-500">
@@ -426,7 +446,7 @@ const OwnerProducts = () => {
                       <Barcode className="h-3 w-3" /> {p.barcode}
                     </div>
                   ) : (
-                    <div className="h-5"></div> /* Placeholder for keep the same height */
+                    <div className="h-5"></div>
                   )}
                 </div>
               </CardContent>
@@ -492,7 +512,8 @@ const OwnerProducts = () => {
                 </div>
 
                 <div className="p-4 bg-primary/10 rounded-xl border border-primary/20 text-xs text-primary/80 leading-relaxed font-medium">
-                  Informasi di atas adalah tampilan persis bagaimana pelanggan melihat produk Anda di etalase.
+                  Informasi di atas adalah tampilan persis bagaimana pelanggan melihat produk Anda di etalase. 
+                  *(Harga modal tidak akan ditampilkan ke pelanggan)*.
                 </div>
               </div>
 
@@ -532,8 +553,9 @@ const OwnerProducts = () => {
                         </SelectContent>
                       </Select>
                     </div>
+                    
                     <div className="space-y-2">
-                      <Label htmlFor="product-barcode" className="flex justify-between">
+                      <Label htmlFor="product-barcode">
                         Barcode <span className="text-xs text-muted-foreground font-normal">Opsional (Scan POS)</span>
                       </Label>
                       <div className="relative">
@@ -551,18 +573,35 @@ const OwnerProducts = () => {
                   </div>
                 </div>
 
-                {/* Section 2: price & stock */}
+                {/* Section 2: price & stock (Diperbarui dengan HPP) */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 border-b border-border/50 pb-2">
                     <Banknote className="h-4 w-4 text-primary" />
                     <h3 className="font-bold text-foreground">Harga & Ketersediaan</h3>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="product-capital">Harga Modal (Rp)</Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">Rp</span>
+                        <Input
+                          id="product-capital"
+                          type="number"
+                          min={0}
+                          placeholder="0"
+                          value={form.capitalPrice || ""}
+                          onChange={(e) => setForm({ ...form, capitalPrice: Number(e.target.value) || 0 })}
+                          disabled={saving}
+                          className="h-11 pl-9 bg-background"
+                        />
+                      </div>
+                    </div>
+                    
                     <div className="space-y-2">
                       <Label htmlFor="product-price">Harga Jual (Rp) <span className="text-destructive">*</span></Label>
                       <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">Rp</span>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">Rp</span>
                         <Input
                           id="product-price"
                           type="number"
@@ -571,10 +610,11 @@ const OwnerProducts = () => {
                           value={form.price || ""}
                           onChange={(e) => setForm({ ...form, price: Number(e.target.value) || 0 })}
                           disabled={saving}
-                          className="h-11 pl-10 font-bold bg-background"
+                          className="h-11 pl-9 font-bold bg-background text-primary"
                         />
                       </div>
                     </div>
+                    
                     <div className="space-y-2">
                       <Label htmlFor="product-stock">Jumlah Stok <span className="text-destructive">*</span></Label>
                       <div className="relative">
@@ -587,7 +627,7 @@ const OwnerProducts = () => {
                           value={form.stock || ""}
                           onChange={(e) => setForm({ ...form, stock: Number(e.target.value) || 0 })}
                           disabled={saving}
-                          className="h-11 pl-10 bg-background"
+                          className="h-11 pl-9 bg-background"
                         />
                       </div>
                     </div>

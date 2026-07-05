@@ -19,7 +19,9 @@ import {
   MapPin,
   User,
   Phone,
-  CheckCircle, 
+  CheckCircle,
+  CreditCard,
+  CarFront
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -53,9 +55,17 @@ const RegisterPage = () => {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<Role>("customer");
+  
+  // Field Alamat & Toko
   const [homeAddress, setHomeAddress] = useState("");
   const [storeName, setStoreName] = useState("");
   const [storeAddress, setStoreAddress] = useState("");
+  
+  // Field Ekstra Khusus Kurir (KYC)
+  const [nik, setNik] = useState("");
+  const [vehicleType, setVehicleType] = useState("");
+  const [vehiclePlate, setVehiclePlate] = useState("");
+
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
 
@@ -63,6 +73,7 @@ const RegisterPage = () => {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    // 1. Ambil Latitude & Longitude dari kembalian halaman peta
     const state = location.state as {
       latitude?: number;
       longitude?: number;
@@ -72,31 +83,62 @@ const RegisterPage = () => {
       setLatitude(state.latitude);
       setLongitude(state.longitude);
     }
+
+    // 2. Tarik kembali data form yang disimpan di cache
+    const savedForm = sessionStorage.getItem("registerFormState");
+    if (savedForm) {
+      const parsed = JSON.parse(savedForm);
+      if (parsed.role) setRole(parsed.role);
+      if (parsed.name) setName(parsed.name);
+      if (parsed.email) setEmail(parsed.email);
+      if (parsed.phone) setPhone(parsed.phone);
+      if (parsed.homeAddress) setHomeAddress(parsed.homeAddress);
+      if (parsed.storeName) setStoreName(parsed.storeName);
+      if (parsed.storeAddress) setStoreAddress(parsed.storeAddress);
+      if (parsed.nik) setNik(parsed.nik);
+      if (parsed.vehicleType) setVehicleType(parsed.vehicleType);
+      if (parsed.vehiclePlate) setVehiclePlate(parsed.vehiclePlate);
+    }
   }, [location.state]);
 
   const handleRegister = async (e?: React.FormEvent) => {
     e?.preventDefault();
 
+    // Validasi Umum
     if (!name || !email || !password || !phone) {
       toast.error("Isi semua field yang diwajibkan");
       return;
     }
 
-    if (role === "courier" && !homeAddress) {
-      toast.error("Kurir wajib mengisi alamat lengkap");
-      return;
+    // Validasi Khusus Kurir
+    if (role === "courier") {
+      if (!homeAddress) {
+        toast.error("Kurir wajib mengisi alamat lengkap");
+        return;
+      }
+      if (!nik || nik.length !== 16 || isNaN(Number(nik))) {
+        toast.error("Kurir wajib mengisi NIK dengan 16 digit angka yang valid");
+        return;
+      }
+      if (!vehicleType || !vehiclePlate) {
+        toast.error("Kurir wajib mengisi tipe dan plat nomor kendaraan");
+        return;
+      }
     }
 
+    // Validasi Pelanggan
     if (role === "customer" && !homeAddress) {
       toast.error("Pembeli wajib mengisi alamat rumah");
       return;
     }
 
+    // Validasi Owner
     if (role === "store-owner" && (!storeName || !storeAddress)) {
       toast.error("Pemilik toko wajib mengisi nama dan alamat toko");
       return;
     }
 
+    // Validasi Peta
     if (
       (role === "customer" || role === "store-owner") &&
       (latitude == null || longitude == null)
@@ -108,7 +150,6 @@ const RegisterPage = () => {
     try {
       setSubmitting(true);
       
-      // PERBAIKAN 1: Sesuaikan HANYA dengan peran yang ada di Backend MySQL
       let mappedRole = "pelanggan";
       if (role === "store-owner") mappedRole = "owner";
       else if (role === "courier") mappedRole = "kurir";
@@ -118,16 +159,12 @@ const RegisterPage = () => {
         finalAddress = `${storeName} - ${storeAddress}`;
       }
 
-      // PERBAIKAN 2: Backend mewajibkan store_id untuk owner dan kurir!
-      // Kita gunakan ID Toko sementara agar lolos dari validasi Backend
       let finalStoreId = null;
       if (mappedRole === "owner" || mappedRole === "kurir") {
-        finalStoreId = 1; // Menggunakan Toko Warung Mama Eva dari Database
+        finalStoreId = 1; 
       }
 
-      // PERBAIKAN 3: Kirim data dengan kunci persis sesuai nama kolom MySQL
       const payload: any = {
-        // 1. Format Inggris (Untuk memuaskan 'validateRegistration' Middleware)
         name: name,
         email: email,
         password: password,
@@ -135,20 +172,21 @@ const RegisterPage = () => {
         role: mappedRole,
         address: finalAddress,
         
-        // 2. Format Indonesia (Untuk memuaskan 'register' Controller & MySQL)
         nama: name,
         kata_sandi: password,
         kontak: phone,
         peran: mappedRole,
         alamat: finalAddress,
         
-        // Data Tambahan
         store_id: finalStoreId,
         latitude: latitude,
         longitude: longitude,
+        
+        // Data Ekstra Kurir
+        nik: mappedRole === "kurir" ? nik : null,
+        tipe_kendaraan: mappedRole === "kurir" ? vehicleType : null,
+        plat_nomor: mappedRole === "kurir" ? vehiclePlate : null,
       };
-
-      console.log("🚀 PAYLOAD YANG DIKIRIM:", payload);
 
       const user = await register(payload);
 
@@ -157,13 +195,11 @@ const RegisterPage = () => {
         return;
       }
 
-      // PERBAIKAN 4: Tampilkan pesan sukses dan lempar pengguna ke halaman Login!
-      // Karena backend tidak mengembalikan token, kita paksa user login manual.
       toast.success("Akun berhasil dibuat! Silakan login dengan akun Anda.");
+      sessionStorage.removeItem("registerFormState"); 
       navigate("/login");
       
     } catch (error: any) {
-      console.error("❌ ERROR DARI BACKEND:", error);
       toast.error(error?.message || "Gagal mendaftar");
     } finally {
       setSubmitting(false);
@@ -174,70 +210,45 @@ const RegisterPage = () => {
     <div className="grid min-h-screen overflow-hidden lg:grid-cols-2">
       {/* Brand panel */}
       <div className="relative hidden overflow-hidden bg-secondary lg:flex lg:flex-col lg:justify-between">
-        <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_20%_0%,hsl(var(--primary)/0.25),transparent_50%)]"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute bottom-0 right-0 h-[30rem] w-[30rem] rounded-full bg-primary/10 blur-3xl"
-          aria-hidden
-        />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_20%_0%,hsl(var(--primary)/0.25),transparent_50%)]" aria-hidden />
+        <div className="pointer-events-none absolute bottom-0 right-0 h-[30rem] w-[30rem] rounded-full bg-primary/10 blur-3xl" aria-hidden />
 
         <div className="relative flex flex-1 flex-col px-10 py-12 xl:px-16 overflow-y-auto custom-scrollbar">
-          {/* Logo */}
           <div className="mb-10">
-            <WarungSyncLogo
-              size="lg"
-              className="[&_span]:text-secondary-foreground [&_span:last-child]:text-secondary-foreground/70"
-            />
+            <WarungSyncLogo size="lg" className="[&_span]:text-secondary-foreground [&_span:last-child]:text-secondary-foreground/70" />
           </div>
 
-          {/* Hero Content */}
           <div className="max-w-md">
             <h1 className="font-display text-4xl font-bold leading-[1.15] text-secondary-foreground xl:text-5xl">
               Satu Aplikasi untuk <br />
               <span className="text-primary">Semua Kebutuhan</span> Warung Anda.
             </h1>
             <p className="mt-5 text-lg text-secondary-foreground/80 leading-relaxed">
-              Bergabunglah dengan ekosistem WarungSync. Mulai dari kelola stok,
-              layani kasir, hingga antar pesanan online dengan Geomapping.
+              Bergabunglah dengan ekosistem WarungSync. Mulai dari kelola stok, layani kasir, hingga antar pesanan online dengan Geomapping.
             </p>
 
-            {/* Micro Stats */}
             <div className="mt-8 flex items-center gap-6 border-b border-secondary-foreground/10 pb-8">
               <div>
                 <h4 className="text-3xl font-bold text-primary">3</h4>
-                <p className="text-sm font-medium text-secondary-foreground/80 mt-1">
-                  Pilihan Peran
-                </p>
+                <p className="text-sm font-medium text-secondary-foreground/80 mt-1">Pilihan Peran</p>
               </div>
               <div className="h-10 w-px bg-secondary-foreground/20"></div>
               <div>
                 <h4 className="text-3xl font-bold text-primary">100%</h4>
-                <p className="text-sm font-medium text-secondary-foreground/80 mt-1">
-                  Terintegrasi
-                </p>
+                <p className="text-sm font-medium text-secondary-foreground/80 mt-1">Terintegrasi</p>
               </div>
             </div>
           </div>
 
-          {/* Highlights */}
           <div className="mt-8 grid gap-4 max-w-md">
             {highlights.map((h) => (
-              <div
-                key={h.title}
-                className="group flex items-start gap-4 rounded-2xl border border-secondary-foreground/10 bg-secondary-foreground/5 p-4 backdrop-blur-sm transition-all hover:bg-secondary-foreground/10"
-              >
+              <div key={h.title} className="group flex items-start gap-4 rounded-2xl border border-secondary-foreground/10 bg-secondary-foreground/5 p-4 backdrop-blur-sm transition-all hover:bg-secondary-foreground/10">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                   <h.icon className="h-6 w-6" />
                 </div>
                 <div>
-                  <p className="font-bold text-secondary-foreground">
-                    {h.title}
-                  </p>
-                  <p className="mt-1 text-sm text-secondary-foreground/70 leading-relaxed">
-                    {h.desc}
-                  </p>
+                  <p className="font-bold text-secondary-foreground">{h.title}</p>
+                  <p className="mt-1 text-sm text-secondary-foreground/70 leading-relaxed">{h.desc}</p>
                 </div>
               </div>
             ))}
@@ -251,19 +262,11 @@ const RegisterPage = () => {
 
       {/* Form panel */}
       <div className="relative flex flex-col bg-background overflow-hidden">
-        <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,hsl(var(--primary)/0.08),transparent)] lg:hidden"
-          aria-hidden
-        />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,hsl(var(--primary)/0.08),transparent)] lg:hidden" aria-hidden />
 
         <div className="relative flex flex-1 min-h-0 flex-col justify-center px-4 py-8 sm:px-8 overflow-y-auto">
           <div className="mx-auto w-full max-w-md">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="-ml-2 mb-6 gap-1.5 text-muted-foreground hover:text-foreground"
-              asChild
-            >
+            <Button variant="ghost" size="sm" className="-ml-2 mb-6 gap-1.5 text-muted-foreground hover:text-foreground" asChild>
               <Link to="/">
                 <ArrowLeft className="h-4 w-4" />
                 Kembali ke beranda
@@ -275,67 +278,31 @@ const RegisterPage = () => {
             </div>
 
             <div className="mb-8">
-              <h2 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-                Daftar Akun Baru
-              </h2>
-              <p className="mt-2 text-muted-foreground">
-                Lengkapi data di bawah ini untuk bergabung dengan WarungSync.
-              </p>
+              <h2 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Daftar Akun Baru</h2>
+              <p className="mt-2 text-muted-foreground">Lengkapi data di bawah ini untuk bergabung dengan WarungSync.</p>
             </div>
 
-            <form
-              onSubmit={handleRegister}
-              className="space-y-5 rounded-2xl border border-border/80 bg-card p-6 shadow-lg shadow-primary/5 sm:p-8"
-            >
+            <form onSubmit={handleRegister} className="space-y-5 rounded-2xl border border-border/80 bg-card p-6 shadow-lg shadow-primary/5 sm:p-8">
               <div className="space-y-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Pilih Peran Anda
-                </Label>
-                <RadioGroup
-                  value={role}
-                  onValueChange={(v) => setRole(v as Role)}
-                  className="grid grid-cols-1 gap-3 sm:grid-cols-3"
-                >
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pilih Peran Anda</Label>
+                <RadioGroup value={role} onValueChange={(v) => setRole(v as Role)} className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div>
-                    <RadioGroupItem
-                      value="customer"
-                      id="r-customer"
-                      className="peer sr-only"
-                    />
-                    <Label
-                      htmlFor="r-customer"
-                      className="flex h-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-muted bg-transparent p-3 text-sm text-muted-foreground hover:bg-primary/5 hover:text-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 peer-data-[state=checked]:text-primary transition-all text-center"
-                    >
+                    <RadioGroupItem value="customer" id="r-customer" className="peer sr-only" />
+                    <Label htmlFor="r-customer" className="flex h-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-muted bg-transparent p-3 text-sm text-muted-foreground hover:bg-primary/5 hover:text-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 peer-data-[state=checked]:text-primary transition-all text-center">
                       <ShoppingBag className="h-5 w-5 shrink-0" />
                       <span className="font-medium leading-tight">Pembeli</span>
                     </Label>
                   </div>
                   <div>
-                    <RadioGroupItem
-                      value="store-owner"
-                      id="r-store-owner"
-                      className="peer sr-only"
-                    />
-                    <Label
-                      htmlFor="r-store-owner"
-                      className="flex h-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-muted bg-transparent p-3 text-sm text-muted-foreground hover:bg-primary/5 hover:text-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 peer-data-[state=checked]:text-primary transition-all text-center"
-                    >
+                    <RadioGroupItem value="store-owner" id="r-store-owner" className="peer sr-only" />
+                    <Label htmlFor="r-store-owner" className="flex h-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-muted bg-transparent p-3 text-sm text-muted-foreground hover:bg-primary/5 hover:text-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 peer-data-[state=checked]:text-primary transition-all text-center">
                       <Store className="h-5 w-5 shrink-0" />
-                      <span className="font-medium leading-tight">
-                        Pemilik Toko
-                      </span>
+                      <span className="font-medium leading-tight">Pemilik Toko</span>
                     </Label>
                   </div>
                   <div>
-                    <RadioGroupItem
-                      value="courier"
-                      id="r-courier"
-                      className="peer sr-only"
-                    />
-                    <Label
-                      htmlFor="r-courier"
-                      className="flex h-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-muted bg-transparent p-3 text-sm text-muted-foreground hover:bg-primary/5 hover:text-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 peer-data-[state=checked]:text-primary transition-all text-center"
-                    >
+                    <RadioGroupItem value="courier" id="r-courier" className="peer sr-only" />
+                    <Label htmlFor="r-courier" className="flex h-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-muted bg-transparent p-3 text-sm text-muted-foreground hover:bg-primary/5 hover:text-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 peer-data-[state=checked]:text-primary transition-all text-center">
                       <Truck className="h-5 w-5 shrink-0" />
                       <span className="font-medium leading-tight">Kurir</span>
                     </Label>
@@ -345,19 +312,13 @@ const RegisterPage = () => {
 
               <div className="grid gap-5 lg:grid-cols-1">
                 <div className="space-y-5">
+                  {/* Data Diri Umum */}
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="name">Nama Lengkap</Label>
                       <div className="relative">
                         <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          id="name"
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          placeholder="Nama Anda"
-                          autoComplete="name"
-                          className="h-11 pl-10"
-                        />
+                        <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nama Anda" autoComplete="name" className="h-11 pl-10" />
                       </div>
                     </div>
 
@@ -365,15 +326,7 @@ const RegisterPage = () => {
                       <Label htmlFor="email">Email</Label>
                       <div className="relative">
                         <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          id="email"
-                          type="email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          placeholder="nama@email.com"
-                          autoComplete="username"
-                          className="h-11 pl-10"
-                        />
+                        <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nama@email.com" autoComplete="username" className="h-11 pl-10" />
                       </div>
                     </div>
                   </div>
@@ -383,15 +336,7 @@ const RegisterPage = () => {
                       <Label htmlFor="phone">No. HP</Label>
                       <div className="relative">
                         <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          id="phone"
-                          type="tel"
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          placeholder="08xxxxxxxxx"
-                          autoComplete="tel"
-                          className="h-11 pl-10"
-                        />
+                        <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="08xxxxxxxxx" autoComplete="tel" className="h-11 pl-10" />
                       </div>
                     </div>
 
@@ -399,66 +344,61 @@ const RegisterPage = () => {
                       <Label htmlFor="password">Password</Label>
                       <div className="relative">
                         <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          id="password"
-                          type={showPassword ? "text" : "password"}
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
-                          placeholder="••••••••"
-                          autoComplete="new-password"
-                          className="h-11 pl-10 pr-10"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword((v) => !v)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
-                        >
-                          {showPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
+                        <Input id="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" autoComplete="new-password" className="h-11 pl-10 pr-10" />
+                        <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground">
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                       </div>
                     </div>
                   </div>
 
+                  {/* FIELD SPESIFIK: KURIR & PEMBELI (ALAMAT RUMAH) */}
                   {(role === "customer" || role === "courier") && (
                     <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                      <Label htmlFor="home-address">
-                        {role === "courier" ? "Alamat Kurir" : "Alamat Rumah"}
-                      </Label>
+                      <Label htmlFor="home-address">{role === "courier" ? "Alamat Domisili Kurir" : "Alamat Rumah"}</Label>
                       <div className="relative">
                         <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          id="home-address"
-                          value={homeAddress}
-                          onChange={(e) => setHomeAddress(e.target.value)}
-                          placeholder={
-                            role === "courier"
-                              ? "Alamat lengkap kurir"
-                              : "Alamat rumah Anda"
-                          }
-                          autoComplete="street-address"
-                          className="h-11 pl-10"
-                        />
+                        <Input id="home-address" value={homeAddress} onChange={(e) => setHomeAddress(e.target.value)} placeholder={role === "courier" ? "Alamat domisili saat ini" : "Alamat rumah Anda"} autoComplete="street-address" className="h-11 pl-10" />
                       </div>
                     </div>
                   )}
 
+                  {/* FIELD SPESIFIK: KURIR (KYC DATA) */}
+                  {role === "courier" && (
+                    <div className="space-y-4 pt-2 border-t border-border/50 animate-in fade-in slide-in-from-top-2">
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Verifikasi Identitas Kurir</Label>
+                      <div className="space-y-2">
+                        <Label htmlFor="nik">Nomor Induk Kependudukan (NIK)</Label>
+                        <div className="relative">
+                          <CreditCard className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                          <Input id="nik" value={nik} onChange={(e) => setNik(e.target.value)} placeholder="16 Digit NIK KTP Anda" maxLength={16} className="h-11 pl-10" />
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="vehicle-type">Tipe Kendaraan</Label>
+                          <div className="relative">
+                            <CarFront className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input id="vehicle-type" value={vehicleType} onChange={(e) => setVehicleType(e.target.value)} placeholder="Contoh: Honda Beat Hitam" className="h-11 pl-10" />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="vehicle-plate">Nomor Plat</Label>
+                          <Input id="vehicle-plate" value={vehiclePlate} onChange={(e) => setVehiclePlate(e.target.value.toUpperCase())} placeholder="Contoh: DA 1234 XY" className="h-11 uppercase" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* FIELD SPESIFIK: OWNER (DATA TOKO) */}
                   {role === "store-owner" && (
                     <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
                       <div className="space-y-2">
                         <Label htmlFor="store-name">Nama Toko</Label>
                         <div className="relative">
                           <Store className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                          <Input
-                            id="store-name"
-                            value={storeName}
-                            onChange={(e) => setStoreName(e.target.value)}
-                            placeholder="Nama toko Anda"
-                            className="h-11 pl-10"
-                          />
+                          <Input id="store-name" value={storeName} onChange={(e) => setStoreName(e.target.value)} placeholder="Nama toko Anda" className="h-11 pl-10" />
                         </div>
                       </div>
 
@@ -466,23 +406,13 @@ const RegisterPage = () => {
                         <Label htmlFor="store-address">Alamat Toko</Label>
                         <div className="relative">
                           <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                          <Input
-                            id="store-address"
-                            value={storeAddress}
-                            onChange={(e) => setStoreAddress(e.target.value)}
-                            placeholder="Alamat lengkap toko"
-                            className="h-11 pl-10"
-                          />
+                          <Input id="store-address" value={storeAddress} onChange={(e) => setStoreAddress(e.target.value)} placeholder="Alamat lengkap toko" className="h-11 pl-10" />
                         </div>
                       </div>
                     </div>
                   )}
 
-                  <Button
-                    type="submit"
-                    className="h-11 w-full text-base shadow-md shadow-primary/20"
-                    disabled={submitting || loading}
-                  >
+                  <Button type="submit" className="h-11 w-full text-base shadow-md shadow-primary/20" disabled={submitting || loading}>
                     {submitting ? "Memproses..." : "Daftar Sekarang"}
                   </Button>
                 </div>
@@ -495,23 +425,18 @@ const RegisterPage = () => {
                         <MapPin className="h-4 w-4" /> Titik Lokasi Peta
                       </Label>
                       <p className="mt-1 text-sm text-muted-foreground relative z-10">
-                        {role === "customer"
-                          ? "Tentukan titik rumah Anda di peta agar kurir mudah menemukan alamat saat pengiriman."
-                          : "Tentukan lokasi toko Anda di peta agar pelanggan mudah menemukannya."}
+                        {role === "customer" ? "Tentukan titik rumah Anda di peta agar kurir mudah menemukan alamat saat pengiriman." : "Tentukan lokasi toko Anda di peta agar pelanggan mudah menemukannya."}
                       </p>
                       <Button
                         type="button"
                         variant={latitude ? "outline" : "default"}
                         className="mt-4 h-11 w-full relative z-10"
-                        onClick={() =>
-                          navigate(`/register/location?role=${role}`, {
-                            state: { latitude, longitude },
-                          })
-                        }
+                        onClick={() => {
+                          sessionStorage.setItem("registerFormState", JSON.stringify({ role, name, email, phone, homeAddress, storeName, storeAddress, nik, vehicleType, vehiclePlate }));
+                          navigate(`/register/location?role=${role}`, { state: { latitude, longitude } });
+                        }}
                       >
-                        {latitude != null && longitude != null
-                          ? "Ubah Lokasi di Peta"
-                          : "Pilih Lokasi di Peta"}
+                        {latitude != null && longitude != null ? "Ubah Lokasi di Peta" : "Pilih Lokasi di Peta"}
                       </Button>
                       {latitude != null && longitude != null ? (
                         <div className="mt-3 inline-block rounded-md bg-background px-3 py-1.5 border text-xs font-mono text-muted-foreground relative z-10">
@@ -533,10 +458,7 @@ const RegisterPage = () => {
 
             <p className="mt-6 text-center text-sm text-muted-foreground">
               Sudah punya akun?{" "}
-              <Link
-                to="/login"
-                className="font-semibold text-primary hover:underline"
-              >
+              <Link to="/login" className="font-semibold text-primary hover:underline">
                 Masuk di sini
               </Link>
             </p>

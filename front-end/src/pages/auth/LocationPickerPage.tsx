@@ -55,11 +55,25 @@ const LocationPickerPage = () => {
     if ("geolocation" in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          // ONLY set mapCenter, let latitude & longitude still null
-          setMapCenter([position.coords.latitude, position.coords.longitude]);
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          
+          // 1. Geser kamera peta ke lokasi pengguna
+          setMapCenter([lat, lng]);
+          
+          // 2. Langsung tancapkan pin koordinat secara otomatis
+          setLatitude(lat);
+          setLongitude(lng);
+          
+          // 3. Beritahu sistem bahwa lokasi sudah ditetapkan
+          setHasInteracted(true);
+          
+          toast.success("Lokasi Anda berhasil dideteksi otomatis!");
         },
         (error) => {
           console.error("Initial GPS Error:", error);
+          // Jika pengguna menolak akses GPS atau sinyal buruk, 
+          // peta akan tetap diam di DEFAULT_CENTER (Banjarmasin)
         },
         { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
       );

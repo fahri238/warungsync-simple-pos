@@ -7,6 +7,7 @@ const JWT_EXPIRY = "24h";
 
 // ================= REGISTER =================
 const register = async (req, res) => {
+  // PERBAIKAN 1: Tambahkan nik, tipe_kendaraan, dan plat_nomor ke dalam destructuring req.body
   const {
     nama,
     email,
@@ -15,6 +16,9 @@ const register = async (req, res) => {
     peran = "pelanggan",
     alamat,
     store_id = null,
+    nik = null,
+    tipe_kendaraan = null,
+    plat_nomor = null
   } = req.body;
 
   try {
@@ -27,13 +31,11 @@ const register = async (req, res) => {
       return res.status(409).json({ success: false, message: "Email sudah terdaftar" });
     }
 
-    // PERUBAHAN: Menambahkan 'owner' ke daftar peran valid
     const validRoles = ["admin", "owner", "pelanggan", "kurir"];
     if (!validRoles.includes(peran)) {
       return res.status(400).json({ success: false, message: "Peran tidak valid" });
     }
 
-    // PERUBAHAN LOGIKA: Owner dan Kurir WAJIB punya toko. Admin (Pemilik Sistem) dan Pelanggan TIDAK PERLU punya toko.
     if ((peran === "owner" || peran === "kurir") && !store_id) {
       return res.status(400).json({ success: false, message: "Owner (Pemilik Toko) dan Kurir wajib mencantumkan ID Toko (store_id)" });
     }
@@ -43,9 +45,10 @@ const register = async (req, res) => {
 
     const finalStoreId = (peran === "owner" || peran === "kurir") ? store_id : null;
 
+    // PERBAIKAN 2: Tambahkan 3 kolom baru ke dalam kueri SQL INSERT
     const [result] = await db.query(
-      "INSERT INTO users (store_id, nama, email, kata_sandi, kontak, peran, alamat) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [finalStoreId, nama, email, hashedPassword, kontak, peran, alamat || null]
+      "INSERT INTO users (store_id, nama, email, kata_sandi, kontak, peran, alamat, nik, tipe_kendaraan, plat_nomor) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [finalStoreId, nama, email, hashedPassword, kontak, peran, alamat || null, nik, tipe_kendaraan, plat_nomor]
     );
 
     res.status(201).json({

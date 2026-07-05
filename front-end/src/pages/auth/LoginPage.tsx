@@ -63,9 +63,21 @@ const LoginPage = () => {
       setSubmitting(true);
       const userData = await login(email, password);
       toast.success(`Selamat datang, ${userData.name}!`);
-      if (userData.role === "admin") navigate("/admin");
-      else if (userData.role === "courier") navigate("/courier");
-      else navigate("/customer");
+      
+      // PERBAIKAN LOGIKA ROUTING: 
+      // Tambahkan pengecekan spesifik untuk setiap peran (termasuk owner)
+      if (userData.role === "admin") {
+        navigate("/admin");
+      } else if (userData.role === "owner") {
+        navigate("/owner");
+      } else if (userData.role === "courier" || userData.role === "kurir") {
+        // Mendukung penamaan database 'kurir' maupun 'courier'
+        navigate("/courier");
+      } else {
+        // Fallback untuk pelanggan / customer
+        navigate("/customer");
+      }
+
     } catch (error: unknown) {
       const message =
         error instanceof Error ? error.message : "Email atau password salah";

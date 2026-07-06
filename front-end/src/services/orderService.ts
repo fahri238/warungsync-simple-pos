@@ -49,12 +49,9 @@ export const createOrder = async (orderData: any) => {
   });
 };
 
-export const updateOrderStatus = async (
-  orderId: string, 
-  data: { status: string; courierId?: string }
-) => {
-  return await apiFetch(`/orders/${orderId}/status`, {
-    method: "PATCH",
-    body: JSON.stringify(data),
+export const updateOrderStatus = async (id: string | number, updates: any) => {
+  return await apiFetch(`/orders/${id}/status`, {
+    method: "PUT", 
+    body: JSON.stringify(updates),
   });
 };

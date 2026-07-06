@@ -63,7 +63,7 @@ const OwnerOrders = () => {
 
     Promise.all([
       fetchOrders(session.store_id as any), 
-      fetchUsersByRole("courier")
+      fetchUsersByRole("kurir") // PERBAIKAN 1: Ubah 'courier' menjadi 'kurir' (bahasa Indonesia)
     ])
       .then(([orderRows, courierRows]) => {
         setOrders(orderRows || []);
@@ -294,9 +294,13 @@ const OwnerOrders = () => {
                   <SelectValue placeholder="-- Klik untuk memilih kurir --" />
                 </SelectTrigger>
                 <SelectContent>
-                  {couriers.map(c => (
+                  {couriers
+                    // PERBAIKAN 1: Filter agar hanya kurir dari toko ini yang muncul
+                    .filter(c => Number(c.store_id || c.storeId) === Number(session?.store_id))
+                    .map(c => (
                     <SelectItem key={c.id} value={c.id.toString()}>
-                      {c.name} {c.phone ? `(${c.phone})` : ""}
+                      {/* PERBAIKAN 2: Gunakan properti bahasa Indonesia (nama & kontak) */}
+                      {c.nama || c.name} {(c.kontak || c.phone) ? `(${c.kontak || c.phone})` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>

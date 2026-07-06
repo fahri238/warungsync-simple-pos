@@ -14,10 +14,10 @@ import { fetchOrders } from "@/services/orderService";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
-const statusLabels: Record<OrderStatus, string> = {
+const statusLabels: Record<string, string> = {
   pending: "Menunggu", processing: "Diproses", ready: "Siap Ambil", delivering: "Diantar", completed: "Selesai"
 };
-const statusColors: Record<OrderStatus, string> = {
+const statusColors: Record<string, string> = {
   pending: "bg-accent/10 text-accent",
   processing: "bg-info/10 text-info",
   ready: "bg-primary/10 text-primary",
@@ -34,13 +34,12 @@ const CustomerDashboard = () => {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
-  // SOLUSI INFINITE LOOP: Ekstrak ID dan Role sebagai variabel primitif
   const sessionId = session?.id;
-  const sessionRole = session?.role;
+  const sessionRole = session?.role as string;
 
   useEffect(() => {
-    // Gunakan variabel primitif untuk pengecekan
-    if (!sessionId || sessionRole !== "customer") {
+    // PERBAIKAN: Menggunakan array includes agar mendeteksi 'pelanggan' dan 'customer'
+    if (!sessionId || !["customer", "pelanggan"].includes(sessionRole)) {
       setAllOrders([]);
       setLoadingOrders(false);
       return;
@@ -48,7 +47,6 @@ const CustomerDashboard = () => {
 
     fetchOrders()
       .then((orders) => {
-        // Filter menggunakan sessionId
         const myOnlineOrders = orders.filter((o: Order) => (o as any).userId === sessionId && o.type === "online");
         setAllOrders(myOnlineOrders);
       })
@@ -57,7 +55,6 @@ const CustomerDashboard = () => {
       })
       .finally(() => setLoadingOrders(false));
       
-  // Hanya jalankan useEffect jika ID atau Role berubah, bukan seluruh objek session
   }, [sessionId, sessionRole]);
 
   const getOrderTotal = (order: Order) => {
@@ -77,7 +74,7 @@ const CustomerDashboard = () => {
 
   const totalSpending = filteredOrders.reduce((s, o) => s + getOrderTotal(o), 0);
   const totalOrders = filteredOrders.length;
-  const completedOrders = filteredOrders.filter(o => o.status === "completed").length;
+  const completedOrders = filteredOrders.filter(o => ["completed", "selesai"].includes(o.status)).length;
 
   const monthlySpending: Record<string, { month: string; total: number; count: number }> = {};
   filteredOrders.forEach(o => {
@@ -105,7 +102,8 @@ const CustomerDashboard = () => {
     navigate("/");
   };
 
-  if (!session || session.role !== "customer") {
+  // PERBAIKAN: Menggunakan array includes untuk perlindungan halaman UI
+  if (!session || !["customer", "pelanggan"].includes(session.role as string)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-secondary/10 px-4">
         <Card className="w-full max-w-sm text-center shadow-lg border-0 rounded-3xl">
@@ -136,7 +134,7 @@ const CustomerDashboard = () => {
             <td style={{ padding: "6px 10px", fontSize: 11 }}>{new Date(o.createdAt).toLocaleString("id-ID")}</td>
             <td style={{ padding: "6px 10px", fontSize: 11 }}>{o.items.map(i => `${i.product.name} x${i.quantity}`).join(", ")}</td>
             <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "center" }}>
-              <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, background: "#e8f5e9", color: "#2e7d32" }}>{statusLabels[o.status]}</span>
+              <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, background: "#e8f5e9", color: "#2e7d32" }}>{statusLabels[o.status] || o.status}</span>
             </td>
             <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "right", fontFamily: "monospace" }}>Rp {getOrderTotal(o).toLocaleString("id-ID")}</td>
           </tr>
@@ -241,7 +239,6 @@ const CustomerDashboard = () => {
             <Link to="/customer/stores"><ShoppingBag className="h-6 w-6" />Belanja</Link>
           </Button>
           <Button variant="outline" className="h-20 flex-col gap-2" asChild>
-            {/* Rute disesuaikan menuju orders untuk ID 'all' atau generik */}
             <Link to="/customer/store/all/orders"><Package className="h-6 w-6" />Pesanan Saya</Link>
           </Button>
         </div>
@@ -262,8 +259,8 @@ const CustomerDashboard = () => {
                       <p className="text-xs text-muted-foreground">{new Date(o.createdAt).toLocaleString("id-ID")}</p>
                     </div>
                     <div className="text-right">
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[o.status]}`}>
-                        {statusLabels[o.status]}
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[o.status] || 'bg-gray-100'}`}>
+                        {statusLabels[o.status] || o.status}
                       </span>
                       <p className="mt-1 text-sm font-bold text-primary">Rp {getOrderTotal(o).toLocaleString("id-ID")}</p>
                     </div>
@@ -334,7 +331,7 @@ const CustomerDashboard = () => {
                             <td className="px-3 py-2 text-foreground text-xs">{new Date(o.createdAt).toLocaleString("id-ID")}</td>
                             <td className="px-3 py-2 text-foreground text-xs">{o.items.map(i => `${i.product.name} x${i.quantity}`).join(", ")}</td>
                             <td className="px-3 py-2 text-center">
-                              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[o.status]}`}>{statusLabels[o.status]}</span>
+                              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[o.status] || 'bg-gray-100'}`}>{statusLabels[o.status] || o.status}</span>
                             </td>
                             <td className="px-3 py-2 text-right font-mono">Rp {getOrderTotal(o).toLocaleString("id-ID")}</td>
                           </tr>

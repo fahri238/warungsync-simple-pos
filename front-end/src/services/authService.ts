@@ -28,12 +28,11 @@ export const registerUser = async (payload: any) => {
     method: "POST",
     body: JSON.stringify(payload),
   });
-  // Langsung kembalikan data apa adanya, karena tidak ada token di sini
   return res.data; 
 };
 
 export const fetchCurrentUser = async () => {
-  // PERBAIKAN: Backend menggunakan rute /users/me, bukan /users/profile
+  // PERBAIKAN: Memastikan rute mengarah ke /users/me, bukan /users/login
   const res = await apiFetch("/users/me");
   return res.data;
 };

@@ -273,14 +273,7 @@ const OwnerLayout = () => {
             </Button>
 
             <div className="h-6 w-px bg-border/80 hidden sm:block"></div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="hidden sm:flex rounded-full px-4"
-              asChild
-            >
-              <Link to="/customer/stores">Lihat Toko</Link>
-            </Button>
+
             <Button
               variant="ghost"
               size="sm"

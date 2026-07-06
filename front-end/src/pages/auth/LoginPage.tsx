@@ -64,18 +64,18 @@ const LoginPage = () => {
       const userData = await login(email, password);
       toast.success(`Selamat datang, ${userData.name}!`);
       
-      // PERBAIKAN LOGIKA ROUTING: 
-      // Tambahkan pengecekan spesifik untuk setiap peran (termasuk owner)
+      // PERBAIKAN LOGIKA ROUTING: Eksplisit menangkap role bahasa Indonesia
       if (userData.role === "admin") {
         navigate("/admin");
       } else if (userData.role === "owner") {
         navigate("/owner");
-      } else if (userData.role === "courier" || userData.role === "kurir") {
-        // Mendukung penamaan database 'kurir' maupun 'courier'
+      } else if (userData.role === "kurir" || userData.role === "courier") {
         navigate("/courier");
-      } else {
-        // Fallback untuk pelanggan / customer
+      } else if (userData.role === "pelanggan" || userData.role === "customer") {
         navigate("/customer");
+      } else {
+        // Fallback terakhir jika terjadi anomali peran di database
+        toast.error("Peran pengguna tidak dikenal oleh sistem.");
       }
 
     } catch (error: unknown) {

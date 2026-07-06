@@ -22,7 +22,6 @@ const CourierDashboard = () => {
   const [loadingOrders, setLoadingOrders] = useState(true);
 
   useEffect(() => {
-    // PERBAIKAN 1: Terima 'courier' atau 'kurir'
     if (!session || ((session.role as string) !== "courier" && (session.role as string) !== "kurir")) {
       setOrders([]);
       setLoadingOrders(false);
@@ -31,7 +30,11 @@ const CourierDashboard = () => {
 
     fetchOrders()
       .then((rows) => {
-        const mine = rows.filter((o: Order) => o.courierId === session.id && o.fulfillment === "delivery");
+        // PERBAIKAN: Samakan tipe data ID dan tambahkan cek untuk "kurir"
+        const mine = rows.filter((o: any) => 
+          Number(o.courierId) === Number(session.id) && 
+          (o.fulfillment === "delivery" || o.fulfillment === "kurir")
+        );
         setOrders(mine);
       })
       .catch((error: any) => {
@@ -41,12 +44,18 @@ const CourierDashboard = () => {
   }, [session]);
 
   const activeOrders = useMemo(
-    () => orders.filter((o) => o.status === "delivering" || o.status === "processing" || o.status === "ready"),
+    () => orders.filter((o) => 
+      // PERBAIKAN: Masukkan versi bahasa Indonesia ("diantar", "diproses", "siap_ambil")
+      ["delivering", "diantar", "processing", "diproses", "ready", "siap_ambil"].includes(o.status as string)
+    ),
     [orders]
   );
 
   const completedOrders = useMemo(
-    () => orders.filter((o) => o.status === "completed"),
+    () => orders.filter((o) => 
+      // PERBAIKAN: Masukkan versi bahasa Indonesia ("selesai")
+      ["completed", "selesai"].includes(o.status as string)
+    ),
     [orders]
   );
 
@@ -64,7 +73,11 @@ const CourierDashboard = () => {
       }
       
       const rows = await fetchOrders();
-      const mine = rows.filter((o: Order) => o.courierId === session.id && o.fulfillment === "delivery");
+      // PERBAIKAN: Terapkan filter yang sama persis di sini
+      const mine = rows.filter((o: any) => 
+        Number(o.courierId) === Number(session.id) && 
+        (o.fulfillment === "delivery" || o.fulfillment === "kurir")
+      );
       setOrders(mine);
       toast.success("Pengiriman berhasil diselesaikan!");
     } catch (error: any) {
@@ -100,7 +113,7 @@ const CourierDashboard = () => {
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Surat Jalan #${order.id.slice(-6)}</title>
+        <title>Surat Jalan #${order.id.toString().slice(-6)}</title>
         <style>
           @page { size: 80mm auto; margin: 0; }
           body { font-family: 'Courier New', monospace; font-size: 12px; width: 80mm; margin: 0 auto; padding: 15px; color: #000; box-sizing: border-box; }
@@ -244,7 +257,7 @@ const CourierDashboard = () => {
                     {/* Header Card */}
                     <div className="bg-gradient-to-r from-primary/10 to-transparent p-4 md:p-5 flex justify-between items-center border-b border-border/50">
                       <div>
-                        <span className="text-[10px] md:text-xs font-bold text-primary uppercase tracking-wider">ID: {o.id.slice(-6).toUpperCase()}</span>
+                        <span className="text-[10px] md:text-xs font-bold text-primary uppercase tracking-wider">ID: {o.id.toString().slice(-6).toUpperCase()}</span>
                         <p className="font-extrabold text-foreground text-base md:text-lg leading-tight mt-0.5">{o.customerName}</p>
                       </div>
                       <span className="bg-white px-3 py-1 md:py-1.5 rounded-full text-[10px] md:text-xs font-bold shadow-sm border border-border/50 text-foreground">

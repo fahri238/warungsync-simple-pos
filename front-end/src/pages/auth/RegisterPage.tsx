@@ -7,6 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   ArrowLeft,
   Mail,
   Lock,
@@ -24,6 +31,7 @@ import {
   CarFront
 } from "lucide-react";
 import { toast } from "sonner";
+import { apiFetch } from "@/lib/store"; // Ditambahkan untuk fetch data toko
 
 const highlights = [
   {
@@ -61,10 +69,12 @@ const RegisterPage = () => {
   const [storeName, setStoreName] = useState("");
   const [storeAddress, setStoreAddress] = useState("");
   
-  // Field Ekstra Khusus Kurir (KYC)
+  // Field Ekstra Khusus Kurir
   const [nik, setNik] = useState("");
   const [vehicleType, setVehicleType] = useState("");
   const [vehiclePlate, setVehiclePlate] = useState("");
+  const [selectedStore, setSelectedStore] = useState(""); // State baru untuk pilihan toko kurir
+  const [availableStores, setAvailableStores] = useState<{id: number, nama: string}[]>([]); // Daftar toko dari DB
 
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
@@ -73,7 +83,19 @@ const RegisterPage = () => {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    // 1. Ambil Latitude & Longitude dari kembalian halaman peta
+    // Fetch daftar toko untuk kurir
+    const fetchStores = async () => {
+      try {
+        // Kita akan membuat endpoint ini di backend pada tahap selanjutnya
+        const res = await apiFetch("/stores/list");
+        if (res.data) setAvailableStores(res.data);
+      } catch (e) {
+        console.warn("Menunggu endpoint backend /stores/list dibuat...");
+      }
+    };
+    fetchStores();
+
+    // Ambil Latitude & Longitude dari kembalian halaman peta
     const state = location.state as {
       latitude?: number;
       longitude?: number;
@@ -84,7 +106,7 @@ const RegisterPage = () => {
       setLongitude(state.longitude);
     }
 
-    // 2. Tarik kembali data form yang disimpan di cache
+    // Tarik kembali data form yang disimpan di cache
     const savedForm = sessionStorage.getItem("registerFormState");
     if (savedForm) {
       const parsed = JSON.parse(savedForm);
@@ -98,13 +120,13 @@ const RegisterPage = () => {
       if (parsed.nik) setNik(parsed.nik);
       if (parsed.vehicleType) setVehicleType(parsed.vehicleType);
       if (parsed.vehiclePlate) setVehiclePlate(parsed.vehiclePlate);
+      if (parsed.selectedStore) setSelectedStore(parsed.selectedStore);
     }
   }, [location.state]);
 
   const handleRegister = async (e?: React.FormEvent) => {
     e?.preventDefault();
 
-    // Validasi Umum
     if (!name || !email || !password || !phone) {
       toast.error("Isi semua field yang diwajibkan");
       return;
@@ -122,6 +144,10 @@ const RegisterPage = () => {
       }
       if (!vehicleType || !vehiclePlate) {
         toast.error("Kurir wajib mengisi tipe dan plat nomor kendaraan");
+        return;
+      }
+      if (!selectedStore) {
+        toast.error("Kurir wajib memilih toko tempat bekerja");
         return;
       }
     }
@@ -159,10 +185,12 @@ const RegisterPage = () => {
         finalAddress = `${storeName} - ${storeAddress}`;
       }
 
+      // LOGIKA BARU UNTUK STORE ID
       let finalStoreId = null;
-      if (mappedRole === "owner" || mappedRole === "kurir") {
-        finalStoreId = 1; 
+      if (mappedRole === "kurir") {
+        finalStoreId = Number(selectedStore); // Kurir mengirimkan ID toko yang dipilih
       }
+      // Owner mengirim finalStoreId = null agar backend membuatkannya secara otomatis
 
       const payload: any = {
         name: name,
@@ -178,9 +206,12 @@ const RegisterPage = () => {
         peran: mappedRole,
         alamat: finalAddress,
         
-        store_id: finalStoreId,
+        store_id: finalStoreId, 
         latitude: latitude,
         longitude: longitude,
+        
+        // Data Ekstra Owner (Untuk tabel stores di backend)
+        nama_toko: mappedRole === "owner" ? storeName : null,
         
         // Data Ekstra Kurir
         nik: mappedRole === "kurir" ? nik : null,
@@ -312,7 +343,6 @@ const RegisterPage = () => {
 
               <div className="grid gap-5 lg:grid-cols-1">
                 <div className="space-y-5">
-                  {/* Data Diri Umum */}
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="name">Nama Lengkap</Label>
@@ -363,10 +393,29 @@ const RegisterPage = () => {
                     </div>
                   )}
 
-                  {/* FIELD SPESIFIK: KURIR (KYC DATA) */}
+                  {/* FIELD SPESIFIK: KURIR (KYC DATA & PILIH TOKO) */}
                   {role === "courier" && (
                     <div className="space-y-4 pt-2 border-t border-border/50 animate-in fade-in slide-in-from-top-2">
                       <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Verifikasi Identitas Kurir</Label>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="store-select">Pilih Toko Tempat Bekerja <span className="text-destructive">*</span></Label>
+                        <Select value={selectedStore} onValueChange={setSelectedStore}>
+                          <SelectTrigger className="h-11 bg-background">
+                            <SelectValue placeholder="Pilih toko..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableStores.length === 0 ? (
+                              <SelectItem value="0" disabled>Memuat toko...</SelectItem>
+                            ) : (
+                              availableStores.map(store => (
+                                <SelectItem key={store.id} value={store.id.toString()}>{store.nama}</SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
                       <div className="space-y-2">
                         <Label htmlFor="nik">Nomor Induk Kependudukan (NIK)</Label>
                         <div className="relative">
@@ -432,7 +481,7 @@ const RegisterPage = () => {
                         variant={latitude ? "outline" : "default"}
                         className="mt-4 h-11 w-full relative z-10"
                         onClick={() => {
-                          sessionStorage.setItem("registerFormState", JSON.stringify({ role, name, email, phone, homeAddress, storeName, storeAddress, nik, vehicleType, vehiclePlate }));
+                          sessionStorage.setItem("registerFormState", JSON.stringify({ role, name, email, phone, homeAddress, storeName, storeAddress, nik, vehicleType, vehiclePlate, selectedStore }));
                           navigate(`/register/location?role=${role}`, { state: { latitude, longitude } });
                         }}
                       >

@@ -54,7 +54,6 @@ import {
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 
-// PERBAIKAN: Mendefinisikan tipe form secara lokal agar TypeScript mengenali capitalPrice
 interface ProductFormState {
   name: string;
   price: number;
@@ -92,6 +91,10 @@ const OwnerProducts = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [catDialogOpen, setCatDialogOpen] = useState(false);
   const [newCatName, setNewCatName] = useState("");
+  
+  // STATE BARU: UX Tambah Kategori Inline (Di dalam form Produk)
+  const [showInlineCatInput, setShowInlineCatInput] = useState(false);
+  const [inlineCatName, setInlineCatName] = useState("");
   
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -141,6 +144,7 @@ const OwnerProducts = () => {
     setEditing(null);
     setForm(emptyProduct);
     setImagePreview("");
+    setShowInlineCatInput(false); // Reset status inline category
     setDialogOpen(true);
   };
 
@@ -149,7 +153,6 @@ const OwnerProducts = () => {
     setForm({
       name: p.name,
       price: p.price,
-      // PERBAIKAN: Mengambil capitalPrice dari database (gunakan fallback ke 0 jika kosong)
       capitalPrice: (p as any).capitalPrice || 0, 
       stock: p.stock,
       category: p.category,
@@ -158,11 +161,11 @@ const OwnerProducts = () => {
       description: p.description || "",
     });
     setImagePreview(p.image || "");
+    setShowInlineCatInput(false); // Reset status inline category
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
-    // Tambahan validasi: Harga Jual sebaiknya tidak lebih kecil dari Harga Modal
     if (!form.name || !form.category || form.price <= 0) {
       toast.error("Lengkapi nama, kategori, dan harga jual");
       return;
@@ -175,7 +178,6 @@ const OwnerProducts = () => {
 
     try {
       setSaving(true);
-      // Data yang dikirim sekarang sudah mengandung capitalPrice
       if (editing) {
         await updateProductInAPI(editing.id, form);
         toast.success("Produk diperbarui");
@@ -202,6 +204,7 @@ const OwnerProducts = () => {
     }
   };
 
+  // Kategori Utama (Dialog Modal Kategori)
   const handleAddCategory = async () => {
     if (!newCatName.trim()) return;
     try {
@@ -212,6 +215,24 @@ const OwnerProducts = () => {
       await loadData();
     } catch {
       toast.error("Gagal menambahkan kategori");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // UX BARU: Tambah Kategori Cepat (Di dalam form Produk)
+  const handleInlineAddCategory = async () => {
+    if (!inlineCatName.trim()) return;
+    try {
+      setSaving(true);
+      await addCategoryToAPI({ name: inlineCatName.trim() });
+      toast.success("Kategori ditambahkan");
+      setInlineCatName("");
+      setShowInlineCatInput(false);
+      await loadData(); 
+      // Kategori akan otomatis diperbarui di Select dropdown tanpa menutup modal produk!
+    } catch {
+      toast.error("Gagal menambahkan kategori baru");
     } finally {
       setSaving(false);
     }
@@ -540,18 +561,55 @@ const OwnerProducts = () => {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    
+                    {/* UX BARU: Tambah Kategori Inline */}
                     <div className="space-y-2">
                       <Label>Kategori <span className="text-destructive">*</span></Label>
-                      <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-                        <SelectTrigger disabled={saving} className="h-11 bg-background">
-                          <SelectValue placeholder="Pilih kategori barang" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {showInlineCatInput ? (
+                        <div className="flex items-center gap-2 animate-in slide-in-from-right-4 duration-300">
+                          <Input
+                            placeholder="Ketik kategori baru..."
+                            value={inlineCatName}
+                            onChange={(e) => setInlineCatName(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && handleInlineAddCategory()}
+                            disabled={saving}
+                            className="h-11 bg-background"
+                            autoFocus
+                          />
+                          <Button type="button" onClick={handleInlineAddCategory} disabled={saving} className="h-11 px-3 shadow-md shadow-primary/20">
+                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCheck className="h-4 w-4" />}
+                          </Button>
+                          <Button type="button" variant="ghost" onClick={() => setShowInlineCatInput(false)} disabled={saving} className="h-11 px-3 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                            <SelectTrigger disabled={saving} className="h-11 bg-background flex-1">
+                              <SelectValue placeholder={categories.length === 0 ? "Kategori kosong" : "Pilih kategori"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {categories.length === 0 ? (
+                                <SelectItem value="0" disabled>Belum ada kategori</SelectItem>
+                              ) : (
+                                categories.map((c) => (
+                                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            onClick={() => setShowInlineCatInput(true)}
+                            className="h-11 px-3 border-dashed border-primary/50 text-primary hover:text-primary hover:bg-primary/10 transition-colors"
+                            title="Buat Kategori Baru"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                     
                     <div className="space-y-2">
@@ -573,7 +631,7 @@ const OwnerProducts = () => {
                   </div>
                 </div>
 
-                {/* Section 2: price & stock (Diperbarui dengan HPP) */}
+                {/* Section 2: price & stock (PERBAIKAN INPUT NUMBER) */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 border-b border-border/50 pb-2">
                     <Banknote className="h-4 w-4 text-primary" />
@@ -590,8 +648,8 @@ const OwnerProducts = () => {
                           type="number"
                           min={0}
                           placeholder="0"
-                          value={form.capitalPrice || ""}
-                          onChange={(e) => setForm({ ...form, capitalPrice: Number(e.target.value) || 0 })}
+                          value={form.capitalPrice === 0 ? "" : form.capitalPrice}
+                          onChange={(e) => setForm({ ...form, capitalPrice: e.target.value === "" ? 0 : Number(e.target.value) })}
                           disabled={saving}
                           className="h-11 pl-9 bg-background"
                         />
@@ -607,8 +665,8 @@ const OwnerProducts = () => {
                           type="number"
                           min={0}
                           placeholder="0"
-                          value={form.price || ""}
-                          onChange={(e) => setForm({ ...form, price: Number(e.target.value) || 0 })}
+                          value={form.price === 0 ? "" : form.price}
+                          onChange={(e) => setForm({ ...form, price: e.target.value === "" ? 0 : Number(e.target.value) })}
                           disabled={saving}
                           className="h-11 pl-9 font-bold bg-background text-primary"
                         />
@@ -624,8 +682,8 @@ const OwnerProducts = () => {
                           type="number"
                           min={0}
                           placeholder="0"
-                          value={form.stock || ""}
-                          onChange={(e) => setForm({ ...form, stock: Number(e.target.value) || 0 })}
+                          value={form.stock === 0 ? "" : form.stock}
+                          onChange={(e) => setForm({ ...form, stock: e.target.value === "" ? 0 : Number(e.target.value) })}
                           disabled={saving}
                           className="h-11 pl-9 bg-background"
                         />

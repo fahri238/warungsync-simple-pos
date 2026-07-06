@@ -6,6 +6,8 @@ const {
   getCurrentUser,
   updateProfile,
   getUsers,
+  getPendingCouriers, 
+  manageCourierStatus 
 } = require("../controllers/authController");
 const { verifyToken } = require("../middleware/authMiddleware");
 const {
@@ -18,8 +20,14 @@ const {
 router.post("/register", validateRegistration, register);
 router.post("/login", validateLogin, login);
 
+
 // ================= PROTECTED ROUTES =================
 // Wajib menyertakan token JWT di header (sudah login)
+
+// Rute khusus untuk fitur approval kurir oleh owner
+router.get("/pending-couriers", verifyToken, getPendingCouriers);
+router.put("/courier/:id/status", verifyToken, manageCourierStatus);
+
 router.get("/me", verifyToken, getCurrentUser);
 router.put("/profile", verifyToken, updateProfile);
 

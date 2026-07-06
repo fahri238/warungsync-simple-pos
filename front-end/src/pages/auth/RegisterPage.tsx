@@ -74,7 +74,7 @@ const RegisterPage = () => {
   const [vehicleType, setVehicleType] = useState("");
   const [vehiclePlate, setVehiclePlate] = useState("");
   const [selectedStore, setSelectedStore] = useState(""); // State baru untuk pilihan toko kurir
-  const [availableStores, setAvailableStores] = useState<{id: number, nama: string}[]>([]); // Daftar toko dari DB
+  const [availableStores, setAvailableStores] = useState<{id: number, name: string}[]>([]);
 
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
@@ -409,7 +409,8 @@ const RegisterPage = () => {
                               <SelectItem value="0" disabled>Memuat toko...</SelectItem>
                             ) : (
                               availableStores.map(store => (
-                                <SelectItem key={store.id} value={store.id.toString()}>{store.nama}</SelectItem>
+                                // PERBAIKAN: Ubah store.nama menjadi store.name
+                                <SelectItem key={store.id} value={store.id.toString()}>{store.name}</SelectItem>
                               ))
                             )}
                           </SelectContent>

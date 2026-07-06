@@ -9,6 +9,9 @@ const { verifyToken } = require("../middleware/authMiddleware");
 // Ambil daftar semua toko
 router.get("/", storeController.getStores);
 
+// PERBAIKAN: Tambahkan route /list agar cocok dengan panggilan API dari Frontend saat registrasi kurir
+router.get("/list", storeController.getStores);
+
 // Ambil detail satu toko spesifik
 router.get("/:id", storeController.getStoreById);
 

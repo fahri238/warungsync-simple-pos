@@ -92,7 +92,8 @@ const OwnerReports = () => {
 
   const filtered = useMemo(() => {
     return orders.filter((o) => {
-      if (o.status !== "completed") return false; 
+      // PERBAIKAN 1: Dukung status 'completed' dan 'selesai'
+      if (!["completed", "selesai"].includes(o.status)) return false; 
       const d = new Date(o.createdAt);
       if (dateFrom && d < new Date(dateFrom)) return false;
       if (dateTo && d > new Date(dateTo + "T23:59:59")) return false;
@@ -151,7 +152,6 @@ const OwnerReports = () => {
     return true;
   });
 
-  // Helper Format Mata Uang
   const formatRupiah = (angka: number) => `Rp ${Number(angka).toLocaleString('id-ID')}`;
 
   // ================= FUNGSI CETAK LAPORAN (PRINT) =================
@@ -199,11 +199,12 @@ const OwnerReports = () => {
         </div>
        `;
     } else if (type === "transactions") {
+      // PERBAIKAN 2: Penyesuaian bahasa untuk laporan cetak transaksi
       tableHtml = `
         <table>
           <thead><tr><th>Waktu</th><th>Pelanggan</th><th class="text-center">Tipe</th><th class="text-center">Status</th><th class="text-center">Metode Bayar</th><th class="text-right">Total</th></tr></thead>
           <tbody>
-            ${filtered.map((o) => `<tr><td>${new Date(o.createdAt).toLocaleString("id-ID")}</td><td>${o.customerName || "—"}</td><td class="text-center">${o.type === "pos" ? "POS" : "Online"}</td><td class="text-center">${o.status}</td><td class="text-center">${o.paymentMethod === "cash" ? "Cash" : "Transfer"}</td><td class="text-right font-mono">${formatRupiah(getOrderTotal(o))}</td></tr>`).join("")}
+            ${filtered.map((o) => `<tr><td>${new Date(o.createdAt).toLocaleString("id-ID")}</td><td>${o.customerName || "—"}</td><td class="text-center">${["pos", "offline"].includes(o.type) ? "POS" : "Online"}</td><td class="text-center" style="text-transform: capitalize;">${o.status}</td><td class="text-center">${["cash", "tunai"].includes(o.paymentMethod) ? "Tunai" : "Transfer"}</td><td class="text-right font-mono">${formatRupiah(getOrderTotal(o))}</td></tr>`).join("")}
             <tr style="background-color: #f8f9fa;"><td colspan="5" class="font-bold text-right">Total Transaksi</td><td class="text-right font-mono font-bold">${formatRupiah(totalSales)}</td></tr>
           </tbody>
         </table>`;
@@ -345,7 +346,7 @@ const OwnerReports = () => {
         </div>
       </div>
 
-      {/* ================= KARTU STATISTIK RINGKASAN (Seragam) ================= */}
+      {/* ================= KARTU STATISTIK RINGKASAN ================= */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="border-border/50 shadow-sm bg-gradient-to-br from-background to-muted/20">
           <CardContent className="p-4 flex flex-col gap-1">
@@ -398,7 +399,6 @@ const OwnerReports = () => {
 
       {/* ================= AREA TAB LAPORAN LENGKAP ================= */}
       <Tabs defaultValue="sales" className="space-y-4">
-        {/* Tab List yang rapi tanpa gaya hardcode */}
         <TabsList className="flex flex-wrap w-full h-auto bg-muted/50 p-1 gap-1 justify-start rounded-lg overflow-x-auto custom-scrollbar">
           <TabsTrigger value="sales" className="flex-1 min-w-[120px] data-[state=active]:bg-background data-[state=active]:shadow-sm">Penjualan</TabsTrigger>
           <TabsTrigger value="profit" className="flex-1 min-w-[120px] data-[state=active]:bg-background data-[state=active]:shadow-sm">Laba Rugi</TabsTrigger>
@@ -516,8 +516,9 @@ const OwnerReports = () => {
                             <td className="px-6 py-4 font-semibold text-foreground">{o.customerName || "—"}</td>
                             <td className="px-6 py-4 text-center">
                               <div className="flex flex-col gap-1 items-center">
-                                <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-bold uppercase">{o.type === "pos" ? "POS" : "Online"}</span>
-                                <span className="text-[10px] text-muted-foreground">{o.paymentMethod === "cash" ? "Tunai" : "Transfer"}</span>
+                                {/* PERBAIKAN 3: Penyesuaian bahasa untuk Tabel Transaksi HTML */}
+                                <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-bold uppercase">{["pos", "offline"].includes(o.type) ? "POS" : "Online"}</span>
+                                <span className="text-[10px] text-muted-foreground">{["cash", "tunai"].includes(o.paymentMethod) ? "Tunai" : "Transfer"}</span>
                               </div>
                             </td>
                             <td className="px-6 py-4 text-right font-mono font-bold text-foreground">{formatRupiah(getOrderTotal(o))}</td>

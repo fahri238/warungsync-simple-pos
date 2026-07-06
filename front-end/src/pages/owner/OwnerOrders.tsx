@@ -1,30 +1,44 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import type { Order, OrderStatus } from "@/types";
+import type { Order } from "@/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Printer, Truck, CheckCircle, Package, ShieldAlert } from "lucide-react";
+import { Printer, Truck, CheckCircle, ShieldAlert } from "lucide-react";
 import { fetchOrders, updateOrderStatus as updateOrderStatusApi } from "@/services/orderService";
 import { fetchUsersByRole } from "@/services/authService";
 import { assignCourier } from "@/services/deliveryService";
 import { getSession } from "@/lib/store";
 
-const statusLabels: Record<OrderStatus, string> = {
-  pending: "Menunggu", processing: "Diproses", ready: "Siap Ambil", delivering: "Sedang Diantar", completed: "Selesai"
-};
-const statusColors: Record<OrderStatus, string> = {
-  pending: "bg-accent/10 text-accent",
-  processing: "bg-blue-500/10 text-blue-600",
-  ready: "bg-primary/10 text-primary",
-  delivering: "bg-orange-500/10 text-orange-600",
-  completed: "bg-success/10 text-success",
+const statusLabels: Record<string, string> = {
+  pending: "Menunggu", 
+  menunggu: "Menunggu",
+  processing: "Diproses", 
+  diproses: "Diproses",
+  ready: "Siap Ambil", 
+  siap_ambil: "Siap Ambil",
+  delivering: "Sedang Diantar", 
+  diantar: "Sedang Diantar",
+  completed: "Selesai",
+  selesai: "Selesai"
 };
 
-// PERUBAHAN: Nama komponen disesuaikan menjadi OwnerOrders
+const statusColors: Record<string, string> = {
+  pending: "bg-accent/10 text-accent",
+  menunggu: "bg-accent/10 text-accent",
+  processing: "bg-blue-500/10 text-blue-600",
+  diproses: "bg-blue-500/10 text-blue-600",
+  ready: "bg-primary/10 text-primary",
+  siap_ambil: "bg-primary/10 text-primary",
+  delivering: "bg-orange-500/10 text-orange-600",
+  diantar: "bg-orange-500/10 text-orange-600",
+  completed: "bg-success/10 text-success",
+  selesai: "bg-success/10 text-success",
+};
+
 const OwnerOrders = () => {
   const session = getSession();
 
@@ -32,13 +46,11 @@ const OwnerOrders = () => {
   const [loading, setLoading] = useState(true);
   const [couriers, setCouriers] = useState<any[]>([]);
   
-  // special state fot popup choose courier
   const [courierDialogOrder, setCourierDialogOrder] = useState<Order | null>(null);
   const [selectedCourierId, setSelectedCourierId] = useState<string>("");
 
   const refresh = async () => {
     if (!session?.store_id) return;
-    // Mengambil pesanan berdasarkan toko yang sedang login
     const data = await fetchOrders(session.store_id as any);
     setOrders(data || []);
   };
@@ -49,7 +61,6 @@ const OwnerOrders = () => {
       return;
     }
 
-    // PERUBAHAN: "kurir" as any diganti menjadi "courier" karena tipe di authService sudah sinkron
     Promise.all([
       fetchOrders(session.store_id as any), 
       fetchUsersByRole("courier")
@@ -68,9 +79,6 @@ const OwnerOrders = () => {
     return itemsTotal + ((order as any).shippingFee || 0);
   };
 
-  // --- ACTION STATUS CHANGE ---
-
-  // 1. BTN "Proses" -> change status to "processing"
   const handleProcessOrder = async (orderId: string) => {
     try {
       await updateOrderStatusApi(orderId, { status: "processing" });
@@ -81,7 +89,6 @@ const OwnerOrders = () => {
     }
   };
 
-  // 2. if Pickup: "Selesai (pickup by customer)" -> change status to "completed"
   const handleCompletePickup = async (orderId: string) => {
     try {
       await updateOrderStatusApi(orderId, { status: "completed" });
@@ -92,13 +99,11 @@ const OwnerOrders = () => {
     }
   };
 
-  // 3. if Delivery: open pop-up, choose courier
   const handleOpenCourierDialog = (order: Order) => {
     setSelectedCourierId("");
     setCourierDialogOrder(order);
   };
 
-  // 4. Submited kurir
   const handleSubmitAssignCourier = async () => {
     if (!courierDialogOrder || !selectedCourierId) return;
     try {
@@ -111,7 +116,6 @@ const OwnerOrders = () => {
     }
   };
 
-  // --- Print Function ---
   const handlePrintInvoice = (order: Order) => {
     const orderTotal = getOrderTotal(order);
     const printWindow = window.open("", "_blank", "width=800,height=600");
@@ -170,7 +174,6 @@ const OwnerOrders = () => {
     printWindow.document.close();
   };
 
-  // PENGECEKAN KEAMANAN UNTUK OWNER
   if (!session || session.role !== "owner") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-secondary/10 px-4 animate-in fade-in zoom-in duration-500">
@@ -193,10 +196,11 @@ const OwnerOrders = () => {
     );
   }
 
-  // --- CARD ORDERS KOMPONEN  ---
   const renderOrderCard = (o: Order) => {
     const totalTagihan = getOrderTotal(o);
-    const st = o.status || 'pending';
+    // PERBAIKAN: Cast status dan fulfillment ke generic string agar TS tidak komplain
+    const st = (o.status as string) || 'pending';
+    const fulfillment = (o.fulfillment as string);
 
     return (
       <Card key={o.id} className="overflow-hidden border border-border/50 shadow-sm hover:shadow-md transition-all">
@@ -204,15 +208,15 @@ const OwnerOrders = () => {
           <div className="p-5 flex-1 w-full">
             <div className="flex items-center gap-3 mb-2">
               <span className="font-bold text-lg">{o.customerName}</span>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${statusColors[st as OrderStatus] || 'bg-gray-100'}`}>
-                {statusLabels[st as OrderStatus] || st}
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${statusColors[st] || 'bg-gray-100'}`}>
+                {statusLabels[st] || st}
               </span>
             </div>
             <p className="text-sm text-muted-foreground">{o.items?.map(i => i.product.name).join(", ") || "No items"}</p>
             <div className="flex gap-4 mt-2">
               <p className="font-bold text-primary">Rp {totalTagihan.toLocaleString("id-ID")}</p>
               <p className="text-xs text-muted-foreground font-semibold uppercase bg-muted px-2 py-0.5 rounded">
-                {o.fulfillment === 'delivery' ? 'Diantar Kurir' : 'Ambil Sendiri'}
+                {fulfillment === 'delivery' || fulfillment === 'kurir' ? 'Diantar Kurir' : 'Ambil Sendiri'}
               </p>
             </div>
           </div>
@@ -222,25 +226,23 @@ const OwnerOrders = () => {
               <Printer className="h-4 w-4" /> Cetak Struk
             </Button>
             
-            {/* btn action based on status logic */}
-            {st === "pending" && (
+            {(st === "pending" || st === "menunggu") && (
               <Button size="sm" variant="outline" className="w-full bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 border-blue-200" onClick={() => handleProcessOrder(o.id.toString())}>
                 Proses Pesanan
               </Button>
             )}
 
-            {st === "processing" && o.fulfillment === "delivery" && (
+            {(st === "processing" || st === "diproses") && (fulfillment === "delivery" || fulfillment === "kurir") && (
               <Button size="sm" className="w-full gap-2 bg-orange-500 hover:bg-orange-600" onClick={() => handleOpenCourierDialog(o)}>
                 <Truck className="h-4 w-4" /> Tugaskan Kurir
               </Button>
             )}
 
-            {st === "processing" && o.fulfillment === "pickup" && (
+            {(st === "processing" || st === "diproses") && (fulfillment === "pickup") && (
               <Button size="sm" className="w-full gap-2 bg-green-500 hover:bg-green-600" onClick={() => handleCompletePickup(o.id.toString())}>
                 <CheckCircle className="h-4 w-4" /> Selesai (Diambil)
               </Button>
             )}
-
           </div>
         </CardContent>
       </Card>
@@ -266,15 +268,15 @@ const OwnerOrders = () => {
         </TabsContent>
 
         <TabsContent value="pending" className="space-y-4 mt-6">
-          {orders.filter(o => !o.status || o.status === "pending" || o.status === "processing").map(o => renderOrderCard(o))}
+          {/* PERBAIKAN: Cast status ke generic string saat melakukan filter array */}
+          {orders.filter(o => !o.status || ["pending", "menunggu", "processing", "diproses"].includes(o.status as string)).map(o => renderOrderCard(o))}
         </TabsContent>
 
         <TabsContent value="completed" className="space-y-4 mt-6">
-          {orders.filter(o => o.status === "completed").map(o => renderOrderCard(o))}
+          {orders.filter(o => ["completed", "selesai"].includes(o.status as string)).map(o => renderOrderCard(o))}
         </TabsContent>
       </Tabs>
 
-      {/* POP-UP DIALOGUE CHOOSE KURIR */}
       <Dialog open={!!courierDialogOrder} onOpenChange={(open) => !open && setCourierDialogOrder(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -309,7 +311,6 @@ const OwnerOrders = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 };

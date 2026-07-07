@@ -39,7 +39,7 @@ export interface OrderItem {
 export type OrderStatus = "pending" | "processing" | "ready" | "delivering" | "completed";
 export type PaymentMethod = "cash" | "transfer";
 export type OrderType = "pos" | "online";
-export type FulfillmentType = "pickup" | "delivery";
+export type FulfillmentType = "pickup" | "delivery" | "kurir";
 
 export interface Order {
   id: string;

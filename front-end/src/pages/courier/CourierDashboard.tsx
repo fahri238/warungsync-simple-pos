@@ -109,6 +109,8 @@ const CourierDashboard = () => {
 
     const alamatTujuan = (order as any).deliveryAddress || order.customerAddress || 'Alamat tidak dicantumkan';
 
+    const namaToko = (order as any).storeName || (session as any)?.storeName || 'TOKO MITRA WARUNGSYNC';
+
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
@@ -126,7 +128,7 @@ const CourierDashboard = () => {
       </head>
       <body>
         <div class="center">
-          <div class="title">WARUNG MAMA EVA</div>
+          <div class="title">${namaToko.toUpperCase()}</div>
           <div style="font-weight: bold; font-size: 14px; margin-top: 5px;">SURAT JALAN PENGIRIMAN</div>
           <div style="color: #333; font-size: 10px; margin-top: 4px;">Dicetak: ${formattedDate}</div>
         </div>
@@ -281,7 +283,7 @@ const CourierDashboard = () => {
                             <div>
                               <p className="text-[11px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Ambil di</p>
                               <div className="flex items-center gap-1.5 text-sm md:text-base font-semibold text-foreground">
-                                <Store className="h-4 w-4 md:h-5 md:w-5 text-secondary" /> Warung Mama Eva
+                                <Store className="h-4 w-4 md:h-5 md:w-5 text-secondary" /> {(o as any).storeName || (session as any)?.storeName || "Toko Mitra"}
                               </div>
                             </div>
                             <div>

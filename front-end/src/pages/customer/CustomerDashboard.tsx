@@ -7,8 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ShoppingBag, Package, LogOut, User, BarChart3, Heart, DollarSign, ArrowLeft } from "lucide-react";
-import PrintReportButton from "@/components/PrintReportButton";
+import { ShoppingBag, Package, LogOut, User, BarChart3, Heart, DollarSign, ArrowLeft, Printer } from "lucide-react";
 import type { Order, OrderStatus } from "@/types";
 import { fetchOrders } from "@/services/orderService";
 import { useAuth } from "@/context/AuthContext";
@@ -38,7 +37,6 @@ const CustomerDashboard = () => {
   const sessionRole = session?.role as string;
 
   useEffect(() => {
-    // PERBAIKAN: Menggunakan array includes agar mendeteksi 'pelanggan' dan 'customer'
     if (!sessionId || !["customer", "pelanggan"].includes(sessionRole)) {
       setAllOrders([]);
       setLoadingOrders(false);
@@ -76,17 +74,6 @@ const CustomerDashboard = () => {
   const totalOrders = filteredOrders.length;
   const completedOrders = filteredOrders.filter(o => ["completed", "selesai"].includes(o.status)).length;
 
-  const monthlySpending: Record<string, { month: string; total: number; count: number }> = {};
-  filteredOrders.forEach(o => {
-    const d = new Date(o.createdAt);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const label = d.toLocaleDateString("id-ID", { year: "numeric", month: "long" });
-    if (!monthlySpending[key]) monthlySpending[key] = { month: label, total: 0, count: 0 };
-    monthlySpending[key].total += getOrderTotal(o);
-    monthlySpending[key].count += 1;
-  });
-  const monthlyData = Object.values(monthlySpending).reverse();
-
   const productFreq: Record<string, { name: string; qty: number; spent: number }> = {};
   filteredOrders.forEach(o => o.items.forEach(i => {
     if (!productFreq[i.product.id]) productFreq[i.product.id] = { name: i.product.name, qty: 0, spent: 0 };
@@ -95,14 +82,83 @@ const CustomerDashboard = () => {
   }));
   const favoriteProducts = Object.values(productFreq).sort((a, b) => b.qty - a.qty);
 
-  const dateRange = { from: dateFrom, to: dateTo };
-
   const handleLogout = () => {
     logout();
     navigate("/");
   };
 
-  // PERBAIKAN: Menggunakan array includes untuk perlindungan halaman UI
+  // FUNGSI PENCETAKAN MANUAL
+  const handlePrint = (title: string, type: 'history' | 'favorites') => {
+    const printWindow = window.open("", "_blank", "width=800,height=600");
+    if (!printWindow) return toast.error("Pop-up diblokir browser");
+
+    const dateStr = new Date().toLocaleDateString("id-ID", { day: '2-digit', month: 'short', year: 'numeric' });
+    const filterStr = (dateFrom || dateTo) ? `<div class="subtitle">Periode: ${dateFrom || 'Awal'} s/d ${dateTo || 'Sekarang'}</div>` : '';
+
+    let tableContent = "";
+
+    if (type === 'history') {
+      tableContent = `
+        <table>
+          <thead><tr><th>Tanggal</th><th>Item</th><th>Status</th><th class="right">Total</th></tr></thead>
+          <tbody>
+            ${filteredOrders.map(o => `
+              <tr>
+                <td>${new Date(o.createdAt).toLocaleDateString("id-ID")}</td>
+                <td>${o.items.map(i => `${i.product.name} x${i.quantity}`).join(", ")}</td>
+                <td>${statusLabels[o.status] || o.status}</td>
+                <td class="right">Rp ${getOrderTotal(o).toLocaleString("id-ID")}</td>
+              </tr>
+            `).join('')}
+            <tr class="bold highlight"><td colspan="3">TOTAL KESELURUHAN</td><td class="right">Rp ${totalSpending.toLocaleString("id-ID")}</td></tr>
+          </tbody>
+        </table>`;
+    } else if (type === 'favorites') {
+      tableContent = `
+        <table>
+          <thead><tr><th>#</th><th>Nama Produk</th><th class="center">Total Dipesan</th><th class="right">Total Nilai Belanja</th></tr></thead>
+          <tbody>
+            ${favoriteProducts.map((p, i) => `
+              <tr>
+                <td>${i + 1}</td><td>${p.name}</td><td class="center">${p.qty}x</td><td class="right">Rp ${p.spent.toLocaleString("id-ID")}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>`;
+    }
+
+    printWindow.document.write(`
+      <html>
+      <head>
+        <title>Laporan - ${title}</title>
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px; color: #333; }
+          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #222; padding-bottom: 20px; }
+          h1 { margin: 0; font-size: 24px; color: #111; text-transform: uppercase; }
+          .subtitle { font-size: 14px; color: #555; margin-top: 5px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+          th { background-color: #f4f4f5; text-align: left; padding: 12px; border: 1px solid #ddd; font-weight: 600; }
+          td { padding: 10px 12px; border: 1px solid #ddd; }
+          .right { text-align: right; } .center { text-align: center; } .bold { font-weight: bold; }
+          .highlight { background-color: #f8fafc; }
+          .footer { margin-top: 40px; font-size: 12px; color: #777; text-align: right; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>${title}</h1>
+          <div class="subtitle">Pelanggan: <b>${session?.name || 'Umum'}</b></div>
+          ${filterStr}
+        </div>
+        ${tableContent}
+        <div class="footer">Dicetak otomatis dari WarungSync pada ${dateStr}</div>
+        <script>window.onload = () => { setTimeout(() => window.print(), 500); }</script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   if (!session || !["customer", "pelanggan"].includes(session.role as string)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-secondary/10 px-4">
@@ -119,89 +175,6 @@ const CustomerDashboard = () => {
       </div>
     );
   }
-
-  const OrderHistoryTable = () => (
-    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-      <thead><tr style={{ background: "#f0f0f0" }}>
-        <th style={{ padding: "8px 10px", textAlign: "left", fontSize: 11, borderBottom: "2px solid #ddd" }}>Tanggal</th>
-        <th style={{ padding: "8px 10px", textAlign: "left", fontSize: 11, borderBottom: "2px solid #ddd" }}>Item</th>
-        <th style={{ padding: "8px 10px", textAlign: "center", fontSize: 11, borderBottom: "2px solid #ddd" }}>Status</th>
-        <th style={{ padding: "8px 10px", textAlign: "right", fontSize: 11, borderBottom: "2px solid #ddd" }}>Total</th>
-      </tr></thead>
-      <tbody>
-        {filteredOrders.map(o => (
-          <tr key={o.id} style={{ borderBottom: "1px solid #eee" }}>
-            <td style={{ padding: "6px 10px", fontSize: 11 }}>{new Date(o.createdAt).toLocaleString("id-ID")}</td>
-            <td style={{ padding: "6px 10px", fontSize: 11 }}>{o.items.map(i => `${i.product.name} x${i.quantity}`).join(", ")}</td>
-            <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "center" }}>
-              <span style={{ display: "inline-block", padding: "2px 8px", borderRadius: 10, fontSize: 10, background: "#e8f5e9", color: "#2e7d32" }}>{statusLabels[o.status] || o.status}</span>
-            </td>
-            <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "right", fontFamily: "monospace" }}>Rp {getOrderTotal(o).toLocaleString("id-ID")}</td>
-          </tr>
-        ))}
-        <tr style={{ background: "#e8f5e9", fontWeight: 700 }}>
-          <td colSpan={3} style={{ padding: "10px", borderTop: "2px solid #4CAF50" }}>Total</td>
-          <td style={{ padding: "10px", textAlign: "right", borderTop: "2px solid #4CAF50", fontFamily: "monospace" }}>Rp {totalSpending.toLocaleString("id-ID")}</td>
-        </tr>
-      </tbody>
-    </table>
-  );
-
-  const SpendingTable = () => (
-    <>
-      <div style={{ textAlign: "center", marginBottom: 16 }}>
-        <div style={{ display: "inline-block", border: "1px solid #ddd", borderRadius: 8, padding: "12px 20px", margin: 4, textAlign: "center", minWidth: 140 }}>
-          <div style={{ fontSize: 10, color: "#888" }}>Total Belanja</div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "#2C3E50" }}>Rp {totalSpending.toLocaleString("id-ID")}</div>
-        </div>
-        <div style={{ display: "inline-block", border: "1px solid #ddd", borderRadius: 8, padding: "12px 20px", margin: 4, textAlign: "center", minWidth: 140 }}>
-          <div style={{ fontSize: 10, color: "#888" }}>Total Pesanan</div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "#2C3E50" }}>{totalOrders}</div>
-        </div>
-      </div>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead><tr style={{ background: "#f0f0f0" }}>
-          <th style={{ padding: "8px 10px", textAlign: "left", fontSize: 11, borderBottom: "2px solid #ddd" }}>Bulan</th>
-          <th style={{ padding: "8px 10px", textAlign: "center", fontSize: 11, borderBottom: "2px solid #ddd" }}>Pesanan</th>
-          <th style={{ padding: "8px 10px", textAlign: "right", fontSize: 11, borderBottom: "2px solid #ddd" }}>Total</th>
-        </tr></thead>
-        <tbody>
-          {monthlyData.map(m => (
-            <tr key={m.month} style={{ borderBottom: "1px solid #eee" }}>
-              <td style={{ padding: "6px 10px", fontSize: 11 }}>{m.month}</td>
-              <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "center" }}>{m.count}</td>
-              <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "right", fontFamily: "monospace" }}>Rp {m.total.toLocaleString("id-ID")}</td>
-            </tr>
-          ))}
-          <tr style={{ background: "#e8f5e9", fontWeight: 700 }}>
-            <td colSpan={2} style={{ padding: "10px", borderTop: "2px solid #4CAF50" }}>Total</td>
-            <td style={{ padding: "10px", textAlign: "right", borderTop: "2px solid #4CAF50", fontFamily: "monospace" }}>Rp {totalSpending.toLocaleString("id-ID")}</td>
-          </tr>
-        </tbody>
-      </table>
-    </>
-  );
-
-  const FavoritesTable = () => (
-    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-      <thead><tr style={{ background: "#f0f0f0" }}>
-        <th style={{ padding: "8px 10px", textAlign: "left", fontSize: 11, borderBottom: "2px solid #ddd" }}>#</th>
-        <th style={{ padding: "8px 10px", textAlign: "left", fontSize: 11, borderBottom: "2px solid #ddd" }}>Produk</th>
-        <th style={{ padding: "8px 10px", textAlign: "center", fontSize: 11, borderBottom: "2px solid #ddd" }}>Dipesan</th>
-        <th style={{ padding: "8px 10px", textAlign: "right", fontSize: 11, borderBottom: "2px solid #ddd" }}>Total Belanja</th>
-      </tr></thead>
-      <tbody>
-        {favoriteProducts.map((p, i) => (
-          <tr key={p.name} style={{ borderBottom: "1px solid #eee" }}>
-            <td style={{ padding: "6px 10px", fontSize: 11 }}>{i + 1}</td>
-            <td style={{ padding: "6px 10px", fontSize: 11, fontWeight: 500 }}>{p.name}</td>
-            <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "center" }}>{p.qty}x</td>
-            <td style={{ padding: "6px 10px", fontSize: 11, textAlign: "right", fontFamily: "monospace" }}>Rp {p.spent.toLocaleString("id-ID")}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -304,72 +277,38 @@ const CustomerDashboard = () => {
           </div>
 
           <Tabs defaultValue="history" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="history">Riwayat Pesanan</TabsTrigger>
-              <TabsTrigger value="spending">Pengeluaran</TabsTrigger>
               <TabsTrigger value="favorites">Favorit</TabsTrigger>
             </TabsList>
 
             <TabsContent value="history">
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-base">📋 Riwayat Pesanan</CardTitle>
-                  <PrintReportButton title="Riwayat Pesanan" subtitle={`Pelanggan: ${session.name}`} dateRange={dateRange}><OrderHistoryTable /></PrintReportButton>
+                  <Button variant="outline" size="sm" onClick={() => handlePrint("Riwayat Pesanan", "history")} className="h-8 gap-1.5"><Printer className="h-3.5 w-3.5"/> Cetak Laporan</Button>
                 </CardHeader>
                 <CardContent>
                   {filteredOrders.length === 0 ? <p className="text-sm text-muted-foreground">Belum ada pesanan.</p> : (
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
-                        <thead><tr className="border-b">
-                          <th className="px-3 py-2 text-left text-muted-foreground">Tanggal</th>
-                          <th className="px-3 py-2 text-left text-muted-foreground">Item</th>
-                          <th className="px-3 py-2 text-center text-muted-foreground">Status</th>
-                          <th className="px-3 py-2 text-right text-muted-foreground">Total</th>
+                        <thead><tr className="border-b border-border/80 bg-muted/50">
+                          <th className="px-4 py-3 text-left font-semibold text-muted-foreground rounded-tl-lg">Tanggal</th>
+                          <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Item</th>
+                          <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Status</th>
+                          <th className="px-4 py-3 text-right font-semibold text-muted-foreground rounded-tr-lg">Total</th>
                         </tr></thead>
-                        <tbody>{filteredOrders.map(o => (
-                          <tr key={o.id} className="border-b last:border-0">
-                            <td className="px-3 py-2 text-foreground text-xs">{new Date(o.createdAt).toLocaleString("id-ID")}</td>
-                            <td className="px-3 py-2 text-foreground text-xs">{o.items.map(i => `${i.product.name} x${i.quantity}`).join(", ")}</td>
-                            <td className="px-3 py-2 text-center">
-                              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[o.status] || 'bg-gray-100'}`}>{statusLabels[o.status] || o.status}</span>
+                        <tbody className="divide-y divide-border/50">{filteredOrders.map(o => (
+                          <tr key={o.id} className="hover:bg-muted/30 transition-colors">
+                            <td className="px-4 py-3 text-foreground text-xs">{new Date(o.createdAt).toLocaleString("id-ID")}</td>
+                            <td className="px-4 py-3 text-foreground text-xs">{o.items.map(i => `${i.product.name} x${i.quantity}`).join(", ")}</td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusColors[o.status] || 'bg-gray-100'}`}>{statusLabels[o.status] || o.status}</span>
                             </td>
-                            <td className="px-3 py-2 text-right font-mono">Rp {getOrderTotal(o).toLocaleString("id-ID")}</td>
+                            <td className="px-4 py-3 text-right font-mono font-medium">Rp {getOrderTotal(o).toLocaleString("id-ID")}</td>
                           </tr>
                         ))}</tbody>
                       </table>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="spending">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle className="text-base">💰 Laporan Pengeluaran</CardTitle>
-                  <PrintReportButton title="Laporan Pengeluaran" subtitle={`Pelanggan: ${session.name}`} dateRange={dateRange}><SpendingTable /></PrintReportButton>
-                </CardHeader>
-                <CardContent>
-                  {monthlyData.length === 0 ? <p className="text-sm text-muted-foreground">Belum ada data.</p> : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead><tr className="border-b">
-                          <th className="px-3 py-2 text-left text-muted-foreground">Bulan</th>
-                          <th className="px-3 py-2 text-center text-muted-foreground">Pesanan</th>
-                          <th className="px-3 py-2 text-right text-muted-foreground">Total Belanja</th>
-                        </tr></thead>
-                        <tbody>{monthlyData.map(m => (
-                          <tr key={m.month} className="border-b last:border-0">
-                            <td className="px-3 py-2 font-medium text-foreground">{m.month}</td>
-                            <td className="px-3 py-2 text-center">{m.count}</td>
-                            <td className="px-3 py-2 text-right font-mono">Rp {m.total.toLocaleString("id-ID")}</td>
-                          </tr>
-                        ))}</tbody>
-                      </table>
-                      <div className="mt-4 rounded-lg bg-primary/10 p-3 flex justify-between">
-                        <span className="font-semibold text-foreground">Total Keseluruhan</span>
-                        <span className="font-bold text-primary">Rp {totalSpending.toLocaleString("id-ID")}</span>
-                      </div>
                     </div>
                   )}
                 </CardContent>
@@ -378,26 +317,26 @@ const CustomerDashboard = () => {
 
             <TabsContent value="favorites">
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-base">❤️ Produk Favorit</CardTitle>
-                  <PrintReportButton title="Produk Favorit" subtitle={`Pelanggan: ${session.name}`} dateRange={dateRange}><FavoritesTable /></PrintReportButton>
+                  <Button variant="outline" size="sm" onClick={() => handlePrint("Daftar Produk Favorit", "favorites")} className="h-8 gap-1.5"><Printer className="h-3.5 w-3.5"/> Cetak Laporan</Button>
                 </CardHeader>
                 <CardContent>
                   {favoriteProducts.length === 0 ? <p className="text-sm text-muted-foreground">Belum ada data.</p> : (
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
-                        <thead><tr className="border-b">
-                          <th className="px-3 py-2 text-left text-muted-foreground">#</th>
-                          <th className="px-3 py-2 text-left text-muted-foreground">Produk</th>
-                          <th className="px-3 py-2 text-center text-muted-foreground">Dipesan</th>
-                          <th className="px-3 py-2 text-right text-muted-foreground">Total Belanja</th>
+                        <thead><tr className="border-b border-border/80 bg-muted/50">
+                          <th className="px-4 py-3 text-left font-semibold text-muted-foreground w-12 rounded-tl-lg">#</th>
+                          <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Nama Produk</th>
+                          <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Kuantitas Dipesan</th>
+                          <th className="px-4 py-3 text-right font-semibold text-muted-foreground rounded-tr-lg">Total Nilai Belanja</th>
                         </tr></thead>
-                        <tbody>{favoriteProducts.map((p, i) => (
-                          <tr key={p.name} className="border-b last:border-0">
-                            <td className="px-3 py-2 text-muted-foreground">{i + 1}</td>
-                            <td className="px-3 py-2 font-medium text-foreground">{p.name}</td>
-                            <td className="px-3 py-2 text-center">{p.qty}x</td>
-                            <td className="px-3 py-2 text-right font-mono">Rp {p.spent.toLocaleString("id-ID")}</td>
+                        <tbody className="divide-y divide-border/50">{favoriteProducts.map((p, i) => (
+                          <tr key={p.name} className="hover:bg-muted/30 transition-colors">
+                            <td className="px-4 py-3 text-muted-foreground">{i + 1}</td>
+                            <td className="px-4 py-3 font-medium text-foreground">{p.name}</td>
+                            <td className="px-4 py-3 text-center"><span className="bg-secondary/10 text-secondary font-bold px-2 py-0.5 rounded-full text-xs">{p.qty}x</span></td>
+                            <td className="px-4 py-3 text-right font-mono font-medium">Rp {p.spent.toLocaleString("id-ID")}</td>
                           </tr>
                         ))}</tbody>
                       </table>

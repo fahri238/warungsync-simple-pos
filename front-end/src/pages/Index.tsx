@@ -49,7 +49,7 @@ const roles = [
     icon: LayoutDashboard,
     title: "Admin Toko & Kasir",
     desc: "Kelola katalog, stok, POS barcode, pesanan online, dan laporan penjualan per toko.",
-    link: "/admin",
+    link: "/login", // PERBAIKAN: Diarahkan ke login
     borderAccent: "border-t-primary",
     iconBg: "bg-primary/15 text-primary",
   },
@@ -57,7 +57,7 @@ const roles = [
     icon: ShoppingBag,
     title: "Pelanggan",
     desc: "Pilih toko, tambah ke keranjang, checkout dengan peta alamat pengiriman.",
-    link: "/stores",
+    link: "/login", // PERBAIKAN: Diarahkan ke login
     borderAccent: "border-t-accent",
     iconBg: "bg-accent/15 text-accent",
   },
@@ -65,7 +65,7 @@ const roles = [
     icon: Truck,
     title: "Kurir Internal",
     desc: "Terima tugas antar dari toko yang sama, perbarui status pengiriman real-time.",
-    link: "/courier",
+    link: "/login", // PERBAIKAN: Diarahkan ke login
     borderAccent: "border-t-info",
     iconBg: "bg-info/15 text-info",
   },
@@ -219,8 +219,9 @@ const Index = () => {
             </p>
 
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row lg:justify-start">
+              {/* PERBAIKAN: Diarahkan ke login karena butuh otentikasi */}
               <Button size="lg" className="h-12 gap-2 px-8 text-base shadow-lg shadow-primary/25" asChild>
-                <Link to="/stores">
+                <Link to="/login">
                   <ShoppingBag className="h-5 w-5" />
                   Pilih Toko & Belanja
                 </Link>
@@ -321,7 +322,7 @@ const Index = () => {
                 <h3 className="font-display text-lg font-semibold text-foreground">{r.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{r.desc}</p>
                 <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary opacity-0 transition-opacity group-hover:opacity-100">
-                  Buka panel
+                  Login untuk akses
                   <ArrowRight className="h-4 w-4" />
                 </span>
               </Link>
@@ -340,8 +341,9 @@ const Index = () => {
                 Dibangun untuk operasional harian warung
               </h2>
             </div>
+            {/* PERBAIKAN: Diarahkan ke login untuk melihat toko terdaftar */}
             <Button variant="outline" asChild>
-              <Link to="/stores" className="gap-2">
+              <Link to="/login" className="gap-2">
                 Lihat toko terdaftar
                 <ChevronRight className="h-4 w-4" />
               </Link>

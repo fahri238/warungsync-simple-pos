@@ -3,7 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { getSession } from "@/lib/store";
 import type { Order, OrderStatus } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+// PERBAIKAN: Menambahkan import Tabs
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LogOut, Truck, MapPin, Package, Phone, CheckCircle, Store, ReceiptText, ChevronRight, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { fetchOrders, updateOrderStatus } from "@/services/orderService";
@@ -30,7 +32,6 @@ const CourierDashboard = () => {
 
     fetchOrders()
       .then((rows) => {
-        // PERBAIKAN: Samakan tipe data ID dan tambahkan cek untuk "kurir"
         const mine = rows.filter((o: any) => 
           Number(o.courierId) === Number(session.id) && 
           (o.fulfillment === "delivery" || o.fulfillment === "kurir")
@@ -45,7 +46,6 @@ const CourierDashboard = () => {
 
   const activeOrders = useMemo(
     () => orders.filter((o) => 
-      // PERBAIKAN: Masukkan versi bahasa Indonesia ("diantar", "diproses", "siap_ambil")
       ["delivering", "diantar", "processing", "diproses", "ready", "siap_ambil"].includes(o.status as string)
     ),
     [orders]
@@ -53,7 +53,6 @@ const CourierDashboard = () => {
 
   const completedOrders = useMemo(
     () => orders.filter((o) => 
-      // PERBAIKAN: Masukkan versi bahasa Indonesia ("selesai")
       ["completed", "selesai"].includes(o.status as string)
     ),
     [orders]
@@ -73,7 +72,6 @@ const CourierDashboard = () => {
       }
       
       const rows = await fetchOrders();
-      // PERBAIKAN: Terapkan filter yang sama persis di sini
       const mine = rows.filter((o: any) => 
         Number(o.courierId) === Number(session.id) && 
         (o.fulfillment === "delivery" || o.fulfillment === "kurir")
@@ -108,7 +106,6 @@ const CourierDashboard = () => {
       " • " + d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
 
     const alamatTujuan = (order as any).deliveryAddress || order.customerAddress || 'Alamat tidak dicantumkan';
-
     const namaToko = (order as any).storeName || (session as any)?.storeName || 'TOKO MITRA WARUNGSYNC';
 
     printWindow.document.write(`
@@ -161,7 +158,70 @@ const CourierDashboard = () => {
     printWindow.document.close();
   };
 
-  // PERBAIKAN 2: Render Guard pelindung komponen
+  // FITUR BARU: Cetak Laporan Selesai (Rekap Setoran COD)
+  const handlePrintCompleted = () => {
+    const printWindow = window.open("", "_blank", "width=800,height=600");
+    if (!printWindow) return toast.error("Pop-up diblokir browser");
+
+    const dateStr = new Date().toLocaleDateString("id-ID", { day: '2-digit', month: 'short', year: 'numeric' });
+    const totalSetoran = completedOrders.reduce((sum, o) => sum + getOrderTotal(o), 0);
+
+    const tableContent = `
+      <table>
+        <thead>
+          <tr>
+            <th>Tanggal Selesai</th>
+            <th>Pelanggan</th>
+            <th>Alamat Tujuan</th>
+            <th class="right">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${completedOrders.map(o => `
+            <tr>
+              <td>${new Date(o.createdAt).toLocaleDateString("id-ID")}</td>
+              <td><b>${o.customerName}</b><br><small>${o.customerPhone || '-'}</small></td>
+              <td>${(o as any).deliveryAddress || o.customerAddress || '-'}</td>
+              <td class="right">Rp ${getOrderTotal(o).toLocaleString("id-ID")}</td>
+            </tr>
+          `).join('')}
+          <tr class="highlight bold">
+            <td colspan="3">TOTAL UANG SETORAN COD</td>
+            <td class="right">Rp ${totalSetoran.toLocaleString("id-ID")}</td>
+          </tr>
+        </tbody>
+      </table>`;
+
+    printWindow.document.write(`
+      <html>
+      <head>
+        <title>Rekap Pengiriman - ${session?.name}</title>
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px; color: #333; }
+          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #222; padding-bottom: 20px; }
+          h1 { margin: 0; font-size: 24px; color: #111; text-transform: uppercase; }
+          .subtitle { font-size: 14px; color: #555; margin-top: 5px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
+          th { background-color: #f4f4f5; text-align: left; padding: 10px; border: 1px solid #ddd; font-weight: bold; }
+          td { padding: 10px; border: 1px solid #ddd; }
+          .right { text-align: right; } .highlight { background-color: #f8fafc; } .bold { font-weight: bold; }
+          .footer { margin-top: 40px; font-size: 12px; color: #777; text-align: right; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>Laporan Pengiriman Selesai</h1>
+          <div class="subtitle">Nama Kurir: <b>${session?.name || 'Kurir'}</b></div>
+        </div>
+        ${tableContent}
+        <div class="footer">Dicetak otomatis dari WarungSync pada ${dateStr}</div>
+        <script>window.onload = () => { setTimeout(() => window.print(), 500); }</script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   if (!session || ((session.role as string) !== "courier" && (session.role as string) !== "kurir")) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-secondary/10 px-4">
@@ -217,8 +277,8 @@ const CourierDashboard = () => {
           </div>
           
           <div className="bg-card rounded-2xl p-4 md:p-6 shadow-md shadow-black/5 border border-border flex items-center gap-4">
-            <div className="h-12 w-12 md:h-14 md:w-14 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
-              <CheckCircle className="h-6 w-6 md:h-7 md:w-7 text-primary" />
+            <div className="h-12 w-12 md:h-14 md:w-14 rounded-full bg-success/15 flex items-center justify-center shrink-0">
+              <CheckCircle className="h-6 w-6 md:h-7 md:w-7 text-success" />
             </div>
             <div>
               <p className="text-2xl md:text-3xl font-black text-foreground leading-none">{completedOrders.length}</p>
@@ -227,151 +287,193 @@ const CourierDashboard = () => {
           </div>
         </div>
 
-        {/* ORDER LIST SECTION */}
-        <div className="pt-2">
-          <div className="flex items-center justify-between mb-4 md:mb-6">
-            <h2 className="text-lg md:text-xl font-bold text-foreground">Daftar Kiriman</h2>
-            {activeOrders.length > 0 && (
-              <span className="bg-primary/10 text-primary text-xs md:text-sm font-bold px-3 py-1.5 rounded-full">
-                {activeOrders.length} Tugas
-              </span>
-            )}
+        {/* MENGGUNAKAN TABS UNTUK MEMISAHKAN ANTRIAN DAN SELESAI */}
+        <Tabs defaultValue="active" className="w-full space-y-6 pt-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+             <h2 className="text-lg md:text-xl font-bold text-foreground">Daftar Kiriman</h2>
+             <TabsList className="bg-muted/50 p-1 rounded-xl">
+               <TabsTrigger value="active" className="rounded-lg text-sm font-semibold">Antrian ({activeOrders.length})</TabsTrigger>
+               <TabsTrigger value="completed" className="rounded-lg text-sm font-semibold">Selesai ({completedOrders.length})</TabsTrigger>
+             </TabsList>
           </div>
 
-          {loadingOrders ? (
-            <div className="text-center py-10 text-muted-foreground animate-pulse text-sm">Mensinkronkan data...</div>
-          ) : activeOrders.length === 0 ? (
-            <div className="bg-card rounded-3xl p-10 md:p-16 text-center shadow-sm border border-border/50 flex flex-col items-center">
-              <div className="h-20 w-20 md:h-24 md:w-24 bg-muted/50 rounded-full flex items-center justify-center mb-4">
-                <CheckCircle className="h-10 w-10 md:h-12 md:w-12 text-muted-foreground/40" />
+          {/* TAB: ANTRIAN PENGIRIMAN */}
+          <TabsContent value="active" className="focus-visible:outline-none">
+            {loadingOrders ? (
+              <div className="text-center py-10 text-muted-foreground animate-pulse text-sm">Mensinkronkan data...</div>
+            ) : activeOrders.length === 0 ? (
+              <div className="bg-card rounded-3xl p-10 md:p-16 text-center shadow-sm border border-border/50 flex flex-col items-center">
+                <div className="h-20 w-20 md:h-24 md:w-24 bg-muted/50 rounded-full flex items-center justify-center mb-4">
+                  <CheckCircle className="h-10 w-10 md:h-12 md:w-12 text-muted-foreground/40" />
+                </div>
+                <p className="font-bold text-foreground text-lg md:text-xl">Semua Selesai!</p>
+                <p className="text-sm md:text-base text-muted-foreground mt-2 max-w-sm mx-auto">Anda bisa beristirahat sekarang. Tidak ada pengiriman yang tertunda.</p>
               </div>
-              <p className="font-bold text-foreground text-lg md:text-xl">Semua Selesai!</p>
-              <p className="text-sm md:text-base text-muted-foreground mt-2 max-w-sm mx-auto">Anda bisa beristirahat sekarang. Tidak ada pengiriman yang tertunda.</p>
-            </div>
-          ) : (
-            <div className="space-y-5 md:space-y-6 items-start">
-              {activeOrders.map(o => {
-                const tagihan = getOrderTotal(o);
-                const alamatTujuan = (o as any).deliveryAddress || o.customerAddress || 'Alamat tidak lengkap';
-                
-                return (
-                  <Card key={o.id} className="overflow-hidden border-border/60 shadow-sm rounded-[1.5rem] hover:shadow-md transition-all">
-                    {/* Header Card */}
-                    <div className="bg-gradient-to-r from-primary/10 to-transparent p-4 md:p-5 flex justify-between items-center border-b border-border/50">
-                      <div>
-                        <span className="text-[10px] md:text-xs font-bold text-primary uppercase tracking-wider">ID: {o.id.toString().slice(-6).toUpperCase()}</span>
-                        <p className="font-extrabold text-foreground text-base md:text-lg leading-tight mt-0.5">{o.customerName}</p>
-                      </div>
-                      <span className="bg-white px-3 py-1 md:py-1.5 rounded-full text-[10px] md:text-xs font-bold shadow-sm border border-border/50 text-foreground">
-                        Sedang Diantar
-                      </span>
-                    </div>
-
-                    <CardContent className="p-5 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                      
-                      {/* Bagian Kiri: Timeline Alamat & Rincian Barang */}
-                      <div className="flex flex-col gap-5 md:gap-6">
-                        
-                        {/* Timeline Alamat */}
-                        <div className="flex gap-4">
-                          <div className="flex flex-col items-center mt-1">
-                            <div className="h-3 w-3 md:h-3.5 md:w-3.5 rounded-full bg-secondary ring-4 ring-secondary/20 z-10" />
-                            <div className="w-0.5 h-full min-h-[3rem] bg-border -my-1" />
-                            <div className="h-3 w-3 md:h-3.5 md:w-3.5 rounded-full bg-primary ring-4 ring-primary/20 z-10" />
-                          </div>
-                          <div className="flex-1 space-y-4 md:space-y-6">
-                            <div>
-                              <p className="text-[11px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Ambil di</p>
-                              <div className="flex items-center gap-1.5 text-sm md:text-base font-semibold text-foreground">
-                                <Store className="h-4 w-4 md:h-5 md:w-5 text-secondary" /> {(o as any).storeName || (session as any)?.storeName || "Toko Mitra"}
-                              </div>
-                            </div>
-                            <div>
-                              <p className="text-[11px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Antar ke</p>
-                              <div className="flex items-start gap-1.5 text-sm md:text-base font-semibold text-foreground">
-                                <MapPin className="h-4 w-4 md:h-5 md:w-5 text-primary shrink-0 mt-0.5" />
-                                <span className="leading-snug">{alamatTujuan}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Rincian Barang (List Item) */}
-                        <div className="pl-7 md:pl-8">
-                          <p className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                            <Package className="h-3.5 w-3.5" /> Rincian Barang
-                          </p>
-                          <div className="bg-muted/30 rounded-xl p-3 md:p-4 border border-border/50 max-h-[140px] overflow-y-auto custom-scrollbar space-y-2.5">
-                            {o.items.map((item, idx) => (
-                              <div key={idx} className="flex justify-between items-start gap-3 border-b border-border/50 last:border-0 pb-2 last:pb-0">
-                                <span className="text-sm font-medium text-foreground leading-snug">
-                                  {item.product.name}
-                                </span>
-                                <span className="text-xs font-bold bg-primary/10 text-primary px-2 py-1 rounded-md shrink-0">
-                                  {item.quantity}x
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                      </div>
-
-                      {/* Bagian Kanan: Kontak, Total, dan Aksi */}
-                      <div className="flex flex-col justify-between space-y-5">
+            ) : (
+              <div className="space-y-5 md:space-y-6 items-start">
+                {activeOrders.map(o => {
+                  const tagihan = getOrderTotal(o);
+                  const alamatTujuan = (o as any).deliveryAddress || o.customerAddress || 'Alamat tidak lengkap';
+                  
+                  return (
+                    <Card key={o.id} className="overflow-hidden border-border/60 shadow-sm rounded-[1.5rem] hover:shadow-md transition-all">
+                      <div className="bg-gradient-to-r from-primary/10 to-transparent p-4 md:p-5 flex justify-between items-center border-b border-border/50">
                         <div>
-                          <div className="grid grid-cols-2 gap-3 md:gap-4">
-                            <div className="bg-muted/50 rounded-xl p-3 md:p-4">
-                              <p className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase mb-1">Telepon</p>
-                              <a href={`tel:${o.customerPhone}`} className="flex items-center gap-1.5 text-sm md:text-base font-bold text-secondary hover:text-primary transition-colors">
-                                <Phone className="h-3.5 w-3.5 md:h-4 md:w-4" /> {o.customerPhone || '-'}
-                              </a>
-                            </div>
-                            <div className="bg-muted/50 rounded-xl p-3 md:p-4">
-                              <p className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase mb-1">Total Item</p>
-                              <div className="flex items-center gap-1.5 text-sm md:text-base font-bold text-foreground">
-                                <Package className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground" /> {o.items.reduce((sum, i) => sum + i.quantity, 0)} Barang
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="mt-4 md:mt-5 bg-orange-100 border border-orange-200 rounded-xl p-4 flex items-center justify-between">
-                            <div className="flex items-center gap-2 md:gap-3">
-                              <div className="bg-orange-200 p-1.5 md:p-2 rounded-md">
-                                <ReceiptText className="h-4 w-4 md:h-5 md:w-5 text-orange-700" />
-                              </div>
-                              <span className="text-xs md:text-sm font-bold text-orange-800 uppercase tracking-wide">Tagihan COD</span>
-                            </div>
-                            <span className="text-lg md:text-xl font-black text-orange-700">Rp {tagihan.toLocaleString("id-ID")}</span>
-                          </div>
+                          <span className="text-[10px] md:text-xs font-bold text-primary uppercase tracking-wider">ID: {o.id.toString().slice(-6).toUpperCase()}</span>
+                          <p className="font-extrabold text-foreground text-base md:text-lg leading-tight mt-0.5">{o.customerName}</p>
                         </div>
-
-                        <div className="flex gap-3 pt-1">
-                          <Button 
-                            variant="outline" 
-                            className="h-12 w-12 md:h-14 md:w-14 shrink-0 rounded-xl border-border hover:bg-muted" 
-                            onClick={() => handlePrintSuratJalan(o)}
-                            title="Cetak Surat Jalan"
-                          >
-                            <Printer className="h-5 w-5 md:h-6 md:w-6 text-secondary" />
-                          </Button>
-                          <Button 
-                            className="flex-1 h-12 md:h-14 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-base md:text-lg shadow-md shadow-primary/20 flex justify-between px-5 md:px-6 group"
-                            onClick={() => handleCompleteDelivery(o)}
-                          >
-                            <span>Selesaikan Tugas</span>
-                            <ChevronRight className="h-5 w-5 md:h-6 md:w-6 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-                          </Button>
-                        </div>
+                        <span className="bg-white px-3 py-1 md:py-1.5 rounded-full text-[10px] md:text-xs font-bold shadow-sm border border-border/50 text-foreground">
+                          Sedang Diantar
+                        </span>
                       </div>
 
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                      <CardContent className="p-5 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                        <div className="flex flex-col gap-5 md:gap-6">
+                          <div className="flex gap-4">
+                            <div className="flex flex-col items-center mt-1">
+                              <div className="h-3 w-3 md:h-3.5 md:w-3.5 rounded-full bg-secondary ring-4 ring-secondary/20 z-10" />
+                              <div className="w-0.5 h-full min-h-[3rem] bg-border -my-1" />
+                              <div className="h-3 w-3 md:h-3.5 md:w-3.5 rounded-full bg-primary ring-4 ring-primary/20 z-10" />
+                            </div>
+                            <div className="flex-1 space-y-4 md:space-y-6">
+                              <div>
+                                <p className="text-[11px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Ambil di</p>
+                                <div className="flex items-center gap-1.5 text-sm md:text-base font-semibold text-foreground">
+                                  <Store className="h-4 w-4 md:h-5 md:w-5 text-secondary" /> {(o as any).storeName || (session as any)?.storeName || "Toko Mitra"}
+                                </div>
+                              </div>
+                              <div>
+                                <p className="text-[11px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">Antar ke</p>
+                                <div className="flex items-start gap-1.5 text-sm md:text-base font-semibold text-foreground">
+                                  <MapPin className="h-4 w-4 md:h-5 md:w-5 text-primary shrink-0 mt-0.5" />
+                                  <span className="leading-snug">{alamatTujuan}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="pl-7 md:pl-8">
+                            <p className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                              <Package className="h-3.5 w-3.5" /> Rincian Barang
+                            </p>
+                            <div className="bg-muted/30 rounded-xl p-3 md:p-4 border border-border/50 max-h-[140px] overflow-y-auto custom-scrollbar space-y-2.5">
+                              {o.items.map((item, idx) => (
+                                <div key={idx} className="flex justify-between items-start gap-3 border-b border-border/50 last:border-0 pb-2 last:pb-0">
+                                  <span className="text-sm font-medium text-foreground leading-snug">
+                                    {item.product.name}
+                                  </span>
+                                  <span className="text-xs font-bold bg-primary/10 text-primary px-2 py-1 rounded-md shrink-0">
+                                    {item.quantity}x
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col justify-between space-y-5">
+                          <div>
+                            <div className="grid grid-cols-2 gap-3 md:gap-4">
+                              <div className="bg-muted/50 rounded-xl p-3 md:p-4">
+                                <p className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase mb-1">Telepon</p>
+                                <a href={`tel:${o.customerPhone}`} className="flex items-center gap-1.5 text-sm md:text-base font-bold text-secondary hover:text-primary transition-colors">
+                                  <Phone className="h-3.5 w-3.5 md:h-4 md:w-4" /> {o.customerPhone || '-'}
+                                </a>
+                              </div>
+                              <div className="bg-muted/50 rounded-xl p-3 md:p-4">
+                                <p className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase mb-1">Total Item</p>
+                                <div className="flex items-center gap-1.5 text-sm md:text-base font-bold text-foreground">
+                                  <Package className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground" /> {o.items.reduce((sum, i) => sum + i.quantity, 0)} Barang
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="mt-4 md:mt-5 bg-orange-100 border border-orange-200 rounded-xl p-4 flex items-center justify-between">
+                              <div className="flex items-center gap-2 md:gap-3">
+                                <div className="bg-orange-200 p-1.5 md:p-2 rounded-md">
+                                  <ReceiptText className="h-4 w-4 md:h-5 md:w-5 text-orange-700" />
+                                </div>
+                                <span className="text-xs md:text-sm font-bold text-orange-800 uppercase tracking-wide">Tagihan COD</span>
+                              </div>
+                              <span className="text-lg md:text-xl font-black text-orange-700">Rp {tagihan.toLocaleString("id-ID")}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex gap-3 pt-1">
+                            <Button 
+                              variant="outline" 
+                              className="h-12 w-12 md:h-14 md:w-14 shrink-0 rounded-xl border-border hover:bg-muted" 
+                              onClick={() => handlePrintSuratJalan(o)}
+                              title="Cetak Surat Jalan"
+                            >
+                              <Printer className="h-5 w-5 md:h-6 md:w-6 text-secondary" />
+                            </Button>
+                            <Button 
+                              className="flex-1 h-12 md:h-14 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-base md:text-lg shadow-md shadow-primary/20 flex justify-between px-5 md:px-6 group"
+                              onClick={() => handleCompleteDelivery(o)}
+                            >
+                              <span>Selesaikan Tugas</span>
+                              <ChevronRight className="h-5 w-5 md:h-6 md:w-6 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* TAB BARU: RIWAYAT SELESAI */}
+          <TabsContent value="completed" className="focus-visible:outline-none">
+            <Card className="rounded-[1.5rem] border-border/60 shadow-sm overflow-hidden">
+              <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-muted/10 pb-4 border-b border-border/50">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-success" /> Riwayat Pengiriman Selesai
+                </CardTitle>
+                <Button variant="outline" size="sm" onClick={handlePrintCompleted} className="h-9 gap-2 shadow-sm rounded-xl">
+                  <Printer className="h-4 w-4 text-muted-foreground" /> Cetak Laporan
+                </Button>
+              </CardHeader>
+              <CardContent className="p-0">
+                {completedOrders.length === 0 ? (
+                  <p className="p-8 text-center text-sm text-muted-foreground">Belum ada pengiriman yang diselesaikan.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border/80 bg-muted/30">
+                          <th className="px-5 py-4 text-left font-semibold text-muted-foreground uppercase tracking-wider text-xs">Tanggal</th>
+                          <th className="px-5 py-4 text-left font-semibold text-muted-foreground uppercase tracking-wider text-xs">Pelanggan</th>
+                          <th className="px-5 py-4 text-left font-semibold text-muted-foreground uppercase tracking-wider text-xs">Alamat Tujuan</th>
+                          <th className="px-5 py-4 text-right font-semibold text-muted-foreground uppercase tracking-wider text-xs">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/40">
+                        {completedOrders.map((o) => (
+                          <tr key={o.id} className="hover:bg-muted/20 transition-colors">
+                            <td className="px-5 py-4 text-foreground text-xs whitespace-nowrap">{new Date(o.createdAt).toLocaleString("id-ID")}</td>
+                            <td className="px-5 py-4 text-foreground text-sm font-bold">
+                              {o.customerName} <br/>
+                              <span className="text-xs font-normal text-muted-foreground">{o.customerPhone || '-'}</span>
+                            </td>
+                            <td className="px-5 py-4 text-foreground text-xs leading-relaxed max-w-[250px]">
+                              {(o as any).deliveryAddress || o.customerAddress || '-'}
+                            </td>
+                            <td className="px-5 py-4 text-right font-mono font-bold whitespace-nowrap text-success">
+                              Rp {getOrderTotal(o).toLocaleString("id-ID")}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

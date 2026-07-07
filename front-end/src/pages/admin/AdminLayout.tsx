@@ -313,9 +313,6 @@ const AdminLayout = () => {
                       ))
                     )}
                   </div>
-                  <div className="p-2 border-t border-border/60 bg-muted/10">
-                    <Button variant="ghost" className="w-full text-xs font-semibold h-8 text-muted-foreground">Lihat Semua Notifikasi</Button>
-                  </div>
                 </div>
               )}
             </div>

@@ -4,7 +4,9 @@ const db = require("../config/db");
 const getNotifications = async (req, res) => {
   try {
     const userId = req.user.id;
-    const role = req.user.role;
+    
+    // PERBAIKAN: Gunakan 'peran' sesuai dengan data yang disimpan di JWT authController
+    const role = req.user.peran || req.user.role;
 
     // Ambil notif yang ditujukan untuk ID user ini ATAU untuk rolenya
     const [notifs] = await db.query(
@@ -34,7 +36,9 @@ const getNotifications = async (req, res) => {
 const markAllAsRead = async (req, res) => {
   try {
     const userId = req.user.id;
-    const role = req.user.role;
+    
+    // PERBAIKAN DI SINI JUGA
+    const role = req.user.peran || req.user.role;
     
     await db.query(
       `UPDATE notifications SET is_read = 1 WHERE user_id = ? OR role = ?`,

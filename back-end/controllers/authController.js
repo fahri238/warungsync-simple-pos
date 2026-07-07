@@ -101,6 +101,14 @@ const register = async (req, res) => {
       ],
     );
 
+    if (peran === "owner") {
+      // Menggunakan 'admin' pada kolom role agar ditarik oleh dashboard Admin
+      await connection.query(
+        "INSERT INTO notifications (user_id, role, title, message, is_read) VALUES (NULL, 'admin', 'Toko Mitra Baru', ?, 0)",
+        [`${nama} baru saja mendaftarkan warungnya: ${nama_toko}.`]
+      );
+    }
+
     await connection.commit();
     connection.release();
 
@@ -153,6 +161,18 @@ const login = async (req, res) => {
         .json({ success: false, message: "Email atau kata sandi salah" });
 
     const user = users[0];
+    
+    // PERBAIKAN: Cek status aktif/nonaktif SEBELUM mengecek password
+    // Jika akun dinonaktifkan, tolak seketika.
+    if (user.status === "nonaktif") {
+      return res
+        .status(403) // Menggunakan 403 Forbidden (Lebih tepat untuk akun yang diblokir/nonaktif)
+        .json({ 
+          success: false, 
+          message: "Akun anda dinonaktifkan oleh admin" // Pesan notifikasi kustom sesuai permintaan Anda
+        });
+    }
+
     const isPasswordValid = await bcrypt.compare(kata_sandi, user.kata_sandi);
     if (!isPasswordValid)
       return res

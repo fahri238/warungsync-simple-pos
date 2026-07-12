@@ -49,7 +49,7 @@ import {
   Eye,
   X,
   CheckCheck,
-  ShieldAlert
+  ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
@@ -78,24 +78,26 @@ const emptyProduct: ProductFormState = {
 
 const OwnerProducts = () => {
   const session = getSession();
-  
+
   const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [form, setForm] = useState<ProductFormState>(emptyProduct);
   const [imagePreview, setImagePreview] = useState("");
-  
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [catDialogOpen, setCatDialogOpen] = useState(false);
   const [newCatName, setNewCatName] = useState("");
-  
+
   // STATE BARU: UX Tambah Kategori Inline (Di dalam form Produk)
   const [showInlineCatInput, setShowInlineCatInput] = useState(false);
   const [inlineCatName, setInlineCatName] = useState("");
-  
+
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
@@ -120,7 +122,7 @@ const OwnerProducts = () => {
     try {
       setLoading(true);
       setError("");
-      
+
       const storeIdStr = session.store_id.toString();
       const [prods, cats] = await Promise.all([
         getProductsFromAPI(storeIdStr),
@@ -153,7 +155,7 @@ const OwnerProducts = () => {
     setForm({
       name: p.name,
       price: p.price,
-      capitalPrice: (p as any).capitalPrice || 0, 
+      capitalPrice: (p as any).capitalPrice || 0,
       stock: p.stock,
       category: p.category,
       barcode: p.barcode || "",
@@ -179,16 +181,43 @@ const OwnerProducts = () => {
     try {
       setSaving(true);
       if (editing) {
-        await updateProductInAPI(editing.id, form);
+        // HITUNG SELISIH STOK: Cari tahu apakah Owner menambah/mengurangi stok saat Edit
+        const stockDiff = form.stock - editing.stock;
+        let payload: any = { ...form };
+
+        if (stockDiff !== 0) {
+          // Jika stok ditambah, hitung biayanya (Selisih Barang x Harga Modal). 
+          // Jika dikurangi, biayanya 0 karena tidak ada uang keluar.
+          const calculatedCost = stockDiff > 0 ? (stockDiff * form.capitalPrice) : 0;
+          
+          payload = {
+            ...form,
+            stock_change: stockDiff,
+            reason: stockDiff > 0 ? "Edit Produk (Penambahan Manual)" : "Edit Produk (Pengurangan Manual)",
+            cost: calculatedCost
+          };
+        }
+
+        await updateProductInAPI(editing.id, payload);
         toast.success("Produk diperbarui");
       } else {
-        await addProductToAPI(form);
-        toast.success("Produk ditambahkan");
+        // PRODUK BARU: Uang Keluar = Jumlah Stok Awal × Harga Modal
+        const totalBiayaModalAwal = form.stock * form.capitalPrice;
+        
+        const payload = {
+          ...form,
+          stock_change: form.stock > 0 ? form.stock : undefined,
+          reason: form.stock > 0 ? "Stok awal barang baru" : undefined,
+          cost: totalBiayaModalAwal
+        };
+
+        await addProductToAPI(payload);
+        toast.success("Produk berhasil ditambahkan ke etalase!");
       }
       await loadData();
       setDialogOpen(false);
-    } catch {
-      toast.error("Gagal menyimpan produk");
+    } catch (error: any) {
+      toast.error(error.message || "Gagal menyimpan produk");
     } finally {
       setSaving(false);
     }
@@ -229,7 +258,7 @@ const OwnerProducts = () => {
       toast.success("Kategori ditambahkan");
       setInlineCatName("");
       setShowInlineCatInput(false);
-      await loadData(); 
+      await loadData();
       // Kategori akan otomatis diperbarui di Select dropdown tanpa menutup modal produk!
     } catch {
       toast.error("Gagal menambahkan kategori baru");
@@ -252,9 +281,9 @@ const OwnerProducts = () => {
     if (!searchQuery.trim()) return products;
     const lowerQuery = searchQuery.toLowerCase();
     return products.filter(
-      p => 
-        p.name.toLowerCase().includes(lowerQuery) || 
-        (p.barcode && p.barcode.toLowerCase().includes(lowerQuery))
+      (p) =>
+        p.name.toLowerCase().includes(lowerQuery) ||
+        (p.barcode && p.barcode.toLowerCase().includes(lowerQuery)),
     );
   }, [products, searchQuery]);
 
@@ -267,11 +296,17 @@ const OwnerProducts = () => {
             <div className="mx-auto h-24 w-24 bg-destructive/10 rounded-full flex items-center justify-center mb-6 ring-8 ring-destructive/5">
               <ShieldAlert className="h-12 w-12 text-destructive" />
             </div>
-            <h2 className="text-2xl font-black tracking-tight mb-2 text-foreground">Akses Ditolak</h2>
+            <h2 className="text-2xl font-black tracking-tight mb-2 text-foreground">
+              Akses Ditolak
+            </h2>
             <p className="mb-8 text-muted-foreground text-sm px-4">
-              Sesi pemilik warung (owner) Anda tidak ditemukan atau Anda tidak memiliki izin untuk mengakses halaman ini.
+              Sesi pemilik warung (owner) Anda tidak ditemukan atau Anda tidak
+              memiliki izin untuk mengakses halaman ini.
             </p>
-            <Button asChild className="w-full rounded-xl h-14 text-base font-bold shadow-lg shadow-primary/20">
+            <Button
+              asChild
+              className="w-full rounded-xl h-14 text-base font-bold shadow-lg shadow-primary/20"
+            >
               <Link to="/login">Masuk Kembali</Link>
             </Button>
           </CardContent>
@@ -286,7 +321,9 @@ const OwnerProducts = () => {
         <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-        <p className="text-sm font-medium text-muted-foreground animate-pulse">Memuat Katalog Produk...</p>
+        <p className="text-sm font-medium text-muted-foreground animate-pulse">
+          Memuat Katalog Produk...
+        </p>
       </div>
     );
   }
@@ -298,8 +335,12 @@ const OwnerProducts = () => {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
             <AlertCircle className="h-6 w-6 text-destructive" />
           </div>
-          <h3 className="mb-2 text-lg font-bold text-destructive">Koneksi Terputus</h3>
-          <p className="mb-6 text-sm text-muted-foreground leading-relaxed">{error}</p>
+          <h3 className="mb-2 text-lg font-bold text-destructive">
+            Koneksi Terputus
+          </h3>
+          <p className="mb-6 text-sm text-muted-foreground leading-relaxed">
+            {error}
+          </p>
           <Button onClick={loadData} className="shadow-md shadow-primary/20">
             Coba Muat Ulang
           </Button>
@@ -310,23 +351,24 @@ const OwnerProducts = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-      
       {/* Header Section */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-card p-6 rounded-3xl border border-border/50 shadow-sm relative overflow-hidden">
         <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-primary/5 to-transparent pointer-events-none"></div>
-        
+
         <div>
           <h2 className="font-display text-2xl font-bold text-foreground flex items-center gap-2">
             <Layers className="h-6 w-6 text-primary" /> Katalog Produk
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">Kelola daftar barang, harga, dan ketersediaan stok.</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Kelola daftar barang, harga, dan ketersediaan stok.
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 relative z-10">
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input 
-              placeholder="Cari nama atau barcode..." 
+            <Input
+              placeholder="Cari nama atau barcode..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 bg-background/50 h-10 border-border/60 focus-visible:bg-background"
@@ -335,7 +377,10 @@ const OwnerProducts = () => {
 
           <Dialog open={catDialogOpen} onOpenChange={setCatDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="secondary" className="gap-2 h-10 border border-border/50">
+              <Button
+                variant="secondary"
+                className="gap-2 h-10 border border-border/50"
+              >
                 <Tag className="h-4 w-4 text-primary" />
                 <span className="hidden sm:inline">Kategori</span>
               </Button>
@@ -345,9 +390,11 @@ const OwnerProducts = () => {
                 <DialogTitle className="flex items-center gap-2">
                   <Tag className="h-5 w-5 text-primary" /> Kelola Kategori
                 </DialogTitle>
-                <DialogDescription>Kelompokkan produk agar mudah dicari pelanggan.</DialogDescription>
+                <DialogDescription>
+                  Kelompokkan produk agar mudah dicari pelanggan.
+                </DialogDescription>
               </DialogHeader>
-              
+
               <div className="flex gap-2 my-2">
                 <Input
                   placeholder="Ketik nama kategori baru..."
@@ -356,21 +403,33 @@ const OwnerProducts = () => {
                   onKeyDown={(e) => e.key === "Enter" && handleAddCategory()}
                   className="bg-muted/30 focus-visible:bg-background"
                 />
-                <Button onClick={handleAddCategory} disabled={saving} className="px-3 shadow-md shadow-primary/20">
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                <Button
+                  onClick={handleAddCategory}
+                  disabled={saving}
+                  className="px-3 shadow-md shadow-primary/20"
+                >
+                  {saving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Plus className="h-4 w-4" />
+                  )}
                 </Button>
               </div>
 
               <div className="mt-4 flex flex-wrap gap-2 max-h-60 overflow-y-auto custom-scrollbar p-1">
                 {categories.length === 0 ? (
-                  <p className="text-sm text-muted-foreground w-full text-center py-4">Belum ada kategori.</p>
+                  <p className="text-sm text-muted-foreground w-full text-center py-4">
+                    Belum ada kategori.
+                  </p>
                 ) : (
                   categories.map((c) => (
                     <div
                       key={c.id}
                       className="group flex items-center gap-1.5 rounded-full border border-border bg-card shadow-sm pl-3 pr-1 py-1 transition-colors hover:border-primary/40"
                     >
-                      <span className="text-sm font-medium text-foreground">{c.name}</span>
+                      <span className="text-sm font-medium text-foreground">
+                        {c.name}
+                      </span>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -378,7 +437,7 @@ const OwnerProducts = () => {
                         onClick={() => handleDeleteCategory(c.id)}
                         disabled={saving}
                       >
-                        <X className="h-3.5 w-3.5" /> 
+                        <X className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   ))
@@ -387,7 +446,10 @@ const OwnerProducts = () => {
             </DialogContent>
           </Dialog>
 
-          <Button className="gap-2 h-10 shadow-md shadow-primary/20" onClick={openAdd}>
+          <Button
+            className="gap-2 h-10 shadow-md shadow-primary/20"
+            onClick={openAdd}
+          >
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Tambah Produk</span>
           </Button>
@@ -400,19 +462,31 @@ const OwnerProducts = () => {
           <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mb-4">
             <Package className="h-10 w-10 text-primary/60" />
           </div>
-          <h3 className="text-lg font-bold text-foreground">Tidak ada produk ditemukan</h3>
+          <h3 className="text-lg font-bold text-foreground">
+            Tidak ada produk ditemukan
+          </h3>
           <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-            {searchQuery ? `Tidak ada barang yang cocok dengan kata kunci "${searchQuery}".` : "Toko Anda belum memiliki produk apapun. Klik 'Tambah Produk' untuk mulai berjualan."}
+            {searchQuery
+              ? `Tidak ada barang yang cocok dengan kata kunci "${searchQuery}".`
+              : "Toko Anda belum memiliki produk apapun. Klik 'Tambah Produk' untuk mulai berjualan."}
           </p>
           {searchQuery && (
-             <Button variant="outline" className="mt-4" onClick={() => setSearchQuery("")}>Bersihkan Pencarian</Button>
+            <Button
+              variant="outline"
+              className="mt-4"
+              onClick={() => setSearchQuery("")}
+            >
+              Bersihkan Pencarian
+            </Button>
           )}
         </div>
       ) : (
         <div className="grid gap-5 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {filteredProducts.map((p) => (
-            <Card key={p.id} className="group overflow-hidden border-border/60 shadow-sm transition-all hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 bg-card flex flex-col relative rounded-2xl">
-              
+            <Card
+              key={p.id}
+              className="group overflow-hidden border-border/60 shadow-sm transition-all hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 bg-card flex flex-col relative rounded-2xl"
+            >
               {/* Image Section */}
               <div className="relative aspect-[4/3] bg-muted overflow-hidden">
                 <img
@@ -421,20 +495,31 @@ const OwnerProducts = () => {
                   className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                   loading="lazy"
                 />
-                
+
                 {/* Category Badge */}
                 <div className="absolute top-2 left-2 z-10">
                   <span className="backdrop-blur-md bg-background/80 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase text-foreground shadow-sm border border-border/50">
-                    {categories.find((c) => c.id === p.category)?.name || "Lainnya"}
+                    {categories.find((c) => c.id === p.category)?.name ||
+                      "Lainnya"}
                   </span>
                 </div>
 
                 {/* Floating Actions Overlay */}
                 <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] opacity-0 transition-opacity duration-300 group-hover:opacity-100 flex items-center justify-center gap-3 z-20">
-                  <Button size="icon" variant="secondary" className="h-10 w-10 rounded-full shadow-lg bg-background hover:bg-primary hover:text-primary-foreground text-foreground transition-colors" onClick={() => openEdit(p)}>
+                  <Button
+                    size="icon"
+                    variant="secondary"
+                    className="h-10 w-10 rounded-full shadow-lg bg-background hover:bg-primary hover:text-primary-foreground text-foreground transition-colors"
+                    onClick={() => openEdit(p)}
+                  >
                     <Pencil className="h-4 w-4" />
                   </Button>
-                  <Button size="icon" variant="destructive" className="h-10 w-10 rounded-full shadow-lg opacity-90 hover:opacity-100" onClick={() => handleDelete(p.id)}>
+                  <Button
+                    size="icon"
+                    variant="destructive"
+                    className="h-10 w-10 rounded-full shadow-lg opacity-90 hover:opacity-100"
+                    onClick={() => handleDelete(p.id)}
+                  >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -445,23 +530,27 @@ const OwnerProducts = () => {
                 <h3 className="font-bold text-foreground text-sm line-clamp-2 leading-tight group-hover:text-primary transition-colors">
                   {p.name}
                 </h3>
-                
+
                 <div className="mt-auto pt-3">
                   <div className="flex items-center justify-between mb-2">
                     <p className="font-black text-primary text-base">
                       Rp {p.price.toLocaleString("id-ID")}
                     </p>
-                    
+
                     {/* Stock Badge */}
-                    <div className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${
-                      p.stock === 0 ? "bg-destructive/10 text-destructive border-destructive/20" :
-                      p.stock <= 10 ? "bg-warning/10 text-warning border-warning/20" : 
-                      "bg-success/10 text-success border-success/20"
-                    }`}>
+                    <div
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${
+                        p.stock === 0
+                          ? "bg-destructive/10 text-destructive border-destructive/20"
+                          : p.stock <= 10
+                            ? "bg-warning/10 text-warning border-warning/20"
+                            : "bg-success/10 text-success border-success/20"
+                      }`}
+                    >
                       {p.stock === 0 ? "HABIS" : `Sisa ${p.stock}`}
                     </div>
                   </div>
-                  
+
                   {p.barcode ? (
                     <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground bg-muted/40 px-2 py-1 rounded-md w-fit border border-border/50">
                       <Barcode className="h-3 w-3" /> {p.barcode}
@@ -485,9 +574,13 @@ const OwnerProducts = () => {
                 <Package className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <DialogTitle className="text-xl">{editing ? "Edit Detail Produk" : "Tambah Produk Baru"}</DialogTitle>
+                <DialogTitle className="text-xl">
+                  {editing ? "Edit Detail Produk" : "Tambah Produk Baru"}
+                </DialogTitle>
                 <DialogDescription className="text-sm">
-                  {editing ? "Perbarui informasi, harga, dan ketersediaan stok." : "Lengkapi form berikut untuk memasukkan barang ke etalase."}
+                  {editing
+                    ? "Perbarui informasi, harga, dan ketersediaan stok."
+                    : "Lengkapi form berikut untuk memasukkan barang ke etalase."}
                 </DialogDescription>
               </div>
             </div>
@@ -495,17 +588,21 @@ const OwnerProducts = () => {
 
           <div className="max-h-[calc(90vh-140px)] overflow-y-auto px-6 py-6 bg-secondary/5 custom-scrollbar">
             <div className="grid gap-8 lg:grid-cols-12">
-              
               {/* Kolom Kiri: original preview (True Preview) */}
               <div className="lg:col-span-4 space-y-4">
                 <p className="flex items-center gap-2 text-sm font-bold text-foreground">
                   <Eye className="h-4 w-4 text-primary" /> Pratinjau Tampilan
                 </p>
-                
+
                 <div className="rounded-2xl overflow-hidden border border-border/60 shadow-md bg-card mx-auto max-w-[240px] lg:max-w-none">
                   <div className="relative aspect-[4/3] bg-muted overflow-hidden">
                     {imagePreview ? (
-                      <img src={imagePreview} alt="Preview" className="h-full w-full object-cover" onError={() => setImagePreview("")} />
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        className="h-full w-full object-cover"
+                        onError={() => setImagePreview("")}
+                      />
                     ) : (
                       <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground bg-muted/50">
                         <ImageIcon className="h-10 w-10 opacity-20" />
@@ -513,7 +610,8 @@ const OwnerProducts = () => {
                     )}
                     <div className="absolute top-2 left-2 z-10">
                       <span className="backdrop-blur-md bg-background/80 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase text-foreground border border-border/50">
-                        {categories.find((c) => c.id === form.category)?.name || "Kategori"}
+                        {categories.find((c) => c.id === form.category)?.name ||
+                          "Kategori"}
                       </span>
                     </div>
                   </div>
@@ -525,7 +623,9 @@ const OwnerProducts = () => {
                       <p className="font-black text-primary text-base">
                         Rp {(form.price || 0).toLocaleString("id-ID")}
                       </p>
-                      <div className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${form.stock === 0 ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-success/10 text-success border-success/20"}`}>
+                      <div
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${form.stock === 0 ? "bg-destructive/10 text-destructive border-destructive/20" : "bg-success/10 text-success border-success/20"}`}
+                      >
                         Sisa {form.stock || 0}
                       </div>
                     </div>
@@ -533,75 +633,117 @@ const OwnerProducts = () => {
                 </div>
 
                 <div className="p-4 bg-primary/10 rounded-xl border border-primary/20 text-xs text-primary/80 leading-relaxed font-medium">
-                  Informasi di atas adalah tampilan persis bagaimana pelanggan melihat produk Anda di etalase. 
-                  *(Harga modal tidak akan ditampilkan ke pelanggan)*.
+                  Informasi di atas adalah tampilan persis bagaimana pelanggan
+                  melihat produk Anda di etalase. *(Harga modal tidak akan
+                  ditampilkan ke pelanggan)*.
                 </div>
               </div>
 
               {/* right column: Form Inputs */}
               <div className="lg:col-span-8 space-y-8">
-                
                 {/* Section 1: basic information */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 border-b border-border/50 pb-2">
                     <Package className="h-4 w-4 text-primary" />
-                    <h3 className="font-bold text-foreground">Informasi Utama</h3>
+                    <h3 className="font-bold text-foreground">
+                      Informasi Utama
+                    </h3>
                   </div>
-                  
+
                   <div className="space-y-2">
-                    <Label htmlFor="product-name">Nama Produk <span className="text-destructive">*</span></Label>
+                    <Label htmlFor="product-name">
+                      Nama Produk <span className="text-destructive">*</span>
+                    </Label>
                     <Input
                       id="product-name"
                       placeholder="Contoh: Es Teh Manis Jumbo"
                       value={form.name}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      onChange={(e) =>
+                        setForm({ ...form, name: e.target.value })
+                      }
                       disabled={saving}
                       className="h-11 bg-background"
                     />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    
                     {/* UX BARU: Tambah Kategori Inline */}
                     <div className="space-y-2">
-                      <Label>Kategori <span className="text-destructive">*</span></Label>
+                      <Label>
+                        Kategori <span className="text-destructive">*</span>
+                      </Label>
                       {showInlineCatInput ? (
                         <div className="flex items-center gap-2 animate-in slide-in-from-right-4 duration-300">
                           <Input
                             placeholder="Ketik kategori baru..."
                             value={inlineCatName}
                             onChange={(e) => setInlineCatName(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && handleInlineAddCategory()}
+                            onKeyDown={(e) =>
+                              e.key === "Enter" && handleInlineAddCategory()
+                            }
                             disabled={saving}
                             className="h-11 bg-background"
                             autoFocus
                           />
-                          <Button type="button" onClick={handleInlineAddCategory} disabled={saving} className="h-11 px-3 shadow-md shadow-primary/20">
-                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCheck className="h-4 w-4" />}
+                          <Button
+                            type="button"
+                            onClick={handleInlineAddCategory}
+                            disabled={saving}
+                            className="h-11 px-3 shadow-md shadow-primary/20"
+                          >
+                            {saving ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <CheckCheck className="h-4 w-4" />
+                            )}
                           </Button>
-                          <Button type="button" variant="ghost" onClick={() => setShowInlineCatInput(false)} disabled={saving} className="h-11 px-3 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => setShowInlineCatInput(false)}
+                            disabled={saving}
+                            className="h-11 px-3 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                          >
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
                       ) : (
                         <div className="flex items-center gap-2">
-                          <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
-                            <SelectTrigger disabled={saving} className="h-11 bg-background flex-1">
-                              <SelectValue placeholder={categories.length === 0 ? "Kategori kosong" : "Pilih kategori"} />
+                          <Select
+                            value={form.category}
+                            onValueChange={(v) =>
+                              setForm({ ...form, category: v })
+                            }
+                          >
+                            <SelectTrigger
+                              disabled={saving}
+                              className="h-11 bg-background flex-1"
+                            >
+                              <SelectValue
+                                placeholder={
+                                  categories.length === 0
+                                    ? "Kategori kosong"
+                                    : "Pilih kategori"
+                                }
+                              />
                             </SelectTrigger>
                             <SelectContent>
                               {categories.length === 0 ? (
-                                <SelectItem value="0" disabled>Belum ada kategori</SelectItem>
+                                <SelectItem value="0" disabled>
+                                  Belum ada kategori
+                                </SelectItem>
                               ) : (
                                 categories.map((c) => (
-                                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                  <SelectItem key={c.id} value={c.id}>
+                                    {c.name}
+                                  </SelectItem>
                                 ))
                               )}
                             </SelectContent>
                           </Select>
-                          <Button 
-                            type="button" 
-                            variant="outline" 
+                          <Button
+                            type="button"
+                            variant="outline"
                             onClick={() => setShowInlineCatInput(true)}
                             className="h-11 px-3 border-dashed border-primary/50 text-primary hover:text-primary hover:bg-primary/10 transition-colors"
                             title="Buat Kategori Baru"
@@ -611,10 +753,13 @@ const OwnerProducts = () => {
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="space-y-2">
                       <Label htmlFor="product-barcode">
-                        Barcode <span className="text-xs text-muted-foreground font-normal">Opsional (Scan POS)</span>
+                        Barcode{" "}
+                        <span className="text-xs text-muted-foreground font-normal">
+                          Opsional (Scan POS)
+                        </span>
                       </Label>
                       <div className="relative">
                         <Barcode className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -622,7 +767,9 @@ const OwnerProducts = () => {
                           id="product-barcode"
                           placeholder="0123456789"
                           value={form.barcode || ""}
-                          onChange={(e) => setForm({ ...form, barcode: e.target.value })}
+                          onChange={(e) =>
+                            setForm({ ...form, barcode: e.target.value })
+                          }
                           disabled={saving}
                           className="h-11 pl-10 font-mono text-sm bg-background"
                         />
@@ -635,46 +782,75 @@ const OwnerProducts = () => {
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 border-b border-border/50 pb-2">
                     <Banknote className="h-4 w-4 text-primary" />
-                    <h3 className="font-bold text-foreground">Harga & Ketersediaan</h3>
+                    <h3 className="font-bold text-foreground">
+                      Harga & Ketersediaan
+                    </h3>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="product-capital">Harga Modal (Rp)</Label>
                       <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">Rp</span>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
+                          Rp
+                        </span>
                         <Input
                           id="product-capital"
                           type="number"
                           min={0}
                           placeholder="0"
-                          value={form.capitalPrice === 0 ? "" : form.capitalPrice}
-                          onChange={(e) => setForm({ ...form, capitalPrice: e.target.value === "" ? 0 : Number(e.target.value) })}
+                          value={
+                            form.capitalPrice === 0 ? "" : form.capitalPrice
+                          }
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              capitalPrice:
+                                e.target.value === ""
+                                  ? 0
+                                  : Number(e.target.value),
+                            })
+                          }
                           disabled={saving}
                           className="h-11 pl-9 bg-background"
                         />
                       </div>
                     </div>
-                    
+
                     <div className="space-y-2">
-                      <Label htmlFor="product-price">Harga Jual (Rp) <span className="text-destructive">*</span></Label>
+                      <Label htmlFor="product-price">
+                        Harga Jual (Rp){" "}
+                        <span className="text-destructive">*</span>
+                      </Label>
                       <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">Rp</span>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
+                          Rp
+                        </span>
                         <Input
                           id="product-price"
                           type="number"
                           min={0}
                           placeholder="0"
                           value={form.price === 0 ? "" : form.price}
-                          onChange={(e) => setForm({ ...form, price: e.target.value === "" ? 0 : Number(e.target.value) })}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              price:
+                                e.target.value === ""
+                                  ? 0
+                                  : Number(e.target.value),
+                            })
+                          }
                           disabled={saving}
                           className="h-11 pl-9 font-bold bg-background text-primary"
                         />
                       </div>
                     </div>
-                    
+
                     <div className="space-y-2">
-                      <Label htmlFor="product-stock">Jumlah Stok <span className="text-destructive">*</span></Label>
+                      <Label htmlFor="product-stock">
+                        Jumlah Stok <span className="text-destructive">*</span>
+                      </Label>
                       <div className="relative">
                         <Boxes className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                         <Input
@@ -683,7 +859,15 @@ const OwnerProducts = () => {
                           min={0}
                           placeholder="0"
                           value={form.stock === 0 ? "" : form.stock}
-                          onChange={(e) => setForm({ ...form, stock: e.target.value === "" ? 0 : Number(e.target.value) })}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              stock:
+                                e.target.value === ""
+                                  ? 0
+                                  : Number(e.target.value),
+                            })
+                          }
                           disabled={saving}
                           className="h-11 pl-9 bg-background"
                         />
@@ -696,44 +880,69 @@ const OwnerProducts = () => {
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 border-b border-border/50 pb-2">
                     <ImageIcon className="h-4 w-4 text-primary" />
-                    <h3 className="font-bold text-foreground">Media & Detail</h3>
+                    <h3 className="font-bold text-foreground">
+                      Media & Detail
+                    </h3>
                   </div>
-                  
+
                   <div className="space-y-2">
-                    <Label htmlFor="product-image">URL Gambar (Tautan Link)</Label>
+                    <Label htmlFor="product-image">
+                      URL Gambar (Tautan Link)
+                    </Label>
                     <Input
                       id="product-image"
                       placeholder="https://contoh.com/gambar-produk.jpg"
                       value={form.image}
-                      onChange={(e) => setForm({ ...form, image: e.target.value })}
+                      onChange={(e) =>
+                        setForm({ ...form, image: e.target.value })
+                      }
                       disabled={saving}
                       className="h-11 bg-background"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="product-desc">Deskripsi Produk <span className="text-xs text-muted-foreground font-normal">(Muncul di e-commerce)</span></Label>
+                    <Label htmlFor="product-desc">
+                      Deskripsi Produk{" "}
+                      <span className="text-xs text-muted-foreground font-normal">
+                        (Muncul di e-commerce)
+                      </span>
+                    </Label>
                     <Textarea
                       id="product-desc"
                       placeholder="Jelaskan detail ukuran, rasa, atau spesifikasi barang ini..."
                       rows={4}
                       value={form.description}
-                      onChange={(e) => setForm({ ...form, description: e.target.value })}
+                      onChange={(e) =>
+                        setForm({ ...form, description: e.target.value })
+                      }
                       disabled={saving}
                       className="resize-none bg-background custom-scrollbar"
                     />
                   </div>
                 </div>
-
               </div>
             </div>
           </div>
 
           <DialogFooter className="border-t border-border/50 bg-card px-6 py-4 flex flex-row items-center justify-between sm:justify-between">
-            <Button variant="ghost" onClick={() => setDialogOpen(false)} disabled={saving} className="text-muted-foreground">
+            <Button
+              variant="ghost"
+              onClick={() => setDialogOpen(false)}
+              disabled={saving}
+              className="text-muted-foreground"
+            >
               Batal
             </Button>
-            <Button onClick={handleSave} disabled={saving} className="min-w-32 gap-2 h-11 shadow-md shadow-primary/20">
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCheck className="h-4 w-4" />}
+            <Button
+              onClick={handleSave}
+              disabled={saving}
+              className="min-w-32 gap-2 h-11 shadow-md shadow-primary/20"
+            >
+              {saving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCheck className="h-4 w-4" />
+              )}
               {editing ? "Simpan Perubahan" : "Tambahkan Produk"}
             </Button>
           </DialogFooter>

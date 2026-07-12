@@ -8,38 +8,86 @@ const getResolvedStoreId = (req) => {
 // ================= KATEGORI =================
 const getCategories = async (req, res) => {
   const storeId = getResolvedStoreId(req);
-  if (!storeId) return res.status(400).json({ success: false, message: "ID Toko (storeId) wajib disertakan" });
+  if (!storeId)
+    return res
+      .status(400)
+      .json({ success: false, message: "ID Toko (storeId) wajib disertakan" });
   try {
-    const [rows] = await db.query("SELECT id, nama AS name FROM categories WHERE store_id = ?", [storeId]);
-    res.status(200).json({ success: true, data: rows, message: "Data kategori berhasil diambil" });
+    const [rows] = await db.query(
+      "SELECT id, nama AS name FROM categories WHERE store_id = ?",
+      [storeId],
+    );
+    res.status(200).json({
+      success: true,
+      data: rows,
+      message: "Data kategori berhasil diambil",
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Gagal mengambil data kategori", error: error.message });
+    res.status(500).json({
+      success: false,
+      message: "Gagal mengambil data kategori",
+      error: error.message,
+    });
   }
 };
 
 const createCategory = async (req, res) => {
   const { name } = req.body;
   const storeId = getResolvedStoreId(req);
-  if (!storeId || !name) return res.status(400).json({ success: false, message: "ID Toko dan Nama Kategori wajib diisi" });
+  if (!storeId || !name)
+    return res.status(400).json({
+      success: false,
+      message: "ID Toko dan Nama Kategori wajib diisi",
+    });
   try {
-    const [existing] = await db.query("SELECT id FROM categories WHERE nama = ? AND store_id = ?", [name.trim(), storeId]);
-    if (existing.length > 0) return res.status(409).json({ success: false, message: "Kategori dengan nama ini sudah ada di toko Anda" });
-    const [result] = await db.query("INSERT INTO categories (store_id, nama) VALUES (?, ?)", [storeId, name.trim()]);
-    res.status(201).json({ success: true, data: { id: result.insertId, name: name.trim() }, message: "Kategori berhasil ditambahkan" });
+    const [existing] = await db.query(
+      "SELECT id FROM categories WHERE nama = ? AND store_id = ?",
+      [name.trim(), storeId],
+    );
+    if (existing.length > 0)
+      return res.status(409).json({
+        success: false,
+        message: "Kategori dengan nama ini sudah ada di toko Anda",
+      });
+    const [result] = await db.query(
+      "INSERT INTO categories (store_id, nama) VALUES (?, ?)",
+      [storeId, name.trim()],
+    );
+    res.status(201).json({
+      success: true,
+      data: { id: result.insertId, name: name.trim() },
+      message: "Kategori berhasil ditambahkan",
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Gagal menambahkan kategori", error: error.message });
+    res.status(500).json({
+      success: false,
+      message: "Gagal menambahkan kategori",
+      error: error.message,
+    });
   }
 };
 
 const deleteCategory = async (req, res) => {
   const { id } = req.params;
   try {
-    const [existing] = await db.query("SELECT id FROM categories WHERE id = ?", [id]);
-    if (existing.length === 0) return res.status(404).json({ success: false, message: "Kategori tidak ditemukan" });
+    const [existing] = await db.query(
+      "SELECT id FROM categories WHERE id = ?",
+      [id],
+    );
+    if (existing.length === 0)
+      return res
+        .status(404)
+        .json({ success: false, message: "Kategori tidak ditemukan" });
     await db.query("DELETE FROM categories WHERE id = ?", [id]);
-    res.status(200).json({ success: true, message: "Kategori berhasil dihapus" });
+    res
+      .status(200)
+      .json({ success: true, message: "Kategori berhasil dihapus" });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Gagal menghapus kategori", error: error.message });
+    res.status(500).json({
+      success: false,
+      message: "Gagal menghapus kategori",
+      error: error.message,
+    });
   }
 };
 
@@ -47,10 +95,12 @@ const deleteCategory = async (req, res) => {
 const getProducts = async (req, res) => {
   const storeId = getResolvedStoreId(req);
   const barcode = req.query.barcode;
-  if (!storeId) return res.status(400).json({ success: false, message: "ID Toko (storeId) wajib disertakan" });
+  if (!storeId)
+    return res
+      .status(400)
+      .json({ success: false, message: "ID Toko (storeId) wajib disertakan" });
 
   try {
-    // PERBAIKAN: Memastikan tabel 'products' sesuai dengan database Anda
     let query = `
       SELECT 
         p.id, 
@@ -73,21 +123,34 @@ const getProducts = async (req, res) => {
       queryParams.push(barcode);
     }
     const [rows] = await db.query(query, queryParams);
-    
-    const formattedRows = rows.map(row => ({
-        ...row,
-        price: Number(row.price),
-        capitalPrice: Number(row.capitalPrice || 0)
+
+    const formattedRows = rows.map((row) => ({
+      ...row,
+      price: Number(row.price),
+      capitalPrice: Number(row.capitalPrice || 0),
     }));
-    res.status(200).json({ success: true, data: formattedRows, message: "Data produk berhasil diambil" });
+    res.status(200).json({
+      success: true,
+      data: formattedRows,
+      message: "Data produk berhasil diambil",
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Gagal mengambil data produk", error: error.message });
+    res.status(500).json({
+      success: false,
+      message: "Gagal mengambil data produk",
+      error: error.message,
+    });
   }
 };
 
 const createProduct = async (req, res) => {
-  // Tangkap semua kemungkinan nama key (Inggris/Indonesia)
-  const { category, id_kategori, name, nama, price, harga, capitalPrice, harga_modal, stock, stok, image, url_gambar, description, deskripsi, barcode } = req.body;
+  // TAMBAHAN: Menangkap stock_change, reason, dan cost dari frontend
+  const { 
+    category, id_kategori, name, nama, price, harga, capitalPrice, harga_modal, 
+    stock, stok, image, url_gambar, description, deskripsi, barcode,
+    stock_change, reason, cost 
+  } = req.body;
+  
   const storeId = getResolvedStoreId(req);
   
   const finalCategory = category || id_kategori;
@@ -109,10 +172,20 @@ const createProduct = async (req, res) => {
     const [dupProduct] = await db.query("SELECT id FROM products WHERE nama = ? AND store_id = ?", [finalName.trim(), storeId]);
     if (dupProduct.length > 0) return res.status(409).json({ success: false, message: "Produk dengan nama ini sudah ada di toko Anda" });
 
+    // 1. Simpan produk ke tabel products
     const [result] = await db.query(
       "INSERT INTO products (id_kategori, store_id, barcode, nama, harga, harga_modal, stok, url_gambar, deskripsi) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [finalCategory, storeId, barcode || null, finalName.trim(), finalPrice, finalCapitalPrice, finalStock, finalImage, finalDesc]
     );
+
+    // 2. LOGIKA ARUS KAS: Simpan biaya modal awal ke tabel stock_logs
+    if (stock_change !== undefined && reason) {
+      const adminId = req.user?.id || 0; 
+      await db.query(
+        "INSERT INTO stock_logs (id_produk, id_admin, jumlah_perubahan, alasan, biaya) VALUES (?, ?, ?, ?, ?)",
+        [result.insertId, adminId, stock_change, reason, cost || 0]
+      );
+    }
 
     res.status(201).json({
       success: true,
@@ -126,8 +199,34 @@ const createProduct = async (req, res) => {
 
 const updateProduct = async (req, res) => {
   const { id } = req.params;
-  const { category, id_kategori, name, nama, price, harga, capitalPrice, harga_modal, stock, stok, image, url_gambar, description, deskripsi, barcode } = req.body;
-  
+  // TAMBAHAN: Menangkap stock_change, reason, dan cost dari frontend
+  const {
+    category,
+    id_kategori,
+    name,
+    nama,
+    price,
+    harga,
+    capitalPrice,
+    harga_modal,
+    stock,
+    stok,
+    image,
+    url_gambar,
+    description,
+    deskripsi,
+    barcode,
+    stock_change,
+    reason,
+    cost,
+  } = req.body;
+
+  const storeId = getResolvedStoreId(req);
+  if (!storeId)
+    return res
+      .status(400)
+      .json({ success: false, message: "ID Toko (storeId) wajib disertakan" });
+
   const finalCategory = category || id_kategori;
   const finalName = name || nama;
   const finalPrice = price || harga;
@@ -137,35 +236,124 @@ const updateProduct = async (req, res) => {
   const finalDesc = description || deskripsi || null;
 
   try {
-    const [existing] = await db.query("SELECT id FROM products WHERE id = ?", [id]);
-    if (existing.length === 0) return res.status(404).json({ success: false, message: "Produk tidak ditemukan" });
+    const [existing] = await db.query("SELECT id FROM products WHERE id = ?", [
+      id,
+    ]);
+    if (existing.length === 0)
+      return res
+        .status(404)
+        .json({ success: false, message: "Produk tidak ditemukan" });
 
+    // 1. Update data produk utama
     await db.query(
       "UPDATE products SET id_kategori = ?, nama = ?, harga = ?, harga_modal = ?, stok = ?, url_gambar = ?, deskripsi = ?, barcode = ? WHERE id = ?",
-      [finalCategory, finalName.trim(), finalPrice, finalCapitalPrice, finalStock, finalImage, finalDesc, barcode || null, id]
+      [
+        finalCategory,
+        finalName.trim(),
+        finalPrice,
+        finalCapitalPrice,
+        finalStock,
+        finalImage,
+        finalDesc,
+        barcode || null,
+        id,
+      ],
     );
+
+    // 2. TAMBAHAN LOGIKA ARUS KAS: Jika ada penyesuaian stok, rekam ke tabel stock_logs
+    if (stock_change !== undefined && reason) {
+      // Ambil ID admin/owner yang sedang login dari token
+      const adminId = req.user?.id || 0;
+
+      await db.query(
+        "INSERT INTO stock_logs (id_produk, id_admin, jumlah_perubahan, alasan, biaya) VALUES (?, ?, ?, ?, ?)",
+        [id, adminId, stock_change, reason, cost || 0],
+      );
+    }
 
     res.status(200).json({
       success: true,
-      data: { id: Number(id), category: finalCategory, name: finalName.trim(), price: Number(finalPrice), capitalPrice: Number(finalCapitalPrice), stock: finalStock, image: finalImage, description: finalDesc, barcode },
+      data: {
+        id: Number(id),
+        category: finalCategory,
+        name: finalName.trim(),
+        price: Number(finalPrice),
+        capitalPrice: Number(finalCapitalPrice),
+        stock: finalStock,
+        image: finalImage,
+        description: finalDesc,
+        barcode,
+      },
       message: "Produk berhasil diperbarui",
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Gagal memperbarui produk", error: error.message });
+    res.status(500).json({
+      success: false,
+      message: "Gagal memperbarui produk",
+      error: error.message,
+    });
   }
 };
 
 const deleteProduct = async (req, res) => {
   const { id } = req.params;
   try {
-    const [existing] = await db.query("SELECT id FROM products WHERE id = ?", [id]);
-    if (existing.length === 0) return res.status(404).json({ success: false, message: "Produk tidak ditemukan" });
+    const [existing] = await db.query("SELECT id FROM products WHERE id = ?", [
+      id,
+    ]);
+    if (existing.length === 0)
+      return res
+        .status(404)
+        .json({ success: false, message: "Produk tidak ditemukan" });
 
     await db.query("DELETE FROM products WHERE id = ?", [id]);
     res.status(200).json({ success: true, message: "Produk berhasil dihapus" });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Gagal menghapus produk", error: error.message });
+    res.status(500).json({
+      success: false,
+      message: "Gagal menghapus produk",
+      error: error.message,
+    });
   }
 };
 
-module.exports = { getCategories, createCategory, deleteCategory, getProducts, createProduct, updateProduct, deleteProduct };
+// ================= RIWAYAT STOK & ARUS KAS =================
+const getStockLogs = async (req, res) => {
+  const storeId = getResolvedStoreId(req);
+  if (!storeId) return res.status(400).json({ success: false, message: "ID Toko wajib disertakan" });
+
+  try {
+    // PERBAIKAN: Menggunakan JOIN ke tabel products karena tabel log Anda tidak punya store_id
+    // Catatan: Jika nama tabel Anda pakai 's' (stock_logs), silakan tambahkan 's' di kata 'stock_log'
+    const [rows] = await db.query(
+      `SELECT 
+        l.id, 
+        l.id_produk, 
+        p.nama AS product_name, 
+        l.jumlah_perubahan, 
+        l.alasan, 
+        l.biaya, 
+        l.tanggal_dibuat 
+       FROM stock_logs l 
+       JOIN products p ON l.id_produk = p.id 
+       WHERE p.store_id = ? 
+       ORDER BY l.id DESC`, 
+      [storeId]
+    );
+    res.status(200).json({ success: true, data: rows });
+  } catch (error) {
+    console.error("Error getStockLogs:", error); // Menampilkan error di terminal backend jika masih gagal
+    res.status(500).json({ success: false, message: "Gagal mengambil riwayat stok", error: error.message });
+  }
+};
+
+module.exports = {
+  getCategories,
+  createCategory,
+  deleteCategory,
+  getProducts,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  getStockLogs
+};

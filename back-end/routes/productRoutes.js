@@ -8,6 +8,7 @@ const {
   createProduct,
   updateProduct,
   deleteProduct,
+  getStockLogs,
 } = require("../controllers/productController");
 const { verifyToken } = require("../middleware/authMiddleware");
 const {
@@ -16,20 +17,19 @@ const {
 } = require("../middleware/validation");
 
 // ================= PUBLIC ROUTES =================
-// Pelanggan atau pengunjung bebas melihat kategori dan katalog produk 
-// (Frontend akan mengirimkan query ?storeId=... agar produk yang tampil sesuai toko)
-
 router.get("/categories", getCategories);
 router.get("/", getProducts);
 
 // ================= PROTECTED ROUTES =================
-// Hanya pengguna (Admin) yang sudah login yang bisa menambah, mengubah, atau menghapus data
 
-// Rute Manajemen Kategori (Dilindungi)
+// Rute Manajemen Kategori
 router.post("/categories", verifyToken, validateCategory, createCategory);
 router.delete("/categories/:id", verifyToken, deleteCategory);
 
-// Rute Manajemen Produk (Dilindungi)
+// PERBAIKAN: Rute log stok HARUS DI ATAS rute /:id
+router.get("/stock-logs", verifyToken, getStockLogs);
+
+// Rute Manajemen Produk
 router.post("/", verifyToken, validateProduct, createProduct);
 router.put("/:id", verifyToken, validateProduct, updateProduct);
 router.delete("/:id", verifyToken, deleteProduct);

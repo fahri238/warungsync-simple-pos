@@ -110,10 +110,6 @@ const LoginPage = () => {
               </Link>
             </Button>
 
-            <div className="mb-8 lg:hidden">
-              <WarungSyncLogo size="md" />
-            </div>
-
             <div className="mb-8">
               <h2 className="font-display text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
                 Selamat datang kembali

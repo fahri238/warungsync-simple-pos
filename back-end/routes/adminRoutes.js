@@ -3,12 +3,11 @@ const router = express.Router();
 const { 
   getDashboardStatsFull,
   getStores, createStore, updateStore, deleteStore, toggleStoreStatus,
-  // Import controller pengguna baru
-  getUsers, createUser, updateUser, deleteUser, toggleUserStatus, getReports
+  getUsers, createUser, updateUser, deleteUser, toggleUserStatus, getReports,
+  getPendingOwners, manageOwnerStatus // IMPORT FUNGSI BARU
 } = require("../controllers/adminController");
 const { verifyToken } = require("../middleware/authMiddleware");
 
-// Rute Statistik & Toko (sudah ada)
 // ================= DASHBOARD ADMIN =================
 router.get("/stats-full", verifyToken, getDashboardStatsFull);
 router.get("/stores", verifyToken, getStores);
@@ -16,6 +15,10 @@ router.post("/stores", verifyToken, createStore);
 router.put("/stores/:id", verifyToken, updateStore);
 router.delete("/stores/:id", verifyToken, deleteStore);
 router.patch("/stores/:id/status", verifyToken, toggleStoreStatus);
+
+// ================= VERIFIKASI OWNER (KYC) BARU =================
+router.get("/pending-owners", verifyToken, getPendingOwners);
+router.put("/owner/:id/status", verifyToken, manageOwnerStatus);
 
 // ================= KELOLA PENGGUNA =================
 router.get("/users", verifyToken, getUsers);

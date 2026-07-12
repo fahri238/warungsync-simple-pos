@@ -19,6 +19,10 @@ import {
   ShieldAlert,
   Check,
   XCircle,
+  Eye,
+  IdCard,
+  Phone,
+  CarFront,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -55,6 +59,10 @@ const OwnerLayout = () => {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // STATE BARU: Untuk Modal Detail Kurir
+  const [selectedCourier, setSelectedCourier] = useState<any>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+
   useEffect(() => {
     if (session?.role === "owner") {
       fetchPendingCouriers();
@@ -83,12 +91,18 @@ const OwnerLayout = () => {
       toast.success(
         action === "approve" ? "Kurir disetujui!" : "Pendaftaran kurir ditolak",
       );
-      fetchPendingCouriers();
+      setIsDetailModalOpen(false); // Tutup modal jika sedang terbuka
+      fetchPendingCouriers(); // Refresh daftar
     } catch (error) {
       toast.error("Gagal memproses aksi");
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const openCourierDetail = (courier: any) => {
+    setSelectedCourier(courier);
+    setIsDetailModalOpen(true);
   };
 
   const handleLogout = () => {
@@ -163,6 +177,7 @@ const OwnerLayout = () => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-secondary/5">
+      {/* SIDEBAR ... (Kode Sidebar Tetap Sama) */}
       <aside
         className={cn(
           "hidden flex-col border-r border-border/50 bg-card/50 backdrop-blur-xl transition-all duration-300 md:flex z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]",
@@ -257,7 +272,6 @@ const OwnerLayout = () => {
           </div>
 
           <div className="ml-auto flex items-center gap-3">
-            {/* FITUR TOMBOL NOTIFIKASI KURIR */}
             <Button
               variant="ghost"
               size="icon"
@@ -271,9 +285,7 @@ const OwnerLayout = () => {
                 </span>
               )}
             </Button>
-
             <div className="h-6 w-px bg-border/80 hidden sm:block"></div>
-
             <Button
               variant="ghost"
               size="sm"
@@ -293,60 +305,156 @@ const OwnerLayout = () => {
         </main>
       </div>
 
-      {/* POP-UP NOTIFIKASI */}
+      {/* POP-UP NOTIFIKASI (DATA SINGKAT) */}
       <Dialog open={isNotifOpen} onOpenChange={setIsNotifOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5 text-primary" /> Notifikasi Toko
+              <Bell className="h-5 w-5 text-primary" /> Permintaan Kurir (
+              {pendingCouriers.length})
             </DialogTitle>
           </DialogHeader>
-          <div className="py-4 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
-            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              Permintaan Kurir ({pendingCouriers.length})
-            </h4>
+          <div className="py-2 space-y-3 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
             {pendingCouriers.length === 0 ? (
-              <p className="text-sm text-center text-muted-foreground py-8 border border-dashed rounded-xl">
-                Belum ada notifikasi baru.
-              </p>
+              <div className="text-center py-8">
+                <div className="h-12 w-12 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Check className="h-6 w-6 text-muted-foreground/50" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Belum ada pendaftaran kurir baru.
+                </p>
+              </div>
             ) : (
               pendingCouriers.map((kurir) => (
                 <div
                   key={kurir.id}
-                  className="border border-border/60 rounded-xl p-4 bg-muted/20 flex flex-col gap-3"
+                  className="border border-border/60 rounded-xl p-3 bg-card hover:bg-muted/30 transition-colors flex items-center justify-between gap-3 shadow-sm"
                 >
-                  <div>
-                    <p className="font-bold text-foreground">{kurir.nama}</p>
-                    <p className="text-xs text-muted-foreground">
-                      NIK: {kurir.nik} • {kurir.kontak}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm text-foreground truncate">
+                      {kurir.nama}
                     </p>
-                    <p className="text-xs text-muted-foreground font-mono mt-1 bg-primary/10 w-fit px-2 py-0.5 rounded">
-                      {kurir.tipe_kendaraan} ({kurir.plat_nomor})
+                    <p className="text-xs text-muted-foreground truncate flex items-center gap-1 mt-0.5">
+                      <CarFront className="h-3 w-3" /> {kurir.plat_nomor}
                     </p>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 border-destructive/30 text-destructive hover:bg-destructive/10"
-                      disabled={isProcessing}
-                      onClick={() => handleCourierAction(kurir.id, "reject")}
-                    >
-                      <XCircle className="h-4 w-4 mr-1.5" /> Tolak
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="flex-1 gap-1.5"
-                      disabled={isProcessing}
-                      onClick={() => handleCourierAction(kurir.id, "approve")}
-                    >
-                      <Check className="h-4 w-4" /> Terima Kurir
-                    </Button>
-                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 gap-1.5 border-primary/20 text-primary hover:bg-primary/10"
+                    onClick={() => openCourierDetail(kurir)}
+                  >
+                    <Eye className="h-3.5 w-3.5" /> Detail
+                  </Button>
                 </div>
               ))
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* POP-UP MODAL DETAIL KURIR & KTP */}
+      <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg">
+              Detail Verifikasi Kurir
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedCourier && (
+            <div className="space-y-6 py-4">
+              {/* Info Singkat */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
+                    Nama Lengkap
+                  </p>
+                  <p className="text-sm font-medium">{selectedCourier.nama}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
+                    Kontak
+                  </p>
+                  <p className="text-sm font-medium flex items-center gap-1.5">
+                    <Phone className="h-3.5 w-3.5 text-muted-foreground" />{" "}
+                    {selectedCourier.kontak}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
+                    Kendaraan
+                  </p>
+                  <p className="text-sm font-medium flex items-center gap-1.5">
+                    <CarFront className="h-3.5 w-3.5 text-muted-foreground" />{" "}
+                    {selectedCourier.tipe_kendaraan}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
+                    Plat Nomor
+                  </p>
+                  <p className="text-sm font-mono font-bold bg-muted px-2 py-0.5 rounded w-fit">
+                    {selectedCourier.plat_nomor}
+                  </p>
+                </div>
+              </div>
+
+              {/* Area KTP */}
+              <div className="border border-border/80 rounded-xl overflow-hidden">
+                <div className="bg-muted/50 p-3 border-b border-border/80 flex justify-between items-center">
+                  <p className="text-sm font-bold flex items-center gap-2">
+                    <IdCard className="h-4 w-4 text-primary" /> Foto KTP (KYC)
+                  </p>
+                  <p className="text-xs font-mono font-medium text-muted-foreground">
+                    NIK: {selectedCourier.nik}
+                  </p>
+                </div>
+                <div className="bg-black/5 p-4 flex justify-center">
+                  {selectedCourier.foto_ktp ? (
+                    <img
+                      // PERHATIAN: URL ini mengarah ke folder public/uploads/ktp di backend Anda
+                      src={`http://localhost:5000/uploads/ktp/${selectedCourier.foto_ktp}`}
+                      alt="Foto KTP Kurir"
+                      className="max-h-[250px] object-contain rounded-lg shadow-sm"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src =
+                          "https://placehold.co/600x400/eee/999?text=Gambar+Gagal+Dimuat";
+                      }}
+                    />
+                  ) : (
+                    <div className="py-12 flex flex-col items-center justify-center text-muted-foreground">
+                      <IdCard className="h-10 w-10 mb-2 opacity-20" />
+                      <p className="text-sm">Foto KTP tidak tersedia</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Tombol Aksi */}
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 border-destructive/30 text-destructive hover:bg-destructive/10 h-11"
+                  disabled={isProcessing}
+                  onClick={() =>
+                    handleCourierAction(selectedCourier.id, "reject")
+                  }
+                >
+                  <XCircle className="h-4 w-4 mr-2" /> Tolak Pendaftaran
+                </Button>
+                <Button
+                  className="flex-1 h-11"
+                  disabled={isProcessing}
+                  onClick={() =>
+                    handleCourierAction(selectedCourier.id, "approve")
+                  }
+                >
+                  <Check className="h-4 w-4 mr-2" /> Setujui Jadi Kurir
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

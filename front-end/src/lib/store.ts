@@ -33,10 +33,20 @@ function set<T>(key: string, value: T) {
 // ================= HELPER API FETCH =================
 export async function apiFetch(endpoint: string, options: RequestInit = {}) {
   const session = getSession();
+
+  // PERBAIKAN: Jangan hardcode Content-Type
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
     ...((options.headers as Record<string, string>) || {}),
   };
+
+  // Cek apakah data yang dikirim adalah FormData (File Upload)
+  const isFormData = options.body instanceof FormData;
+
+  // Jika BUKAN FormData, paksa gunakan JSON.
+  // Jika FormData, JANGAN set Content-Type, biarkan Browser yang mengaturnya.
+  if (!isFormData) {
+    headers["Content-Type"] = "application/json";
+  }
 
   if (session?.token) {
     headers["Authorization"] = `Bearer ${session.token}`;
@@ -46,6 +56,14 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
     ...options,
     headers,
   });
+
+  // Mencegah error "Unexpected token <" jika server nyasar ke halaman HTML
+  const contentType = response.headers.get("content-type");
+  if (!contentType || !contentType.includes("application/json")) {
+    throw new Error(
+      "Server gagal merespons dengan benar (Endpoint tidak ditemukan atau Error Server).",
+    );
+  }
 
   const data = await response.json();
   if (!response.ok) {
@@ -80,13 +98,16 @@ export function clearSession() {
   localStorage.removeItem(SESSION_KEY);
 }
 
-export async function login(email: string, password: string): Promise<User | string> {
+export async function login(
+  email: string,
+  password: string,
+): Promise<User | string> {
   try {
     const res = await apiFetch("/users/login", {
       method: "POST",
       body: JSON.stringify({ email, kata_sandi: password }),
     });
-    
+
     const sessionData = { ...res.data.user, token: res.data.token };
     setSession(sessionData);
     return sessionData;
@@ -102,7 +123,7 @@ export async function register(
   phone: string,
   role: "customer" | "courier" | "admin" | "owner" = "customer",
   address?: string,
-  storeId?: string | null
+  storeId?: string | null,
 ): Promise<User | string> {
   try {
     const res = await apiFetch("/users/register", {
@@ -123,15 +144,17 @@ export async function register(
   }
 }
 
-export async function updateProfile(
-  updates: { nama?: string; kontak?: string; alamat?: string }
-): Promise<User | string> {
+export async function updateProfile(updates: {
+  nama?: string;
+  kontak?: string;
+  alamat?: string;
+}): Promise<User | string> {
   try {
     const res = await apiFetch("/users/profile", {
       method: "PUT",
       body: JSON.stringify(updates),
     });
-    
+
     const current = getSession();
     if (current) setSession({ ...current, ...res.data });
     return res.data;
@@ -147,7 +170,7 @@ function migrateLegacyCart(): CartByStore {
   const legacy = get<OrderItem[]>(CART_KEY, []);
   const byStore = get<CartByStore>(CART_BY_STORE_KEY, {});
   if (legacy.length > 0 && Object.keys(byStore).length === 0) {
-    byStore["store-mama-eva"] = legacy; 
+    byStore["store-mama-eva"] = legacy;
     set(CART_BY_STORE_KEY, byStore);
     localStorage.removeItem(CART_KEY);
   }
@@ -177,7 +200,10 @@ export function clearOtherStoreCarts(activeStoreId: string) {
 }
 
 export function calculateTotal(items: OrderItem[]): number {
-  return items.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  return items.reduce(
+    (sum, item) => sum + item.product.price * item.quantity,
+    0,
+  );
 }
 
 export function getSubtotal(item: OrderItem): number {
@@ -201,7 +227,9 @@ export async function getProductsFromAPI(storeId?: string): Promise<Product[]> {
   }
 }
 
-export async function getCategoriesFromAPI(storeId?: string): Promise<Category[]> {
+export async function getCategoriesFromAPI(
+  storeId?: string,
+): Promise<Category[]> {
   if (!storeId) return [];
   try {
     const res = await apiFetch(`/products/categories?storeId=${storeId}`);
@@ -213,7 +241,9 @@ export async function getCategoriesFromAPI(storeId?: string): Promise<Category[]
 }
 
 export function updateStock(items: OrderItem[]): boolean {
-  console.log("Pengurangan stok diserahkan sepenuhnya ke Backend (Order Controller)");
+  console.log(
+    "Pengurangan stok diserahkan sepenuhnya ke Backend (Order Controller)",
+  );
   return true;
 }
 
@@ -222,16 +252,15 @@ export function updateStock(items: OrderItem[]): boolean {
 // ==========================================================
 
 export const addProductToAPI = async (productData: any) => {
-  const session = getSession(); 
-  
-  // PERBAIKAN: Ubah menjadi String agar validasi middleware lolos
+  const session = getSession();
+
   const categoryIdStr = String(productData.category);
 
   const payload = {
     ...productData,
     id_kategori: categoryIdStr,
     kategori: categoryIdStr,
-    category: categoryIdStr, 
+    category: categoryIdStr,
     nama: productData.name,
     harga: Number(productData.price),
     harga_modal: Number(productData.capitalPrice || 0),
@@ -249,10 +278,12 @@ export const addProductToAPI = async (productData: any) => {
   });
 };
 
-export const updateProductInAPI = async (id: string | number, productData: any) => {
+export const updateProductInAPI = async (
+  id: string | number,
+  productData: any,
+) => {
   const session = getSession();
-  
-  // PERBAIKAN: Ubah menjadi String agar validasi middleware lolos
+
   const categoryIdStr = String(productData.category);
 
   const payload = {
@@ -285,18 +316,18 @@ export const deleteProductFromAPI = async (id: string | number) => {
 
 export const addCategoryToAPI = async (categoryData: { name: string }) => {
   const session = getSession();
-  return await apiFetch("/products/categories", { // PERBAIKAN: Menyesuaikan route endpoint
+  return await apiFetch("/products/categories", {
     method: "POST",
     body: JSON.stringify({
-        ...categoryData,
-        storeId: session?.store_id,
-        store_id: session?.store_id
+      ...categoryData,
+      storeId: session?.store_id,
+      store_id: session?.store_id,
     }),
   });
 };
 
 export const deleteCategoryFromAPI = async (id: string | number) => {
-  return await apiFetch(`/products/categories/${id}`, { // PERBAIKAN: Menyesuaikan route endpoint
+  return await apiFetch(`/products/categories/${id}`, {
     method: "DELETE",
   });
 };
@@ -315,5 +346,8 @@ export const getDeliverySettings = () => {
 };
 
 export const saveDeliverySettings = (settings: { enabled: boolean }) => {
-  localStorage.setItem("warungsync_delivery_settings", JSON.stringify(settings));
+  localStorage.setItem(
+    "warungsync_delivery_settings",
+    JSON.stringify(settings),
+  );
 };

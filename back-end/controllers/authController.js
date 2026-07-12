@@ -8,70 +8,42 @@ const JWT_EXPIRY = "24h";
 
 // ================= REGISTER =================
 const register = async (req, res) => {
+  // PERBAIKAN: Menerima data dari req.body (teks) dan req.file (gambar KTP dari multer)
   const {
-    nama,
-    email,
-    kata_sandi,
-    kontak,
-    peran = "pelanggan",
-    alamat,
-    store_id = null,
-    nama_toko = null,
-    nik = null,
-    tipe_kendaraan = null,
-    plat_nomor = null,
-    latitude = null,
-    longitude = null,
+    nama, email, kata_sandi, kontak, peran = "pelanggan",
+    alamat, store_id = null, nama_toko = null,
+    nik = null, tipe_kendaraan = null, plat_nomor = null,
+    latitude = null, longitude = null,
   } = req.body;
 
   let connection;
 
   try {
     if (!nama || !email || !kata_sandi || !kontak) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Semua field wajib diisi (nama, email, kata sandi, kontak)",
-        });
+      return res.status(400).json({ success: false, message: "Semua field wajib diisi (nama, email, kata sandi, kontak)" });
     }
 
-    const [existingUser] = await db.query(
-      "SELECT id FROM users WHERE email = ?",
-      [email],
-    );
-    if (existingUser.length > 0)
-      return res
-        .status(409)
-        .json({ success: false, message: "Email sudah terdaftar" });
+    const [existingUser] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
+    if (existingUser.length > 0) return res.status(409).json({ success: false, message: "Email sudah terdaftar" });
 
     const validRoles = ["admin", "owner", "pelanggan", "kurir"];
-    if (!validRoles.includes(peran)) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Peran tidak valid" });
-    }
+    if (!validRoles.includes(peran)) return res.status(400).json({ success: false, message: "Peran tidak valid" });
 
-    if (peran === "kurir" && !store_id) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Kurir wajib mencantumkan ID Toko" });
-    }
-    if (peran === "owner" && !nama_toko) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Pemilik Toko wajib mencantumkan nama_toko",
-        });
+    if (peran === "kurir" && !store_id) return res.status(400).json({ success: false, message: "Kurir wajib mencantumkan ID Toko" });
+    if (peran === "owner" && !nama_toko) return res.status(400).json({ success: false, message: "Pemilik Toko wajib mencantumkan nama_toko" });
+
+    // Validasi Wajib KTP untuk Kurir dan Owner
+    const fotoKtp = req.file ? req.file.filename : null;
+    if ((peran === "kurir" || peran === "owner") && !fotoKtp) {
+      return res.status(400).json({ success: false, message: "Foto KTP wajib diunggah untuk verifikasi!" });
     }
 
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(kata_sandi, saltRounds);
     let finalStoreId = store_id;
 
-    // FITUR BARU: Kurir baru otomatis belum disetujui (0), role lain otomatis disetujui (1)
-    const isApproved = peran === "kurir" ? 0 : 1;
+    // PERBAIKAN REVISI: Kurir DAN Owner baru otomatis belum disetujui (0)
+    const isApproved = (peran === "kurir" || peran === "owner") ? 0 : 1;
 
     connection = await db.getConnection();
     await connection.beginTransaction();
@@ -84,28 +56,16 @@ const register = async (req, res) => {
       finalStoreId = storeResult.insertId;
     }
 
+    // PERBAIKAN: Menambahkan foto_ktp ke dalam query insert
     const [result] = await connection.query(
-      "INSERT INTO users (store_id, nama, email, kata_sandi, kontak, peran, alamat, nik, tipe_kendaraan, plat_nomor, is_approved) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      [
-        finalStoreId,
-        nama,
-        email,
-        hashedPassword,
-        kontak,
-        peran,
-        alamat || null,
-        nik,
-        tipe_kendaraan,
-        plat_nomor,
-        isApproved,
-      ],
+      "INSERT INTO users (store_id, nama, email, kata_sandi, kontak, peran, alamat, nik, tipe_kendaraan, plat_nomor, is_approved, foto_ktp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      [finalStoreId, nama, email, hashedPassword, kontak, peran, alamat || null, nik, tipe_kendaraan, plat_nomor, isApproved, fotoKtp],
     );
 
     if (peran === "owner") {
-      // Menggunakan 'admin' pada kolom role agar ditarik oleh dashboard Admin
       await connection.query(
         "INSERT INTO notifications (user_id, role, title, message, is_read) VALUES (NULL, 'admin', 'Toko Mitra Baru', ?, 0)",
-        [`${nama} baru saja mendaftarkan warungnya: ${nama_toko}.`]
+        [`${nama} mendaftarkan toko ${nama_toko}. Menunggu verifikasi KTP Anda!`]
       );
     }
 
@@ -114,31 +74,14 @@ const register = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message:
-        peran === "kurir"
-          ? "Registrasi berhasil! Menunggu persetujuan dari Pemilik Toko."
+      message: (peran === "kurir" || peran === "owner")
+          ? "Registrasi berhasil! Akun Anda sedang menunggu proses verifikasi identitas (KTP)."
           : "Registrasi berhasil. Silakan login.",
-      data: {
-        id: result.insertId,
-        nama,
-        email,
-        peran,
-        store_id: finalStoreId,
-      },
+      data: { id: result.insertId, nama, email, peran, store_id: finalStoreId },
     });
   } catch (error) {
-    if (connection) {
-      await connection.rollback();
-      connection.release();
-    }
-    console.error("Error registering user:", error);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Gagal mendaftar pengguna",
-        error: error.message,
-      });
+    if (connection) { await connection.rollback(); connection.release(); }
+    res.status(500).json({ success: false, message: "Gagal mendaftar pengguna", error: error.message });
   }
 };
 
@@ -186,7 +129,7 @@ const login = async (req, res) => {
         .json({
           success: false,
           message:
-            "Akun Anda belum disetujui oleh Pemilik Toko. Harap tunggu atau hubungi admin.",
+            "Akun Anda belum disetujui, Harap tunggu.",
         });
     }
 
@@ -230,7 +173,8 @@ const getPendingCouriers = async (req, res) => {
   try {
     const storeId = req.user.store_id;
     const [rows] = await db.query(
-      "SELECT id, nama, email, kontak, nik, tipe_kendaraan, plat_nomor FROM users WHERE peran = 'kurir' AND store_id = ? AND is_approved = 0 ORDER BY id DESC",
+      // PERBAIKAN: Menambahkan kolom foto_ktp di dalam perintah SELECT
+      "SELECT id, nama, email, kontak, nik, tipe_kendaraan, plat_nomor, foto_ktp FROM users WHERE peran = 'kurir' AND store_id = ? AND is_approved = 0 ORDER BY id DESC",
       [storeId],
     );
     res.status(200).json({ success: true, data: rows });

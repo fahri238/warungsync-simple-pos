@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const db = require('./config/db');
+const path = require("path")
 
 dotenv.config();
 
@@ -24,6 +25,7 @@ app.use('/api/deliveries', deliveryRoutes);
 app.use('/api/stores', storeRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/notifications", require("./routes/notificationRoutes"));
+app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
 
 // Route Test Koneksi
 app.get('/', async (req, res) => {

@@ -14,14 +14,26 @@ import {
   Bell,
   ShieldCheck,
   ShieldAlert,
-  Search,
   Check,
   UserCog,
-  Sparkles
+  Sparkles,
+  UserCheck,
+  Eye,
+  IdCard,
+  MapPin,
+  XCircle,
+  Phone
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 const navItems = [
   { to: "/admin", icon: LayoutDashboard, label: "Dashboard Pusat" },
@@ -30,15 +42,21 @@ const navItems = [
   { to: "/admin/reports", icon: BarChart3, label: "Laporan Global" },
 ];
 
-
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   
-  // State untuk Notifikasi
+  // State untuk Notifikasi Umum
   const [showNotif, setShowNotif] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const notifRef = useRef<HTMLDivElement>(null);
+
+  // STATE BARU: Notifikasi Verifikasi Owner (KYC)
+  const [pendingOwners, setPendingOwners] = useState<any[]>([]);
+  const [isVerifOpen, setIsVerifOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedOwner, setSelectedOwner] = useState<any>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   const session = getSession();
   const location = useLocation();
@@ -57,28 +75,29 @@ const AdminLayout = () => {
 
   const unreadCount = notifications.filter(n => n.unread).length;
 
-
-  // Menutup dropdown notif jika klik di luar area
- // Ambil data notifikasi dari API
   useEffect(() => {
-    const fetchNotifs = async () => {
+    const fetchNotifsAndPending = async () => {
       try {
-        const res = await apiFetch("/notifications");
-        if (res.success && res.data) {
-          setNotifications(res.data);
+        // Ambil notifikasi umum
+        const resNotif = await apiFetch("/notifications");
+        if (resNotif.success && resNotif.data) {
+          setNotifications(resNotif.data);
+        }
+        
+        // Ambil pending owner untuk diverifikasi
+        const resPending = await apiFetch("/admin/pending-owners");
+        if (resPending.success && resPending.data) {
+          setPendingOwners(resPending.data);
         }
       } catch (error) {
-        console.error("Gagal muat notif", error);
+        console.error("Gagal muat data admin", error);
       }
     };
-    fetchNotifs();
-    
-    // Opsional: Refresh notif setiap 30 detik agar real-time
-    const interval = setInterval(fetchNotifs, 30000); 
+    fetchNotifsAndPending();
+    const interval = setInterval(fetchNotifsAndPending, 30000); 
     return () => clearInterval(interval);
   }, []);
 
-  // Fungsi tandai dibaca ke Database
   const markAllAsRead = async () => {
     try {
       await apiFetch("/notifications/mark-read", { method: "PUT" });
@@ -88,12 +107,35 @@ const AdminLayout = () => {
     }
   };
 
-  // Helper untuk mengubah format waktu menjadi "5 menit lalu"
+  const handleOwnerAction = async (id: number, action: "approve" | "reject") => {
+    try {
+      setIsProcessing(true);
+      await apiFetch(`/admin/owner/${id}/status`, {
+        method: "PUT",
+        body: JSON.stringify({ action }),
+      });
+      toast.success(action === "approve" ? "Owner & Toko disetujui!" : "Pendaftaran ditolak");
+      setIsDetailModalOpen(false);
+      
+      // Refresh list
+      const resPending = await apiFetch("/admin/pending-owners");
+      if (resPending.success && resPending.data) setPendingOwners(resPending.data);
+    } catch (error) {
+      toast.error("Gagal memproses aksi");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const openOwnerDetail = (owner: any) => {
+    setSelectedOwner(owner);
+    setIsDetailModalOpen(true);
+  };
+
   const timeAgo = (dateString: string) => {
     const now = new Date();
     const past = new Date(dateString);
     const diffInMinutes = Math.floor((now.getTime() - past.getTime()) / 60000);
-    
     if (diffInMinutes < 1) return "Baru saja";
     if (diffInMinutes < 60) return `${diffInMinutes} mnt lalu`;
     if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} jam lalu`;
@@ -104,10 +146,7 @@ const AdminLayout = () => {
     <nav className="flex flex-col gap-2 px-4 py-6">
       <div className="mb-2 px-2 text-xs font-black uppercase tracking-widest text-primary/70 flex items-center gap-2">
         {(sidebarOpen || mobileOpen) && (
-           <>
-             <Sparkles className="h-3.5 w-3.5" />
-             Menu Operasional
-           </>
+           <><Sparkles className="h-3.5 w-3.5" />Menu Operasional</>
         )}
       </div>
       {navItems.map((item) => (
@@ -129,21 +168,15 @@ const AdminLayout = () => {
             <item.icon className={cn("h-4 w-4 shrink-0 transition-transform duration-300", isActive(item.to) ? "scale-110" : "group-hover:scale-110")} />
           </div>
           {(sidebarOpen || mobileOpen) && <span>{item.label}</span>}
-          
-          {/* Indikator aktif di pinggir */}
-          {isActive(item.to) && (
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
-          )}
+          {isActive(item.to) && <div className="absolute right-2 top-1/2 -translate-y-1/2 h-1.5 w-1.5 rounded-full bg-white animate-pulse" />}
         </Link>
       ))}
     </nav>
   );
 
-  // PROTEKSI: HANYA UNTUK SUPER ADMIN
   if (!session || session.role !== "admin") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-900 px-4 animate-in fade-in zoom-in duration-500 relative overflow-hidden">
-        {/* Background Hiasan Login/Ditolak */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-red-500/20 rounded-full blur-[120px] pointer-events-none"></div>
         <Card className="w-full max-w-sm text-center shadow-2xl border-0 rounded-[2rem] overflow-hidden relative z-10 bg-slate-950/80 backdrop-blur-xl border-slate-800">
           <div className="h-2 bg-gradient-to-r from-red-600 to-rose-500 w-full absolute top-0 left-0"></div>
@@ -152,9 +185,7 @@ const AdminLayout = () => {
               <ShieldAlert className="h-12 w-12 text-red-500" />
             </div>
             <h2 className="text-2xl font-black tracking-tight mb-2 text-white">Akses Ditolak</h2>
-            <p className="mb-8 text-slate-400 text-sm px-4">
-              Area ini dijaga ketat dan khusus untuk Pemilik Sistem (Super Admin).
-            </p>
+            <p className="mb-8 text-slate-400 text-sm px-4">Area ini dijaga ketat dan khusus untuk Pemilik Sistem (Super Admin).</p>
             <Button asChild className="w-full rounded-xl h-14 text-base font-bold shadow-lg shadow-red-500/20 bg-red-600 hover:bg-red-700 text-white">
               <Link to="/login">Kembali ke Portal Login</Link>
             </Button>
@@ -166,16 +197,10 @@ const AdminLayout = () => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 relative">
-      {/* Background Pattern Grid (Efek Rame) */}
       <div className="absolute inset-0 z-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
 
-      {/* Desktop Sidebar */}
-      <aside
-        className={cn(
-          "hidden flex-col border-r border-border/60 bg-card/80 backdrop-blur-xl transition-all duration-300 md:flex z-20 shadow-[8px_0_30px_rgba(0,0,0,0.03)] relative",
-          sidebarOpen ? "w-72" : "w-24",
-        )}
-      >
+      {/* Sidebar Desktop & Mobile (Sama seperti sebelumnya) */}
+      <aside className={cn("hidden flex-col border-r border-border/60 bg-card/80 backdrop-blur-xl transition-all duration-300 md:flex z-20 shadow-[8px_0_30px_rgba(0,0,0,0.03)] relative", sidebarOpen ? "w-72" : "w-24")}>
         <div className="flex h-20 shrink-0 items-center justify-center border-b border-border/60 px-4 bg-gradient-to-b from-primary/10 to-transparent">
           <div className={cn("flex items-center gap-3", !sidebarOpen && "justify-center")}>
             <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30 shrink-0">
@@ -189,12 +214,7 @@ const AdminLayout = () => {
             )}
           </div>
         </div>
-
-        <div className="flex-1 overflow-y-auto custom-scrollbar">
-          <NavContent />
-        </div>
-
-        {/* Profil Admin Bottom Sidebar */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar"><NavContent /></div>
         <div className="border-t border-border/60 p-4 bg-muted/30">
           {sidebarOpen ? (
             <div className="flex items-center gap-3 mb-4 p-3 rounded-xl bg-background border border-border/50 shadow-sm">
@@ -208,43 +228,28 @@ const AdminLayout = () => {
             </div>
           ) : (
             <div className="flex justify-center mb-4">
-              <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                <UserCog className="h-5 w-5 text-primary" />
-              </div>
+              <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0"><UserCog className="h-5 w-5 text-primary" /></div>
             </div>
           )}
-
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="flex w-full items-center justify-center rounded-xl py-2.5 bg-background border border-border/50 text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-all duration-300 shadow-sm"
-          >
+          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="flex w-full items-center justify-center rounded-xl py-2.5 bg-background border border-border/50 text-muted-foreground hover:bg-primary hover:text-primary-foreground transition-all duration-300 shadow-sm">
             <ChevronLeft className={cn("h-4 w-4 transition-transform duration-300", !sidebarOpen && "rotate-180")} />
             {sidebarOpen && <span className="ml-2 text-sm font-semibold">Perkecil Menu</span>}
           </button>
         </div>
       </aside>
 
-      {/* Mobile Sidebar */}
       {mobileOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-background/80 backdrop-blur-sm animate-in fade-in" onClick={() => setMobileOpen(false)} />
           <aside className="absolute left-0 top-0 h-full w-72 bg-card border-r border-border shadow-2xl flex flex-col animate-in slide-in-from-left duration-300">
             <div className="flex items-center justify-between border-b border-border/60 px-6 py-5 bg-primary/5">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30">
-                  <ShieldCheck className="h-6 w-6 text-primary-foreground" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-black text-lg tracking-tight leading-none uppercase">WarungSync</span>
-                </div>
+                <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/30"><ShieldCheck className="h-6 w-6 text-primary-foreground" /></div>
+                <div className="flex flex-col"><span className="font-black text-lg tracking-tight leading-none uppercase">WarungSync</span></div>
               </div>
-              <button onClick={() => setMobileOpen(false)} className="rounded-full p-2 bg-background border shadow-sm hover:bg-destructive/10 hover:text-destructive transition-colors">
-                <X className="h-5 w-5" />
-              </button>
+              <button onClick={() => setMobileOpen(false)} className="rounded-full p-2 bg-background border shadow-sm hover:bg-destructive/10 hover:text-destructive transition-colors"><X className="h-5 w-5" /></button>
             </div>
-            <div className="flex-1 overflow-y-auto">
-              <NavContent />
-            </div>
+            <div className="flex-1 overflow-y-auto"><NavContent /></div>
           </aside>
         </div>
       )}
@@ -252,19 +257,31 @@ const AdminLayout = () => {
       {/* Main Content Area */}
       <div className="flex flex-1 flex-col overflow-hidden z-10 relative">
         <header className="sticky top-0 z-30 flex h-20 shrink-0 items-center gap-4 border-b border-border/60 bg-card/70 backdrop-blur-xl px-4 md:px-8 shadow-[0_4px_24px_rgba(0,0,0,0.02)]">
-          <Button variant="outline" size="icon" className="md:hidden rounded-xl shadow-sm bg-background/50" onClick={() => setMobileOpen(true)}>
-            <Menu className="h-5 w-5" />
-          </Button>
+          <Button variant="outline" size="icon" className="md:hidden rounded-xl shadow-sm bg-background/50" onClick={() => setMobileOpen(true)}><Menu className="h-5 w-5" /></Button>
 
           <div className="flex flex-col hidden sm:flex">
-            <h1 className="text-xl font-black text-foreground tracking-tight">
-              {navItems.find((n) => isActive(n.to))?.label || "Pusat Kontrol"}
-            </h1>
+            <h1 className="text-xl font-black text-foreground tracking-tight">{navItems.find((n) => isActive(n.to))?.label || "Pusat Kontrol"}</h1>
             <p className="text-xs font-medium text-muted-foreground">Monitoring ekosistem terpadu</p>
           </div>
 
-          <div className="ml-auto flex items-center gap-3 sm:gap-5">
-            {/* Notification Bell with Functional Dropdown */}
+          <div className="ml-auto flex items-center gap-3 sm:gap-4">
+            
+            {/* TOMBOL BARU: VERIFIKASI OWNER (KYC) */}
+            <Button 
+              variant="outline" 
+              size="icon" 
+              className={cn("rounded-full relative border-border/60 bg-primary/5 hover:bg-primary/10 shadow-sm transition-all")}
+              onClick={() => setIsVerifOpen(true)}
+            >
+              <UserCheck className="h-5 w-5 text-primary" />
+              {pendingOwners.length > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-white border border-card shadow-sm">
+                  {pendingOwners.length}
+                </span>
+              )}
+            </Button>
+
+            {/* Notification Bell Umum */}
             <div className="relative" ref={notifRef}>
               <Button 
                 variant="outline" 
@@ -276,33 +293,23 @@ const AdminLayout = () => {
                 {unreadCount > 0 && (
                   <span className="absolute top-0 right-0 flex h-3.5 w-3.5 -mt-1 -mr-1">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-primary border-2 border-background text-[8px] font-bold text-white items-center justify-center">
-                      {unreadCount}
-                    </span>
+                    <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-primary border-2 border-background text-[8px] font-bold text-white items-center justify-center">{unreadCount}</span>
                   </span>
                 )}
               </Button>
 
-              {/* Popover Notifikasi */}
               {showNotif && (
                 <div className="absolute right-0 mt-3 w-80 md:w-96 rounded-2xl border border-border/60 bg-card/95 backdrop-blur-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 z-50">
                   <div className="flex items-center justify-between px-4 py-3 border-b border-border/60 bg-muted/30">
                     <h3 className="font-bold text-sm">Notifikasi Sistem</h3>
-                    {unreadCount > 0 && (
-                      <button onClick={markAllAsRead} className="text-xs font-semibold text-primary hover:underline flex items-center gap-1">
-                        <Check className="h-3 w-3" /> Tandai dibaca
-                      </button>
-                    )}
+                    {unreadCount > 0 && <button onClick={markAllAsRead} className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"><Check className="h-3 w-3" /> Tandai dibaca</button>}
                   </div>
                   <div className="max-h-80 overflow-y-auto custom-scrollbar p-2 flex flex-col gap-1">
                     {notifications.length === 0 ? (
                       <div className="p-6 text-center text-sm text-muted-foreground">Tidak ada notifikasi baru.</div>
                     ) : (
                       notifications.map((notif) => (
-                        <div key={notif.id} className={cn(
-                          "flex gap-3 p-3 rounded-xl transition-colors cursor-pointer",
-                          notif.unread ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted"
-                        )}>
+                        <div key={notif.id} className={cn("flex gap-3 p-3 rounded-xl transition-colors cursor-pointer", notif.unread ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted")}>
                           <div className={cn("mt-1 h-2 w-2 rounded-full shrink-0", notif.unread ? "bg-primary" : "bg-transparent")} />
                           <div className="flex-1 space-y-1">
                             <p className={cn("text-sm font-semibold", notif.unread ? "text-foreground" : "text-muted-foreground")}>{notif.title}</p>
@@ -318,7 +325,6 @@ const AdminLayout = () => {
             </div>
 
             <div className="h-8 w-px bg-border/60 hidden sm:block"></div>
-            
             <Button variant="destructive" size="sm" className="gap-2 rounded-xl h-10 shadow-lg shadow-destructive/20 font-bold" onClick={handleLogout}>
               <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Logout</span>
             </Button>
@@ -326,14 +332,109 @@ const AdminLayout = () => {
         </header>
 
         <main className="flex-1 overflow-y-auto p-4 md:p-8 relative">
-          {/* Aksen Glow Kiri Atas Area Konten */}
           <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px] pointer-events-none z-0"></div>
-          
-          <div className="mx-auto w-full max-w-7xl relative z-10">
-            <Outlet />
-          </div>
+          <div className="mx-auto w-full max-w-7xl relative z-10"><Outlet /></div>
         </main>
       </div>
+
+      {/* POP-UP DATA SINGKAT VERIFIKASI OWNER */}
+      <Dialog open={isVerifOpen} onOpenChange={setIsVerifOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserCheck className="h-5 w-5 text-primary" /> Verifikasi Toko Baru ({pendingOwners.length})
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-2 space-y-3 max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
+            {pendingOwners.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="h-12 w-12 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Check className="h-6 w-6 text-muted-foreground/50" />
+                </div>
+                <p className="text-sm text-muted-foreground">Tidak ada antrean pendaftaran toko.</p>
+              </div>
+            ) : (
+              pendingOwners.map((owner) => (
+                <div key={owner.id} className="border border-border/60 rounded-xl p-3 bg-card hover:bg-muted/30 transition-colors flex items-center justify-between gap-3 shadow-sm">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm text-foreground truncate">{owner.nama_toko}</p>
+                    <p className="text-xs text-muted-foreground truncate flex items-center gap-1 mt-0.5">
+                      <UserCog className="h-3 w-3" /> Oleh: {owner.nama}
+                    </p>
+                  </div>
+                  <Button size="sm" variant="outline" className="h-8 gap-1.5 border-primary/20 text-primary hover:bg-primary/10" onClick={() => openOwnerDetail(owner)}>
+                    <Eye className="h-3.5 w-3.5" /> Periksa
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* POP-UP DETAIL KTP OWNER */}
+      <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg">Detail KYC Pemilik Toko</DialogTitle>
+          </DialogHeader>
+          
+          {selectedOwner && (
+            <div className="space-y-6 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Nama Pemilik</p>
+                  <p className="text-sm font-medium">{selectedOwner.nama}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Kontak</p>
+                  <p className="text-sm font-medium flex items-center gap-1.5"><Phone className="h-3.5 w-3.5 text-muted-foreground"/> {selectedOwner.kontak}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Nama Toko Terdaftar</p>
+                  <p className="text-sm font-medium flex items-center gap-1.5"><Store className="h-3.5 w-3.5 text-primary"/> {selectedOwner.nama_toko}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Alamat Toko</p>
+                  <p className="text-sm font-medium flex items-start gap-1.5 line-clamp-2"><MapPin className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0"/> {selectedOwner.alamat_toko}</p>
+                </div>
+              </div>
+
+              <div className="border border-border/80 rounded-xl overflow-hidden">
+                <div className="bg-muted/50 p-3 border-b border-border/80 flex justify-between items-center">
+                  <p className="text-sm font-bold flex items-center gap-2"><IdCard className="h-4 w-4 text-primary"/> Dokumen KTP</p>
+                </div>
+                <div className="bg-black/5 p-4 flex justify-center">
+                  {selectedOwner.foto_ktp ? (
+                    <img 
+                      src={`http://localhost:5000/uploads/ktp/${selectedOwner.foto_ktp}`} 
+                      alt="Foto KTP Owner" 
+                      className="max-h-[250px] object-contain rounded-lg shadow-sm"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://placehold.co/600x400/eee/999?text=Gambar+Gagal+Dimuat';
+                      }}
+                    />
+                  ) : (
+                    <div className="py-12 flex flex-col items-center justify-center text-muted-foreground">
+                      <IdCard className="h-10 w-10 mb-2 opacity-20" />
+                      <p className="text-sm">Foto KTP tidak diunggah</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button variant="outline" className="flex-1 border-destructive/30 text-destructive hover:bg-destructive/10 h-11" disabled={isProcessing} onClick={() => handleOwnerAction(selectedOwner.id, "reject")}>
+                  <XCircle className="h-4 w-4 mr-2" /> Tolak & Hapus
+                </Button>
+                <Button className="flex-1 h-11" disabled={isProcessing} onClick={() => handleOwnerAction(selectedOwner.id, "approve")}>
+                  <Check className="h-4 w-4 mr-2" /> Setujui Toko
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

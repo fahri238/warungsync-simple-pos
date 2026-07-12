@@ -31,7 +31,7 @@ import {
   CarFront
 } from "lucide-react";
 import { toast } from "sonner";
-import { apiFetch } from "@/lib/store"; // Ditambahkan untuk fetch data toko
+import { apiFetch } from "@/lib/store";
 
 const highlights = [
   {
@@ -73,11 +73,14 @@ const RegisterPage = () => {
   const [nik, setNik] = useState("");
   const [vehicleType, setVehicleType] = useState("");
   const [vehiclePlate, setVehiclePlate] = useState("");
-  const [selectedStore, setSelectedStore] = useState(""); // State baru untuk pilihan toko kurir
+  const [selectedStore, setSelectedStore] = useState("");
   const [availableStores, setAvailableStores] = useState<{id: number, name: string}[]>([]);
 
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
+
+  // STATE BARU: Untuk menyimpan file KTP
+  const [ktpFile, setKtpFile] = useState<File | null>(null);
 
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -86,7 +89,6 @@ const RegisterPage = () => {
     // Fetch daftar toko untuk kurir
     const fetchStores = async () => {
       try {
-        // Kita akan membuat endpoint ini di backend pada tahap selanjutnya
         const res = await apiFetch("/stores/list");
         if (res.data) setAvailableStores(res.data);
       } catch (e) {
@@ -121,6 +123,7 @@ const RegisterPage = () => {
       if (parsed.vehicleType) setVehicleType(parsed.vehicleType);
       if (parsed.vehiclePlate) setVehiclePlate(parsed.vehiclePlate);
       if (parsed.selectedStore) setSelectedStore(parsed.selectedStore);
+      // Catatan: File KTP (ktpFile) sengaja tidak di-cache demi keamanan browser
     }
   }, [location.state]);
 
@@ -173,6 +176,12 @@ const RegisterPage = () => {
       return;
     }
 
+    // VALIDASI BARU: Wajib Upload KTP untuk Kurir dan Owner
+    if ((role === "courier" || role === "store-owner") && !ktpFile) {
+      toast.error("Anda wajib mengunggah foto KTP untuk keperluan verifikasi!");
+      return;
+    }
+
     try {
       setSubmitting(true);
       
@@ -185,48 +194,52 @@ const RegisterPage = () => {
         finalAddress = `${storeName} - ${storeAddress}`;
       }
 
-      // LOGIKA BARU UNTUK STORE ID
-      let finalStoreId = null;
+      let finalStoreId = "";
       if (mappedRole === "kurir") {
-        finalStoreId = Number(selectedStore); // Kurir mengirimkan ID toko yang dipilih
+        finalStoreId = selectedStore;
       }
-      // Owner mengirim finalStoreId = null agar backend membuatkannya secara otomatis
 
-      const payload: any = {
-        name: name,
-        email: email,
-        password: password,
-        phone: phone,
-        role: mappedRole,
-        address: finalAddress,
-        
-        nama: name,
-        kata_sandi: password,
-        kontak: phone,
-        peran: mappedRole,
-        alamat: finalAddress,
-        
-        store_id: finalStoreId, 
-        latitude: latitude,
-        longitude: longitude,
-        
-        // Data Ekstra Owner (Untuk tabel stores di backend)
-        nama_toko: mappedRole === "owner" ? storeName : null,
-        
-        // Data Ekstra Kurir
-        nik: mappedRole === "kurir" ? nik : null,
-        tipe_kendaraan: mappedRole === "kurir" ? vehicleType : null,
-        plat_nomor: mappedRole === "kurir" ? vehiclePlate : null,
-      };
+      // PERUBAHAN: MENGGUNAKAN FORMDATA KARENA MENGANDUNG FILE (KTP)
+      const formData = new FormData();
+      formData.append("nama", name);
+      formData.append("email", email);
+      formData.append("kata_sandi", password);
+      formData.append("kontak", phone);
+      formData.append("peran", mappedRole);
+      formData.append("alamat", finalAddress);
+      
+      if (finalStoreId) formData.append("store_id", finalStoreId);
+      if (latitude) formData.append("latitude", latitude.toString());
+      if (longitude) formData.append("longitude", longitude.toString());
+      
+      if (mappedRole === "owner") {
+        formData.append("nama_toko", storeName);
+      }
+      
+      if (mappedRole === "kurir") {
+        formData.append("nik", nik);
+        formData.append("tipe_kendaraan", vehicleType);
+        formData.append("plat_nomor", vehiclePlate);
+      }
+      
+      if (ktpFile) {
+        formData.append("foto_ktp", ktpFile);
+      }
 
-      const user = await register(payload);
+      // Kirim formData langsung ke fungsi register di AuthContext
+      const response = await fetch("http://localhost:5000/api/users/register", {
+        method: "POST",
+        body: formData, // Browser akan otomatis mengatur header Content-Type multipart/form-data
+      });
 
-      if (typeof user === "string") {
-        toast.error(user);
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        toast.error(data.message || "Gagal mendaftar");
         return;
       }
 
-      toast.success("Akun berhasil dibuat! Silakan login dengan akun Anda.");
+      toast.success("Registrasi berhasil! Silakan periksa status akun Anda saat login.");
       sessionStorage.removeItem("registerFormState"); 
       navigate("/login");
       
@@ -409,7 +422,6 @@ const RegisterPage = () => {
                               <SelectItem value="0" disabled>Memuat toko...</SelectItem>
                             ) : (
                               availableStores.map(store => (
-                                // PERBAIKAN: Ubah store.nama menjadi store.name
                                 <SelectItem key={store.id} value={store.id.toString()}>{store.name}</SelectItem>
                               ))
                             )}
@@ -459,6 +471,24 @@ const RegisterPage = () => {
                           <Input id="store-address" value={storeAddress} onChange={(e) => setStoreAddress(e.target.value)} placeholder="Alamat lengkap toko" className="h-11 pl-10" />
                         </div>
                       </div>
+                    </div>
+                  )}
+
+                  {/* FIELD BARU: UPLOAD KTP UNTUK KURIR & OWNER */}
+                  {(role === "courier" || role === "store-owner") && (
+                    <div className="space-y-4 pt-2 border-t border-border/50 animate-in fade-in slide-in-from-top-2">
+                       <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Dokumen Verifikasi (KYC)</Label>
+                       <div className="space-y-2">
+                         <Label htmlFor="ktp-upload">Unggah Foto KTP Jelas <span className="text-destructive">*</span></Label>
+                         <Input 
+                           id="ktp-upload" 
+                           type="file" 
+                           accept="image/jpeg, image/png, image/jpg"
+                           onChange={(e) => setKtpFile(e.target.files ? e.target.files[0] : null)}
+                           className="h-11 cursor-pointer pt-2.5 file:mr-4 file:rounded-full file:border-0 file:bg-primary/10 file:px-4 file:py-1 file:text-xs file:font-semibold file:text-primary hover:file:bg-primary/20" 
+                         />
+                         <p className="text-[10px] text-muted-foreground">Maksimal 5MB. Format: JPG, PNG.</p>
+                       </div>
                     </div>
                   )}
 

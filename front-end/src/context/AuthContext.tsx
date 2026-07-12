@@ -6,13 +6,13 @@ import {
   useMemo,
   useState,
 } from "react";
+// PERBAIKAN: Hapus registerUser dari sini karena ia memaksa format JSON
 import {
   fetchCurrentUser,
   loginUser,
-  registerUser,
   type AuthUser,
 } from "@/services/authService";
-import { setSession } from "@/lib/store";
+import { setSession, apiFetch } from "@/lib/store"; // Tambahkan apiFetch
 
 const TOKEN_STORAGE_KEY = "warungsync_token";
 
@@ -67,7 +67,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       try {
         const me = await fetchCurrentUser();
-        // TRANSLATOR: Ubah data MySQL (Indo) ke React (Inggris) saat refresh web
         const normalizedUser = {
           ...me,
           name: me.nama || me.name,
@@ -88,7 +87,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const login = useCallback(async (email: string, password: string) => {
     const result = await loginUser(email, password);
-    // TRANSLATOR: Ubah data MySQL (Indo) ke React (Inggris) saat login
     const normalizedUser = {
       ...result.user,
       name: result.user.nama || result.user.name,
@@ -103,7 +101,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const register = useCallback(
     async (payload: any) => {
-      const result = await registerUser(payload);
+      // PERBAIKAN: Gunakan apiFetch langsung untuk mengirim FormData beserta Foto KTP
+      const result = await apiFetch("/users/register", {
+        method: "POST",
+        body: payload, // payload ini akan berisi FormData dari RegisterPage
+      });
       return result;
     },
     []

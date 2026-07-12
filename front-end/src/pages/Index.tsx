@@ -15,6 +15,7 @@ import {
   ArrowRight,
   CheckCircle2,
   ChevronRight,
+  UserPlus,
 } from "lucide-react";
 
 const stats = [
@@ -104,7 +105,7 @@ const HeroPreview = () => (
     <div className="absolute -right-4 bottom-4 h-40 w-40 rounded-full bg-accent/20 blur-3xl" />
 
     <div className="relative space-y-4">
-      <div className="animate-float ml-auto w-[88%] rounded-2xl border border-border/60 bg-card p-4 shadow-xl shadow-secondary/10">
+      <div className="animate-float ml-auto w-[88%] rounded-2xl border border-border/60 bg-card p-4 shadow-xl shadow-secondary/10"> 
         <div className="mb-3 flex items-center justify-between">
           <span className="text-xs font-medium text-muted-foreground">Pilih toko</span>
           <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
@@ -174,10 +175,10 @@ const Index = () => {
             </a>
           </nav>
           <div className="flex items-center gap-2">
-            <Button size="sm" className="gap-1.5 shadow-md shadow-primary/20" asChild>
-              <Link to="/login">
-                Login
-                <ArrowRight className="h-3.5 w-3.5" />
+            <Button size="sm" className="gap-1.5 shadow-md shadow-secondary/20" asChild>
+              <Link to="/register">
+                Register
+                <UserPlus className="h-3.5 w-3.5" />
               </Link>
             </Button>
           </div>

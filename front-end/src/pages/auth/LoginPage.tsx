@@ -88,69 +88,7 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-2">
-      {/* Brand panel */}
-      <div className="relative hidden overflow-hidden bg-secondary lg:flex lg:flex-col lg:justify-between">
-        <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_20%_0%,hsl(var(--primary)/0.4),transparent_50%)]"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute bottom-0 right-0 h-80 w-80 rounded-full bg-accent/15 blur-3xl"
-          aria-hidden
-        />
-
-        <div className="relative flex flex-1 flex-col justify-center px-10 py-12 xl:px-16">
-          <WarungSyncLogo
-            size="lg"
-            className="[&_span]:text-secondary-foreground [&_span:last-child]:text-secondary-foreground/70"
-          />
-
-          <h1 className="mt-10 font-display text-3xl font-bold leading-tight text-secondary-foreground xl:text-4xl">
-            Kelola warung & <span className="text-primary">jualan online</span>{" "}
-            dalam satu tempat
-          </h1>
-
-          <ul className="mt-8 space-y-3">
-            {perks.map((p) => (
-              <li
-                key={p.text}
-                className="flex items-center gap-3 text-sm text-secondary-foreground/90"
-              >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/20">
-                  <p.icon className="h-4 w-4 text-primary" />
-                </span>
-                {p.text}
-              </li>
-            ))}
-          </ul>
-
-          <div className="mt-10 grid gap-3">
-            {highlights.map((h) => (
-              <div
-                key={h.title}
-                className="flex items-start gap-3 rounded-xl border border-secondary-foreground/10 bg-secondary-foreground/5 p-4 backdrop-blur-sm"
-              >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/20">
-                  <h.icon className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="font-semibold text-secondary-foreground">
-                    {h.title}
-                  </p>
-                  <p className="mt-0.5 text-sm text-secondary-foreground/70">
-                    {h.desc}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <p className="mt-auto text-xs text-secondary-foreground/50">
-            © 2026 WarungSync — Platform untuk UMKM di berbagai wilayah.
-          </p>
-        </div>
-      </div>
-
+    <div className="grid min-h-screen lg:grid-cols-1">
       {/* Form panel */}
       <div className="relative flex flex-col bg-background">
         <div

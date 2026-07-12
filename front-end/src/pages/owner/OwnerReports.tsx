@@ -18,10 +18,10 @@ import {
   Wallet,
   PackageSearch,
   ArrowDownCircle,
+  Percent, // Icon tambahan untuk persentase komisi
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-// Definisikan tipe StockLog sesuai dengan database kita
 interface StockLog {
   id: number;
   productId: number;
@@ -55,7 +55,6 @@ const OwnerReports = () => {
     Promise.all([
       fetchOrders(storeIdStr).catch(() => []),
       getProductsFromAPI(storeIdStr).catch(() => []),
-      // MENGAMBIL DATA LOG STOK LANGSUNG DARI DATABASE
       apiFetch(`/products/stock-logs?storeId=${storeIdStr}`)
         .then((res) => res.data)
         .catch(() => []),
@@ -64,7 +63,6 @@ const OwnerReports = () => {
         setOrders(orderData || []);
         setProducts(productData || []);
 
-        // Pemetaan data dari backend (Indonesia) ke frontend (Inggris)
         const mappedLogs = (logData || []).map((l: any) => ({
           id: l.id,
           productId: l.id_produk,
@@ -117,13 +115,23 @@ const OwnerReports = () => {
   const avgTransaction =
     totalTransactions > 0 ? totalSales / totalTransactions : 0;
 
-  // ================= REVISI: PERHITUNGAN ARUS KAS (CASH FLOW) =================
-  const totalPendapatanKotor = totalSales; // Uang riil yang masuk dari penjualan
+  // ================= REVISI: PERHITUNGAN ARUS KAS & POTONGAN KOMISI =================
+  const totalPendapatanKotor = totalSales;
+
+  // Menghitung komisi yang sudah dipotong oleh sistem Admin
+  const totalPotonganSistem = filteredOrders.reduce(
+    (sum, o) => sum + ((o as any).komisiSistem || 0),
+    0,
+  );
+
   const totalPengeluaranFisik = filteredLogs.reduce(
     (sum, log) => sum + log.cost,
     0,
-  ); // Uang riil yang keluar untuk restok
-  const totalArusKasBersih = totalPendapatanKotor - totalPengeluaranFisik; // Profit riil di tangan
+  );
+
+  // Rumus Laba Bersih yang 100% Akurat = (Total Jual - Potongan Admin) - Pengeluaran Restok
+  const totalArusKasBersih =
+    totalPendapatanKotor - totalPotonganSistem - totalPengeluaranFisik;
 
   const productSales: Record<
     string,
@@ -166,7 +174,6 @@ const OwnerReports = () => {
   const formatRupiah = (angka: number) =>
     `Rp ${Number(angka).toLocaleString("id-ID")}`;
 
-  // ================= FUNGSI CETAK LAPORAN (PRINT) =================
   const handlePrintReport = (type: string, title: string) => {
     const printWindow = window.open("", "_blank", "width=900,height=700");
     if (!printWindow) return;
@@ -205,14 +212,15 @@ const OwnerReports = () => {
     } else if (type === "profit") {
       summaryHtml = `
         <div class="summary-box">
-          <div class="summary-item"><div class="summary-label">Total Uang Masuk (Penjualan)</div><div class="summary-value" style="color:#16a34a;">${formatRupiah(totalPendapatanKotor)}</div></div>
-          <div class="summary-item"><div class="summary-label">Total Uang Keluar (Restok/Lainnya)</div><div class="summary-value" style="color:#dc2626;">- ${formatRupiah(totalPengeluaranFisik)}</div></div>
-          <div class="summary-item" style="background:#f8fafc; border-color:#cbd5e1;"><div class="summary-label">Laba Bersih (Arus Kas)</div><div class="summary-value" style="color:#0f172a;">${formatRupiah(totalArusKasBersih)}</div></div>
+          <div class="summary-item"><div class="summary-label">Total Uang Masuk</div><div class="summary-value" style="color:#16a34a;">${formatRupiah(totalPendapatanKotor)}</div></div>
+          <div class="summary-item"><div class="summary-label">Potongan Sistem</div><div class="summary-value" style="color:#f97316;">- ${formatRupiah(totalPotonganSistem)}</div></div>
+          <div class="summary-item"><div class="summary-label">Pengeluaran Restok</div><div class="summary-value" style="color:#dc2626;">- ${formatRupiah(totalPengeluaranFisik)}</div></div>
+          <div class="summary-item" style="background:#f8fafc; border-color:#cbd5e1;"><div class="summary-label">Arus Kas Bersih (Laba)</div><div class="summary-value" style="color:#0f172a;">${formatRupiah(totalArusKasBersih)}</div></div>
         </div>`;
       tableHtml = `
         <div style="text-align:center; padding: 40px; border: 1px dashed #ccc; margin-top: 20px;">
            <p style="color:#666;">Laporan ini menggunakan metode Arus Kas (Cash Basis).</p>
-           <p>Laba Bersih menunjukkan sisa uang riil di tangan Anda setelah dikurangi seluruh biaya pengeluaran toko pada periode ini.</p>
+           <p>Laba Bersih menunjukkan sisa uang riil di tangan Anda setelah dikurangi Potongan Admin/Aplikasi dan Biaya Restok.</p>
         </div>
        `;
     } else if (type === "transactions") {
@@ -387,7 +395,9 @@ const OwnerReports = () => {
       </div>
 
       {/* ================= KARTU STATISTIK RINGKASAN ================= */}
+      {/* Perubahan menjadi 4 Kartu: Uang Masuk, Potongan, Pengeluaran Fisik, dan Arus Kas */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Kartu 1: Total Uang Masuk */}
         <Card className="border-border/50 shadow-sm bg-gradient-to-br from-background to-muted/20">
           <CardContent className="p-4 flex flex-col gap-1">
             <div className="flex justify-between items-start">
@@ -404,17 +414,37 @@ const OwnerReports = () => {
           </CardContent>
         </Card>
 
+        {/* Kartu 2: Potongan Sistem (BARU) */}
         <Card className="border-border/50 shadow-sm bg-gradient-to-br from-background to-muted/20">
           <CardContent className="p-4 flex flex-col gap-1">
             <div className="flex justify-between items-start">
               <p className="text-xs font-bold text-muted-foreground uppercase">
-                Total Pengeluaran
+                Potongan Sistem
+              </p>
+              <div className="h-6 w-6 rounded-md bg-orange-500/10 flex items-center justify-center">
+                <Percent className="h-3.5 w-3.5 text-orange-600" />
+              </div>
+            </div>
+            <h3 className="text-2xl font-black text-orange-600 mt-2">
+              {totalPotonganSistem > 0
+                ? `- ${formatRupiah(totalPotonganSistem)}`
+                : "Rp 0"}
+            </h3>
+          </CardContent>
+        </Card>
+
+        {/* Kartu 3: Total Pengeluaran Fisik */}
+        <Card className="border-border/50 shadow-sm bg-gradient-to-br from-background to-muted/20">
+          <CardContent className="p-4 flex flex-col gap-1">
+            <div className="flex justify-between items-start">
+              <p className="text-xs font-bold text-muted-foreground uppercase">
+                Total Restok
               </p>
               <div className="h-6 w-6 rounded-md bg-destructive/10 flex items-center justify-center">
                 <ArrowDownCircle className="h-3.5 w-3.5 text-destructive" />
               </div>
             </div>
-            <h3 className="text-2xl font-black text-foreground mt-2 text-destructive">
+            <h3 className="text-2xl font-black text-destructive mt-2">
               {totalPengeluaranFisik > 0
                 ? `- ${formatRupiah(totalPengeluaranFisik)}`
                 : "Rp 0"}
@@ -422,6 +452,7 @@ const OwnerReports = () => {
           </CardContent>
         </Card>
 
+        {/* Kartu 4: Arus Kas Bersih */}
         <Card className="border-border/50 shadow-sm bg-gradient-to-br from-background to-muted/20">
           <CardContent className="p-4 flex flex-col gap-1">
             <div className="flex justify-between items-start">
@@ -440,22 +471,6 @@ const OwnerReports = () => {
               className={`text-2xl font-black mt-2 ${totalArusKasBersih < 0 ? "text-destructive" : "text-green-600"}`}
             >
               {formatRupiah(totalArusKasBersih)}
-            </h3>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/50 shadow-sm bg-gradient-to-br from-background to-muted/20">
-          <CardContent className="p-4 flex flex-col gap-1">
-            <div className="flex justify-between items-start">
-              <p className="text-xs font-bold text-muted-foreground uppercase">
-                Stok Rendah
-              </p>
-              <div className="h-6 w-6 rounded-md bg-orange-500/10 flex items-center justify-center">
-                <AlertTriangle className="h-3.5 w-3.5 text-orange-600" />
-              </div>
-            </div>
-            <h3 className="text-2xl font-black text-foreground mt-2">
-              {lowStock.length}
             </h3>
           </CardContent>
         </Card>
@@ -527,49 +542,65 @@ const OwnerReports = () => {
               </Button>
             </CardHeader>
             <CardContent className="p-6">
-              <div className="grid md:grid-cols-3 gap-4 mb-6">
-                <div className="p-6 rounded-xl bg-green-500/5 border border-green-500/20 flex flex-col justify-center items-center text-center">
-                  <p className="text-xs font-bold text-green-600 uppercase mb-2">
+              {/* Desain Laba Rugi Diperluas menjadi 4 Kolom */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div className="p-4 lg:p-6 rounded-xl bg-green-500/5 border border-green-500/20 flex flex-col justify-center items-center text-center">
+                  <p className="text-[10px] lg:text-xs font-bold text-green-600 uppercase mb-2">
                     Total Uang Masuk
                   </p>
-                  <p className="text-2xl font-black text-foreground">
+                  <p className="text-xl lg:text-2xl font-black text-foreground">
                     {formatRupiah(totalPendapatanKotor)}
                   </p>
                 </div>
-                <div className="p-6 rounded-xl bg-destructive/5 border border-destructive/20 flex flex-col justify-center items-center text-center relative">
-                  <div className="absolute -left-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-background border border-border flex items-center justify-center text-muted-foreground font-bold text-xs">
+
+                <div className="p-4 lg:p-6 rounded-xl bg-orange-500/5 border border-orange-500/20 flex flex-col justify-center items-center text-center relative">
+                  <div className="hidden lg:flex absolute -left-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-background border border-border items-center justify-center text-muted-foreground font-bold text-xs">
                     -
                   </div>
-                  <p className="text-xs font-bold text-destructive uppercase mb-2">
-                    Total Pengeluaran
+                  <p className="text-[10px] lg:text-xs font-bold text-orange-600 uppercase mb-2">
+                    Potongan Sistem (5%)
                   </p>
-                  <p className="text-2xl font-black text-destructive">
+                  <p className="text-xl lg:text-2xl font-black text-orange-600">
+                    - {formatRupiah(totalPotonganSistem)}
+                  </p>
+                </div>
+
+                <div className="p-4 lg:p-6 rounded-xl bg-destructive/5 border border-destructive/20 flex flex-col justify-center items-center text-center relative">
+                  <div className="hidden lg:flex absolute -left-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-background border border-border items-center justify-center text-muted-foreground font-bold text-xs">
+                    -
+                  </div>
+                  <p className="text-[10px] lg:text-xs font-bold text-destructive uppercase mb-2">
+                    Total Pengeluaran Fisik
+                  </p>
+                  <p className="text-xl lg:text-2xl font-black text-destructive">
                     - {formatRupiah(totalPengeluaranFisik)}
                   </p>
                 </div>
+
                 <div
-                  className={`p-6 rounded-xl border flex flex-col justify-center items-center text-center relative shadow-sm transition-colors ${totalArusKasBersih < 0 ? "bg-destructive/5 border-destructive/20" : "bg-green-500/10 border-green-500/30"}`}
+                  className={`p-4 lg:p-6 rounded-xl border flex flex-col justify-center items-center text-center relative shadow-sm transition-colors ${totalArusKasBersih < 0 ? "bg-destructive/5 border-destructive/20" : "bg-green-500/10 border-green-500/30"}`}
                 >
-                  <div className="absolute -left-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-background border border-border flex items-center justify-center text-muted-foreground font-bold text-xs">
+                  <div className="hidden lg:flex absolute -left-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-background border border-border items-center justify-center text-muted-foreground font-bold text-xs">
                     =
                   </div>
                   <p
-                    className={`text-xs font-bold uppercase mb-2 ${totalArusKasBersih < 0 ? "text-destructive" : "text-green-700"}`}
+                    className={`text-[10px] lg:text-xs font-bold uppercase mb-2 ${totalArusKasBersih < 0 ? "text-destructive" : "text-green-700"}`}
                   >
                     Laba Bersih Real
                   </p>
                   <p
-                    className={`text-3xl font-black ${totalArusKasBersih < 0 ? "text-destructive" : "text-green-600"}`}
+                    className={`text-2xl lg:text-3xl font-black ${totalArusKasBersih < 0 ? "text-destructive" : "text-green-600"}`}
                   >
                     {formatRupiah(totalArusKasBersih)}
                   </p>
                 </div>
               </div>
+
               <div className="rounded-lg border border-dashed border-border/60 p-4 text-center bg-muted/20">
                 <p className="text-xs text-muted-foreground">
                   * Laporan ini menggunakan metode Arus Kas (Cash Basis).
                   Menampilkan sisa uang riil di laci/rekening Anda setelah
-                  dikurangi biaya restok barang.
+                  dikurangi biaya restok barang dan potongan aplikasi.
                 </p>
               </div>
             </CardContent>

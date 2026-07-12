@@ -15,7 +15,11 @@ const getDashboardStatsFull = async (req, res) => {
       "SELECT COUNT(*) as total FROM users WHERE peran = 'kurir'",
     );
     const [produk] = await db.query("SELECT COUNT(*) as total FROM products");
-    const [pesanan] = await db.query("SELECT COUNT(*) as total FROM orders");
+
+    // PERBAIKAN: Menghitung total pesanan dan total komisi sistem
+    const [pesanan] = await db.query(
+      "SELECT COUNT(*) as total, SUM(komisi_sistem) as total_komisi FROM orders WHERE status = 'selesai'",
+    );
 
     // 2. AMBIL DATA GRAFIK TRANSAKSI (7 Hari Terakhir)
     const [transaksiHarian] = await db.query(`
@@ -26,7 +30,6 @@ const getDashboardStatsFull = async (req, res) => {
       ORDER BY tanggal ASC
     `);
 
-    // Format data transaksi agar sesuai dengan grafik di React (Recharts)
     const chartTransaksi = transaksiHarian.map((item) => ({
       name: new Date(item.tanggal).toLocaleDateString("id-ID", {
         weekday: "short",
@@ -59,18 +62,14 @@ const getDashboardStatsFull = async (req, res) => {
     `);
 
     const aktivitasTerbaru = userTerbaru.map((user) => {
-      // Format waktu (contoh: "05 Jul, 09:30")
       const waktu = new Date(user.tanggal_dibuat).toLocaleString("id-ID", {
         day: "2-digit",
         month: "short",
         hour: "2-digit",
         minute: "2-digit",
       });
-
-      // Kapitalisasi huruf pertama pada peran
       const peranKapital =
         user.peran.charAt(0).toUpperCase() + user.peran.slice(1);
-
       return {
         type: "register",
         pesan: `${user.nama} baru saja mendaftar sebagai ${peranKapital}`,
@@ -89,6 +88,8 @@ const getDashboardStatsFull = async (req, res) => {
           kurir: kurir[0].total || 0,
           produk: produk[0].total || 0,
           pesanan: pesanan[0].total || 0,
+          // PERBAIKAN: Menyertakan data komisi ke dalam response JSON
+          komisi: pesanan[0].total_komisi || 0,
         },
         chartTransaksi:
           chartTransaksi.length > 0
@@ -131,13 +132,11 @@ const createStore = async (req, res) => {
       "INSERT INTO stores (nama, kontak, alamat, latitude, longitude) VALUES (?, ?, ?, ?, ?)",
       [nama, kontak, alamat, latitude || null, longitude || null],
     );
-    res
-      .status(201)
-      .json({
-        success: true,
-        message: "Toko berhasil ditambahkan",
-        data: { id: result.insertId },
-      });
+    res.status(201).json({
+      success: true,
+      message: "Toko berhasil ditambahkan",
+      data: { id: result.insertId },
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: "Gagal menambah toko" });
   }
@@ -168,13 +167,11 @@ const deleteStore = async (req, res) => {
     res.status(200).json({ success: true, message: "Toko berhasil dihapus" });
   } catch (error) {
     // Error biasanya terjadi jika toko ini sudah punya produk/transaksi (Foreign Key constraint)
-    res
-      .status(500)
-      .json({
-        success: false,
-        message:
-          "Gagal menghapus. Pastikan toko ini tidak memiliki produk atau transaksi aktif.",
-      });
+    res.status(500).json({
+      success: false,
+      message:
+        "Gagal menghapus. Pastikan toko ini tidak memiliki produk atau transaksi aktif.",
+    });
   }
 };
 
@@ -184,12 +181,10 @@ const toggleStoreStatus = async (req, res) => {
   const { status } = req.body; // Menerima 'aktif' atau 'nonaktif'
   try {
     await db.query("UPDATE stores SET status=? WHERE id=?", [status, id]);
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: `Toko berhasil di${status === "aktif" ? "aktifkan" : "nonaktifkan"}`,
-      });
+    res.status(200).json({
+      success: true,
+      message: `Toko berhasil di${status === "aktif" ? "aktifkan" : "nonaktifkan"}`,
+    });
   } catch (error) {
     res
       .status(500)
@@ -224,13 +219,11 @@ const createUser = async (req, res) => {
       "INSERT INTO users (nama, email, kata_sandi, kontak, peran) VALUES (?, ?, ?, ?, ?)",
       [nama, email, hashedPassword, kontak, peran],
     );
-    res
-      .status(201)
-      .json({
-        success: true,
-        message: "Pengguna berhasil ditambahkan",
-        data: { id: result.insertId },
-      });
+    res.status(201).json({
+      success: true,
+      message: "Pengguna berhasil ditambahkan",
+      data: { id: result.insertId },
+    });
   } catch (error) {
     if (error.code === "ER_DUP_ENTRY") {
       return res
@@ -274,12 +267,10 @@ const updateUser = async (req, res) => {
       .json({ success: true, message: "Data pengguna berhasil diperbarui" });
   } catch (error) {
     if (error.code === "ER_DUP_ENTRY") {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Email sudah digunakan oleh akun lain",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Email sudah digunakan oleh akun lain",
+      });
     }
     res
       .status(500)
@@ -293,13 +284,11 @@ const deleteUser = async (req, res) => {
 
   // PERLINDUNGAN BACKEND: Cegah admin menghapus dirinya sendiri
   if (req.user && req.user.id === parseInt(id)) {
-    return res
-      .status(403)
-      .json({
-        success: false,
-        message:
-          "Tindakan ditolak: Anda tidak dapat menghapus akun Anda sendiri!",
-      });
+    return res.status(403).json({
+      success: false,
+      message:
+        "Tindakan ditolak: Anda tidak dapat menghapus akun Anda sendiri!",
+    });
   }
 
   try {
@@ -308,13 +297,11 @@ const deleteUser = async (req, res) => {
       .status(200)
       .json({ success: true, message: "Pengguna berhasil dihapus" });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message:
-          "Gagal menghapus. Pastikan pengguna ini tidak terkait dengan data transaksi.",
-      });
+    res.status(500).json({
+      success: false,
+      message:
+        "Gagal menghapus. Pastikan pengguna ini tidak terkait dengan data transaksi.",
+    });
   }
 };
 
@@ -325,23 +312,19 @@ const toggleUserStatus = async (req, res) => {
 
   // PERLINDUNGAN BACKEND: Cegah admin menonaktifkan dirinya sendiri
   if (req.user && req.user.id === parseInt(id)) {
-    return res
-      .status(403)
-      .json({
-        success: false,
-        message:
-          "Tindakan ditolak: Anda tidak dapat menonaktifkan akun Anda sendiri!",
-      });
+    return res.status(403).json({
+      success: false,
+      message:
+        "Tindakan ditolak: Anda tidak dapat menonaktifkan akun Anda sendiri!",
+    });
   }
 
   try {
     await db.query("UPDATE users SET status=? WHERE id=?", [status, id]);
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: `Akun berhasil di${status === "aktif" ? "aktifkan" : "nonaktifkan"}`,
-      });
+    res.status(200).json({
+      success: true,
+      message: `Akun berhasil di${status === "aktif" ? "aktifkan" : "nonaktifkan"}`,
+    });
   } catch (error) {
     res
       .status(500)
@@ -350,14 +333,12 @@ const toggleUserStatus = async (req, res) => {
 };
 
 // ================= LAPORAN GLOBAL =================
-
 const getReports = async (req, res) => {
   const { period } = req.query;
 
   let dateFilter = "";
   let dateFilterUsers = "";
 
-  // Logika Filter Periode SQL
   if (period === "hari_ini") {
     dateFilter = "AND DATE(tanggal_dibuat) = CURDATE()";
     dateFilterUsers = "WHERE DATE(tanggal_dibuat) = CURDATE()";
@@ -372,9 +353,9 @@ const getReports = async (req, res) => {
   }
 
   try {
-    // 1. STATISTIK RINGKASAN
+    // 1. STATISTIK RINGKASAN (TAMBAHAN: SUM komisi_sistem)
     const [omzetRes] = await db.query(
-      `SELECT SUM(total_harga) as total FROM orders WHERE status = 'selesai' ${dateFilter}`,
+      `SELECT SUM(total_harga) as total, SUM(komisi_sistem) as komisi FROM orders WHERE status = 'selesai' ${dateFilter}`,
     );
     const [trxRes] = await db.query(
       `SELECT COUNT(*) as total FROM orders WHERE status = 'selesai' ${dateFilter}`,
@@ -386,10 +367,9 @@ const getReports = async (req, res) => {
       `SELECT COUNT(*) as total FROM users ${dateFilterUsers}`,
     );
 
-    // 2. DATA TRANSAKSI
-    // PERBAIKAN: Menambahkan o.tanggal_dibuat agar MySQL tidak ambigu saat melakukan JOIN
+    // 2. DATA TRANSAKSI (TAMBAHAN: o.komisi_sistem)
     const [transaksi] = await db.query(`
-      SELECT o.id, o.tanggal_dibuat, o.total_harga, o.status,
+      SELECT o.id, o.tanggal_dibuat, o.total_harga, o.komisi_sistem, o.status,
              IFNULL(s.nama, 'Toko Tidak Diketahui') as nama_toko,
              IFNULL(u.nama, 'Pelanggan Umum') as nama_pelanggan
       FROM orders o
@@ -399,12 +379,13 @@ const getReports = async (req, res) => {
       ORDER BY o.tanggal_dibuat DESC
     `);
 
-    // 3. DATA PERFORMA TOKO
+    // 3. DATA PERFORMA TOKO (TAMBAHAN: SUM(o.komisi_sistem) as total_komisi)
     const [toko] = await db.query(`
       SELECT s.id, s.nama,
              IFNULL(MAX(u.nama), 'Tanpa Owner') as nama_owner,
              COUNT(o.id) as total_pesanan,
-             IFNULL(SUM(o.total_harga), 0) as omzet
+             IFNULL(SUM(o.total_harga), 0) as omzet,
+             IFNULL(SUM(o.komisi_sistem), 0) as total_komisi
       FROM stores s
       LEFT JOIN users u ON u.store_id = s.id AND u.peran = 'owner'
       LEFT JOIN orders o ON o.store_id = s.id AND o.status = 'selesai' ${dateFilter.replace(/tanggal_dibuat/g, "o.tanggal_dibuat")}
@@ -426,6 +407,7 @@ const getReports = async (req, res) => {
       data: {
         stats: {
           omzetTotal: omzetRes[0].total || 0,
+          komisiTotal: omzetRes[0].komisi || 0, // State baru untuk Dashboard
           totalTransaksi: trxRes[0].total || 0,
           tokoAktif: tokoAktifRes[0].total || 0,
           penggunaBaru: userBaruRes[0].total || 0,
@@ -461,13 +443,11 @@ const getPendingOwners = async (req, res) => {
     `);
     res.status(200).json({ success: true, data: rows });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Gagal mengambil data verifikasi",
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: "Gagal mengambil data verifikasi",
+      error: error.message,
+    });
   }
 };
 
@@ -501,12 +481,10 @@ const manageOwnerStatus = async (req, res) => {
           [storeId],
         );
       }
-      res
-        .status(200)
-        .json({
-          success: true,
-          message: "Pemilik Toko dan Warungnya berhasil disetujui!",
-        });
+      res.status(200).json({
+        success: true,
+        message: "Pemilik Toko dan Warungnya berhasil disetujui!",
+      });
     } else if (action === "reject") {
       // Hapus akun pengguna
       await connection.query("DELETE FROM users WHERE id = ?", [id]);
@@ -514,12 +492,10 @@ const manageOwnerStatus = async (req, res) => {
       if (storeId) {
         await connection.query("DELETE FROM stores WHERE id = ?", [storeId]);
       }
-      res
-        .status(200)
-        .json({
-          success: true,
-          message: "Pendaftaran ditolak dan data dihapus",
-        });
+      res.status(200).json({
+        success: true,
+        message: "Pendaftaran ditolak dan data dihapus",
+      });
     } else {
       res.status(400).json({ success: false, message: "Aksi tidak valid" });
     }
@@ -531,13 +507,11 @@ const manageOwnerStatus = async (req, res) => {
       await connection.rollback();
       connection.release();
     }
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Gagal memperbarui status verifikasi",
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: "Gagal memperbarui status verifikasi",
+      error: error.message,
+    });
   }
 };
 
@@ -555,5 +529,5 @@ module.exports = {
   toggleUserStatus,
   getReports,
   getPendingOwners,
-  manageOwnerStatus, 
+  manageOwnerStatus,
 };

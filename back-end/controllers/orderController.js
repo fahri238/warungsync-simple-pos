@@ -1,18 +1,16 @@
 const db = require("../config/db");
 
-// PERBAIKAN: Mapping status bahasa Inggris ke ENUM bahasa Indonesia di database
 const ORDER_STATUS = {
   pending: "menunggu",
   processing: "diproses",
   ready: "siap_ambil",
   delivering: "diantar",
   completed: "selesai",
-  // Jaga-jaga jika frontend langsung mengirimkan bahasa Indonesia
   menunggu: "menunggu",
   diproses: "diproses",
   siap_ambil: "siap_ambil",
   diantar: "diantar",
-  selesai: "selesai"
+  selesai: "selesai",
 };
 
 const normalizeStatus = (status) => {
@@ -56,6 +54,7 @@ const getOrders = async (req, res) => {
         o.id_pengguna,
         o.store_id,
         o.total_harga,
+        o.komisi_sistem,
         o.status,
         o.tipe_pesanan,
         o.tipe_pengiriman,
@@ -81,7 +80,7 @@ const getOrders = async (req, res) => {
       ${whereClause}
       ORDER BY o.tanggal_dibuat DESC
       `,
-      params
+      params,
     );
 
     const grouped = new Map();
@@ -94,6 +93,7 @@ const getOrders = async (req, res) => {
           customerName: row.nama_pelanggan || "Pelanggan Umum",
           customerPhone: row.no_hp_pelanggan || "-",
           total: Number(row.total_harga),
+          komisiSistem: Number(row.komisi_sistem),
           status: row.status,
           paymentMethod: row.metode_pembayaran,
           type: row.tipe_pesanan,
@@ -141,9 +141,9 @@ const createOrder = async (req, res) => {
     id_pengguna = null,
     storeId = null,
     alamat_pengiriman,
-    tipe_pesanan,       
-    tipe_pengiriman,    
-    metode_pembayaran,   
+    tipe_pesanan,
+    tipe_pengiriman,
+    metode_pembayaran,
     latitude = null,
     longitude = null,
     items,
@@ -154,69 +154,108 @@ const createOrder = async (req, res) => {
   const currentUserId = id_pengguna || req.user?.id || null;
 
   if (!resolvedStoreId) {
-    return res.status(400).json({ success: false, message: "storeId (ID Toko) wajib ditentukan" });
+    return res
+      .status(400)
+      .json({ success: false, message: "storeId (ID Toko) wajib ditentukan" });
   }
 
   if (!currentUserId) {
-    return res.status(400).json({ success: false, message: "id_pengguna (ID Pengguna) wajib ditentukan" });
+    return res
+      .status(400)
+      .json({
+        success: false,
+        message: "id_pengguna (ID Pengguna) wajib ditentukan",
+      });
   }
 
   if (!["online", "offline"].includes(tipe_pesanan)) {
-    return res.status(400).json({ success: false, message: "Tipe pesanan tidak valid ('online'/'offline')" });
+    return res
+      .status(400)
+      .json({
+        success: false,
+        message: "Tipe pesanan tidak valid ('online'/'offline')",
+      });
   }
 
   if (!["pickup", "kurir"].includes(tipe_pengiriman)) {
-    return res.status(400).json({ success: false, message: "Tipe pengiriman tidak valid ('pickup'/'kurir')" });
+    return res
+      .status(400)
+      .json({
+        success: false,
+        message: "Tipe pengiriman tidak valid ('pickup'/'kurir')",
+      });
   }
 
   if (tipe_pengiriman === "kurir" && !alamat_pengiriman) {
-    return res.status(400).json({ success: false, message: "Alamat pengiriman wajib diisi untuk kurir" });
+    return res
+      .status(400)
+      .json({
+        success: false,
+        message: "Alamat pengiriman wajib diisi untuk kurir",
+      });
   }
 
   if (!["tunai", "transfer"].includes(metode_pembayaran)) {
-    return res.status(400).json({ success: false, message: "Metode pembayaran tidak valid ('tunai'/'transfer')" });
+    return res
+      .status(400)
+      .json({
+        success: false,
+        message: "Metode pembayaran tidak valid ('tunai'/'transfer')",
+      });
   }
 
   if (!Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ success: false, message: "Item pesanan tidak boleh kosong" });
+    return res
+      .status(400)
+      .json({ success: false, message: "Item pesanan tidak boleh kosong" });
   }
 
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
 
-    // PERBAIKAN: Default status juga menggunakan bahasa Indonesia
-    const resolvedStatus = normalizeStatus(status) || (tipe_pesanan === "offline" ? "selesai" : "menunggu");
+    const resolvedStatus =
+      normalizeStatus(status) ||
+      (tipe_pesanan === "offline" ? "selesai" : "menunggu");
 
     let totalHarga = 0;
     const normalizedItems = [];
 
-    // Validasi stok produk satu-persatu
     for (const item of items) {
-      const productId = item.id_produk || item.productId || item.id || (item.product && item.product.id);
+      const productId =
+        item.id_produk ||
+        item.productId ||
+        item.id ||
+        (item.product && item.product.id);
       const qty = Number(item.kuantitas || item.quantity || 0);
 
       if (!productId || !qty || qty <= 0) {
-        throw new Error("Format item pesanan tidak valid (ID atau Kuantitas tidak ditemukan)");
+        throw new Error(
+          "Format item pesanan tidak valid (ID atau Kuantitas tidak ditemukan)",
+        );
       }
 
       const [productRows] = await connection.query(
         "SELECT id, nama, harga, stok FROM products WHERE id = ? AND store_id = ? FOR UPDATE",
-        [productId, resolvedStoreId]
+        [productId, resolvedStoreId],
       );
 
       if (productRows.length === 0) {
-        throw new Error(`Produk dengan ID ${productId} tidak ditemukan di toko ini`);
+        throw new Error(
+          `Produk dengan ID ${productId} tidak ditemukan di toko ini`,
+        );
       }
 
       const product = productRows[0];
       if (product.stok < qty) {
-        throw new Error(`Stok produk '${product.nama}' tidak mencukupi (Tersisa: ${product.stok})`);
+        throw new Error(
+          `Stok produk '${product.nama}' tidak mencukupi (Tersisa: ${product.stok})`,
+        );
       }
 
       const hargaSatuan = Number(product.harga);
       totalHarga += hargaSatuan * qty;
-      
+
       normalizedItems.push({
         id_produk: productId,
         kuantitas: qty,
@@ -224,52 +263,77 @@ const createOrder = async (req, res) => {
       });
     }
 
-    // 1. Masukkan ke tabel 'orders'
+    // FITUR KOMISI: Admin mengambil 5% dari total penjualan kotor
+    const komisiSistem = totalHarga * 0.05;
+
+    // 1. Masukkan ke tabel 'orders' beserta data komisi
     const [orderResult] = await connection.query(
       `INSERT INTO orders 
-      (id_pengguna, store_id, total_harga, status, tipe_pesanan, tipe_pengiriman, metode_pembayaran, tanggal_dibuat)
-      VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [currentUserId, resolvedStoreId, totalHarga, resolvedStatus, tipe_pesanan, tipe_pengiriman, metode_pembayaran]
+      (id_pengguna, store_id, total_harga, komisi_sistem, status, tipe_pesanan, tipe_pengiriman, metode_pembayaran, tanggal_dibuat)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [
+        currentUserId,
+        resolvedStoreId,
+        totalHarga,
+        komisiSistem,
+        resolvedStatus,
+        tipe_pesanan,
+        tipe_pengiriman,
+        metode_pembayaran,
+      ],
     );
 
     const insertedOrderId = orderResult.insertId;
 
-    // 2. Jika pengiriman menggunakan kurir, masukkan ke tabel 'deliveries'
     if (tipe_pengiriman === "kurir") {
       const [courierRows] = await connection.query(
         "SELECT id FROM users WHERE store_id = ? AND peran = 'kurir' LIMIT 1",
-        [resolvedStoreId]
+        [resolvedStoreId],
       );
-      const assignedCourierId = courierRows.length > 0 ? courierRows[0].id : null;
+      const assignedCourierId =
+        courierRows.length > 0 ? courierRows[0].id : null;
 
       if (!assignedCourierId) {
-        throw new Error("Gagal membuat pesanan daring. Belum ada kurir yang terdaftar di warung ini.");
+        throw new Error(
+          "Gagal membuat pesanan daring. Belum ada kurir yang terdaftar di warung ini.",
+        );
       }
 
       await connection.query(
         `INSERT INTO deliveries (id_pesanan, id_kurir, alamat, destination_lat, destination_lng, status, tanggal_diperbarui) 
         VALUES (?, ?, ?, ?, ?, 'diantar', NOW())`,
-        [insertedOrderId, assignedCourierId, alamat_pengiriman, latitude || 0, longitude || 0]
+        [
+          insertedOrderId,
+          assignedCourierId,
+          alamat_pengiriman,
+          latitude || 0,
+          longitude || 0,
+        ],
       );
     }
 
-    // 3. Masukkan rincian barang, kurangi stok master, dan catat ke log riwayat stok
     for (const item of normalizedItems) {
       await connection.query(
         "INSERT INTO order_items (id_pesanan, id_produk, kuantitas, harga) VALUES (?, ?, ?, ?)",
-        [insertedOrderId, item.id_produk, item.kuantitas, item.harga]
+        [insertedOrderId, item.id_produk, item.kuantitas, item.harga],
       );
 
       await connection.query(
         "UPDATE products SET stok = stok - ? WHERE id = ?",
-        [item.kuantitas, item.id_produk]
+        [item.kuantitas, item.id_produk],
       );
 
-      const alasanLog = tipe_pesanan === "offline" ? "terjual_pos" : "terjual_online";
-      
+      const alasanLog =
+        tipe_pesanan === "offline" ? "terjual_pos" : "terjual_online";
+
       await connection.query(
         "INSERT INTO stock_logs (id_produk, id_admin, jumlah_perubahan, alasan, tanggal_dibuat) VALUES (?, ?, ?, ?, NOW())",
-        [item.id_produk, req.user?.id || currentUserId, -item.kuantitas, alasanLog]
+        [
+          item.id_produk,
+          req.user?.id || currentUserId,
+          -item.kuantitas,
+          alasanLog,
+        ],
       );
     }
 
@@ -280,6 +344,7 @@ const createOrder = async (req, res) => {
       data: {
         id: insertedOrderId,
         total_harga: totalHarga,
+        komisi_sistem: komisiSistem,
         status: resolvedStatus,
       },
     });
@@ -302,16 +367,25 @@ const updateOrderStatus = async (req, res) => {
   const resolvedStatus = normalizeStatus(status);
 
   if (!resolvedStatus) {
-    return res.status(400).json({ success: false, message: "Status pesanan tidak valid" });
+    return res
+      .status(400)
+      .json({ success: false, message: "Status pesanan tidak valid" });
   }
 
   try {
-    const [existing] = await db.query("SELECT id FROM orders WHERE id = ?", [id]);
+    const [existing] = await db.query("SELECT id FROM orders WHERE id = ?", [
+      id,
+    ]);
     if (existing.length === 0) {
-      return res.status(404).json({ success: false, message: "Pesanan tidak ditemukan" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Pesanan tidak ditemukan" });
     }
 
-    await db.query("UPDATE orders SET status = ? WHERE id = ?", [resolvedStatus, id]);
+    await db.query("UPDATE orders SET status = ? WHERE id = ?", [
+      resolvedStatus,
+      id,
+    ]);
 
     res.status(200).json({
       success: true,

@@ -251,59 +251,7 @@ const RegisterPage = () => {
   };
 
   return (
-    <div className="grid min-h-screen overflow-hidden lg:grid-cols-2">
-      {/* Brand panel */}
-      <div className="relative hidden overflow-hidden bg-secondary lg:flex lg:flex-col lg:justify-between">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_20%_0%,hsl(var(--primary)/0.25),transparent_50%)]" aria-hidden />
-        <div className="pointer-events-none absolute bottom-0 right-0 h-[30rem] w-[30rem] rounded-full bg-primary/10 blur-3xl" aria-hidden />
-
-        <div className="relative flex flex-1 flex-col px-10 py-12 xl:px-16 overflow-y-auto custom-scrollbar">
-          <div className="mb-10">
-            <WarungSyncLogo size="lg" className="[&_span]:text-secondary-foreground [&_span:last-child]:text-secondary-foreground/70" />
-          </div>
-
-          <div className="max-w-md">
-            <h1 className="font-display text-4xl font-bold leading-[1.15] text-secondary-foreground xl:text-5xl">
-              Satu Aplikasi untuk <br />
-              <span className="text-primary">Semua Kebutuhan</span> Warung Anda.
-            </h1>
-            <p className="mt-5 text-lg text-secondary-foreground/80 leading-relaxed">
-              Bergabunglah dengan ekosistem WarungSync. Mulai dari kelola stok, layani kasir, hingga antar pesanan online dengan Geomapping.
-            </p>
-
-            <div className="mt-8 flex items-center gap-6 border-b border-secondary-foreground/10 pb-8">
-              <div>
-                <h4 className="text-3xl font-bold text-primary">3</h4>
-                <p className="text-sm font-medium text-secondary-foreground/80 mt-1">Pilihan Peran</p>
-              </div>
-              <div className="h-10 w-px bg-secondary-foreground/20"></div>
-              <div>
-                <h4 className="text-3xl font-bold text-primary">100%</h4>
-                <p className="text-sm font-medium text-secondary-foreground/80 mt-1">Terintegrasi</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-8 grid gap-4 max-w-md">
-            {highlights.map((h) => (
-              <div key={h.title} className="group flex items-start gap-4 rounded-2xl border border-secondary-foreground/10 bg-secondary-foreground/5 p-4 backdrop-blur-sm transition-all hover:bg-secondary-foreground/10">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                  <h.icon className="h-6 w-6" />
-                </div>
-                <div>
-                  <p className="font-bold text-secondary-foreground">{h.title}</p>
-                  <p className="mt-1 text-sm text-secondary-foreground/70 leading-relaxed">{h.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <p className="mt-8 text-xs font-medium text-secondary-foreground/40">
-            © 2026 WarungSync — Platform untuk UMKM.
-          </p>
-        </div>
-      </div>
-
+    <div className="grid min-h-screen overflow-hidden lg:grid-cols-1">
       {/* Form panel */}
       <div className="relative flex flex-col bg-background overflow-hidden">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,hsl(var(--primary)/0.08),transparent)] lg:hidden" aria-hidden />
@@ -545,6 +493,7 @@ const RegisterPage = () => {
           </div>
         </div>
       </div>
+      
     </div>
   );
 };

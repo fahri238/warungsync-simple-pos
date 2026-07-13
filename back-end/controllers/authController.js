@@ -362,6 +362,64 @@ const getUsers = async (req, res) => {
   }
 };
 
+// ================= GET ACTIVE COURIERS (FULL DATA) =================
+const getActiveCouriers = async (req, res) => {
+  try {
+    const storeId = req.user.store_id;
+    // Mengambil kurir yang SUDAH disetujui (is_approved = 1) dengan data lengkap
+    const [rows] = await db.query(
+      "SELECT id, nama, email, kontak, nik, tipe_kendaraan, plat_nomor, foto_ktp, status FROM users WHERE peran = 'kurir' AND store_id = ? AND is_approved = 1 ORDER BY id DESC",
+      [storeId]
+    );
+    res.status(200).json({ success: true, data: rows });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Gagal mengambil data kurir aktif", error: error.message });
+  }
+};
+
+// ================= UPDATE COURIER INFO =================
+const updateCourier = async (req, res) => {
+  const { id } = req.params;
+  const { nama, kontak, tipe_kendaraan, plat_nomor } = req.body;
+  
+  try {
+    // Memastikan Owner hanya bisa mengedit kurir dari tokonya sendiri
+    const [result] = await db.query(
+      "UPDATE users SET nama = ?, kontak = ?, tipe_kendaraan = ?, plat_nomor = ? WHERE id = ? AND store_id = ? AND peran = 'kurir'",
+      [nama, kontak, tipe_kendaraan, plat_nomor, id, req.user.store_id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Kurir tidak ditemukan atau Anda tidak berhak mengubahnya" });
+    }
+    
+    res.status(200).json({ success: true, message: "Data kurir berhasil diperbarui" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Gagal memperbarui kurir", error: error.message });
+  }
+};
+
+// ================= DELETE / DEACTIVATE COURIER =================
+const deleteCourier = async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    // Kita melakukan Soft Delete (Hapus Permanen) karena kurir bisa mendaftar ulang
+    const [result] = await db.query(
+      "DELETE FROM users WHERE id = ? AND store_id = ? AND peran = 'kurir'",
+      [id, req.user.store_id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Kurir tidak ditemukan" });
+    }
+
+    res.status(200).json({ success: true, message: "Kurir berhasil diberhentikan dan dihapus dari sistem" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Gagal memberhentikan kurir", error: error.message });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -370,4 +428,7 @@ module.exports = {
   getCurrentUser,
   updateProfile,
   getUsers,
+  getActiveCouriers,
+  updateCourier,
+  deleteCourier
 };

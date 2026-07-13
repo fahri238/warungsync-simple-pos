@@ -12,12 +12,16 @@ const {
   getUsers,
   getPendingCouriers,
   manageCourierStatus,
+  getActiveCouriers,
+  updateCourier,
+  deleteCourier,
 } = require("../controllers/authController");
 const { verifyToken } = require("../middleware/authMiddleware");
 const {
   validateRegistration,
   validateLogin,
 } = require("../middleware/validation");
+
 
 // ================= KONFIGURASI MULTER (UPLOAD KTP) =================
 // TAMBAHAN BARU: Buat folder otomatis jika belum ada
@@ -65,5 +69,11 @@ router.get("/me", verifyToken, getCurrentUser);
 router.put("/profile", verifyToken, updateProfile);
 
 router.get("/", verifyToken, getUsers);
+
+// MANAJEMEN TIM KURIR
+router.get("/active-couriers", verifyToken, getActiveCouriers);
+router.put("/courier/:id", verifyToken, updateCourier);
+router.delete("/courier/:id", verifyToken, deleteCourier);
+
 
 module.exports = router;

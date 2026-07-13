@@ -23,6 +23,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -53,7 +54,6 @@ import {
   CarFront,
 } from "lucide-react";
 import { toast } from "sonner";
-import { fetchUsersByRole, deleteCourierAccount } from "@/services/authService";
 
 const OwnerSettings = () => {
   const session = getSession();
@@ -72,27 +72,26 @@ const OwnerSettings = () => {
   const [newAccNumber, setNewAccNumber] = useState("");
   const [newAccName, setNewAccName] = useState("");
 
-  // Dialog State untuk Detail Kurir
+  // Dialog States untuk Kurir
   const [detailCourier, setDetailCourier] = useState<any | null>(null);
+  const [editCourier, setEditCourier] = useState<any | null>(null);
+  const [isUpdatingCourier, setIsUpdatingCourier] = useState(false);
 
   const loadData = async () => {
     if (!storeId) return;
     try {
       setLoading(true);
-      const [resRates, resBanks, courierRows] = await Promise.all([
+      const [resRates, resBanks, resCouriers] = await Promise.all([
         apiFetch(`/stores/${storeId}/shipping-rates`).catch(() => ({
           data: [],
         })),
         apiFetch(`/stores/${storeId}/banks`).catch(() => ({ data: [] })),
-        fetchUsersByRole("kurir").catch(() => []),
+        // PERBAIKAN: Mengambil kurir yang aktif saja beserta data KTP dan kendaraannya
+        apiFetch(`/users/active-couriers`).catch(() => ({ data: [] })),
       ]);
       setRates(resRates.data || []);
       setBanks(resBanks.data || []);
-
-      const storeCouriers = (courierRows || []).filter(
-        (c: any) => Number(c.store_id || c.storeId) === Number(storeId),
-      );
-      setCouriers(storeCouriers);
+      setCouriers(resCouriers.data || []);
     } catch (error) {
       toast.error("Gagal memuat data pengaturan");
     } finally {
@@ -105,15 +104,13 @@ const OwnerSettings = () => {
   }, [session?.role, storeId]);
 
   const toggleDelivery = (enabled: boolean) => {
-    const updated = { enabled };
-    saveDeliverySettings(updated);
-    setDelivery(updated);
+    saveDeliverySettings({ enabled });
+    setDelivery({ enabled });
     toast.success(
       enabled ? "Fitur kurir diaktifkan" : "Fitur kurir dinonaktifkan",
     );
   };
 
-  // --- HANDLER WILAYAH ---
   const handleAddRate = async () => {
     if (!newVillage || !newRate)
       return toast.error("Lengkapi nama desa dan tarif");
@@ -144,7 +141,6 @@ const OwnerSettings = () => {
     }
   };
 
-  // --- HANDLER REKENING BANK ---
   const handleAddBank = async () => {
     if (!newBankName || !newAccNumber || !newAccName)
       return toast.error("Lengkapi semua data rekening");
@@ -177,28 +173,45 @@ const OwnerSettings = () => {
     }
   };
 
-  // --- MOCK HANDLER UNTUK KURIR (Bisa disambungkan ke API nanti) ---
-  const handleEditCourier = (c: any) => {
-    toast.info(
-      `Fitur edit untuk kurir ${c.nama || c.name} sedang dalam pengembangan.`,
-    );
+  // --- HANDLER TIM KURIR ---
+  const handleUpdateCourierInfo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editCourier) return;
+    try {
+      setIsUpdatingCourier(true);
+      await apiFetch(`/users/courier/${editCourier.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          nama: editCourier.nama,
+          kontak: editCourier.kontak,
+          tipe_kendaraan: editCourier.tipe_kendaraan,
+          plat_nomor: editCourier.plat_nomor,
+        }),
+      });
+      toast.success("Data kurir berhasil diperbarui!");
+      setEditCourier(null);
+      loadData();
+    } catch (error: any) {
+      toast.error(error.message || "Gagal memperbarui kurir");
+    } finally {
+      setIsUpdatingCourier(false);
+    }
   };
 
   const handleDeleteCourier = async (id: number) => {
     try {
-      await deleteCourierAccount(id);
-      toast.success("Akun kurir berhasil diberhentikan dan dihapus");
-      loadData(); // Refresh daftar kurir
+      await apiFetch(`/users/courier/${id}`, { method: "DELETE" });
+      toast.success("Kurir diberhentikan secara permanen.");
+      loadData();
     } catch (error: any) {
-      toast.error(error.message || "Gagal menghapus kurir");
+      toast.error(error.message || "Gagal memberhentikan kurir");
     }
   };
 
   if (!session || session.role !== "owner") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-secondary/10 px-4">
-        <Card className="w-full max-w-sm text-center shadow-2xl border-0 rounded-[2rem] overflow-hidden relative">
-          <div className="h-2 bg-destructive w-full absolute top-0 left-0"></div>
+      <div className="flex min-h-screen items-center justify-center">
+        <Card className="w-full max-w-sm text-center">
           <CardContent className="py-12">
             <ShieldAlert className="h-12 w-12 text-destructive mx-auto mb-6" />
             <h2 className="text-2xl font-black mb-2">Akses Ditolak</h2>
@@ -215,8 +228,7 @@ const OwnerSettings = () => {
     <div className="space-y-6 animate-in fade-in duration-500 pb-10">
       <div className="flex flex-col gap-1">
         <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <Settings className="h-6 w-6 text-primary" /> Pengaturan & Operasional
-          Toko
+          <Settings className="h-6 w-6 text-primary" /> Pengaturan Toko
         </h2>
         <p className="text-sm text-muted-foreground">
           Kelola rute pengiriman, rekening pembayaran, dan tim kurir.
@@ -236,7 +248,6 @@ const OwnerSettings = () => {
           </TabsTrigger>
         </TabsList>
 
-        {/* TAB 1: PENGIRIMAN & WILAYAH */}
         <TabsContent value="delivery" className="space-y-6">
           <Card className="border-border/50 shadow-sm">
             <CardHeader className="bg-primary/5 border-b pb-4">
@@ -250,7 +261,7 @@ const OwnerSettings = () => {
                   Aktifkan Kurir Internal
                 </Label>
                 <p className="text-sm text-muted-foreground">
-                  Jika mati, pelanggan hanya bisa melakukan Pickup.
+                  Jika mati, pelanggan hanya bisa Pickup.
                 </p>
               </div>
               <Switch
@@ -268,10 +279,6 @@ const OwnerSettings = () => {
                   <MapPin className="h-5 w-5 text-primary" /> Area & Tarif
                   Pengiriman
                 </CardTitle>
-                <CardDescription>
-                  Atur desa/kecamatan dan ongkos kirim yang dijangkau oleh kurir
-                  Anda.
-                </CardDescription>
               </CardHeader>
               <CardContent className="pt-6 space-y-6">
                 <div className="flex flex-col sm:flex-row gap-3 items-end bg-muted/30 p-4 rounded-xl border border-dashed">
@@ -301,94 +308,74 @@ const OwnerSettings = () => {
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {rates.length === 0 ? (
-                    <p className="text-sm text-muted-foreground col-span-full">
-                      Belum ada rute wilayah terdaftar.
-                    </p>
-                  ) : (
-                    rates.map((r) => (
-                      <div
-                        key={r.id}
-                        className="flex items-center justify-between p-3 rounded-lg border shadow-sm bg-card"
-                      >
-                        <div>
-                          <p className="font-semibold text-sm">
-                            {r.villageName}
-                          </p>
-                          <p className="text-primary font-bold text-xs">
-                            Rp {r.rate.toLocaleString("id-ID")}
-                          </p>
-                        </div>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive hover:bg-destructive/10"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>
-                                Hapus Wilayah?
-                              </AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Wilayah <strong>{r.villageName}</strong> akan
-                                dihapus dari opsi pengiriman pelanggan.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Batal</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDeleteRate(r.id)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                Hapus Wilayah
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                  {rates.map((r) => (
+                    <div
+                      key={r.id}
+                      className="flex items-center justify-between p-3 rounded-lg border shadow-sm bg-card"
+                    >
+                      <div>
+                        <p className="font-semibold text-sm">{r.villageName}</p>
+                        <p className="text-primary font-bold text-xs">
+                          Rp {r.rate.toLocaleString("id-ID")}
+                        </p>
                       </div>
-                    ))
-                  )}
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Hapus Wilayah?</AlertDialogTitle>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Batal</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeleteRate(r.id)}
+                              className="bg-destructive"
+                            >
+                              Hapus
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
           )}
         </TabsContent>
 
-        {/* TAB 2: REKENING BANK */}
         <TabsContent value="bank" className="space-y-6">
           <Card className="border-border/50 shadow-sm">
             <CardHeader className="border-b pb-4">
               <CardTitle className="text-base flex items-center gap-2">
-                <Landmark className="h-5 w-5 text-primary" /> Daftar Rekening
+                <Landmark className="h-5 w-5 text-primary" /> Rekening
                 Pembayaran
               </CardTitle>
-              <CardDescription>
-                Rekening ini akan ditampilkan kepada pelanggan saat memilih
-                metode Transfer.
-              </CardDescription>
             </CardHeader>
             <CardContent className="pt-6 space-y-6">
               <div className="flex flex-col lg:flex-row gap-3 items-end bg-muted/30 p-4 rounded-xl border border-dashed">
                 <div className="space-y-2 w-full">
-                  <Label>Nama Bank / E-Wallet</Label>
+                  <Label>Nama Bank</Label>
                   <Input
                     value={newBankName}
                     onChange={(e) => setNewBankName(e.target.value)}
-                    placeholder="Contoh: BCA / DANA"
+                    placeholder="BCA / DANA"
                   />
                 </div>
                 <div className="space-y-2 w-full">
-                  <Label>Nomor Rekening</Label>
+                  <Label>No. Rekening</Label>
                   <Input
                     type="number"
                     value={newAccNumber}
                     onChange={(e) => setNewAccNumber(e.target.value)}
-                    placeholder="1234567890"
                   />
                 </div>
                 <div className="space-y-2 w-full">
@@ -396,7 +383,6 @@ const OwnerSettings = () => {
                   <Input
                     value={newAccName}
                     onChange={(e) => setNewAccName(e.target.value)}
-                    placeholder="Nama Pemilik"
                   />
                 </div>
                 <Button
@@ -408,152 +394,130 @@ const OwnerSettings = () => {
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
-                {banks.length === 0 ? (
-                  <p className="text-sm text-muted-foreground col-span-full">
-                    Belum ada rekening terdaftar.
-                  </p>
-                ) : (
-                  banks.map((b) => (
-                    <div
-                      key={b.id}
-                      className="flex items-center justify-between p-4 rounded-xl border border-border/80 shadow-sm bg-gradient-to-br from-card to-muted/20"
-                    >
-                      <div>
-                        <p className="font-bold text-foreground">
-                          {b.bank_name} •{" "}
-                          <span className="font-mono">{b.account_number}</span>
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          a.n. {b.account_name}
-                        </p>
-                      </div>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:bg-destructive/10"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Hapus Rekening?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Apakah Anda yakin ingin menghapus rekening{" "}
-                              <strong>
-                                {b.bank_name} - {b.account_number}
-                              </strong>
-                              ? Tindakan ini tidak dapat dibatalkan.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Batal</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDeleteBank(b.id)}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
-                              Hapus Rekening
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                {banks.map((b) => (
+                  <div
+                    key={b.id}
+                    className="flex items-center justify-between p-4 rounded-xl border shadow-sm bg-gradient-to-br from-card to-muted/20"
+                  >
+                    <div>
+                      <p className="font-bold">
+                        {b.bank_name} •{" "}
+                        <span className="font-mono">{b.account_number}</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        a.n. {b.account_name}
+                      </p>
                     </div>
-                  ))
-                )}
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Hapus Rekening?</AlertDialogTitle>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Batal</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDeleteBank(b.id)}
+                            className="bg-destructive"
+                          >
+                            Hapus
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* TAB 3: TIM KURIR */}
         <TabsContent value="courier" className="space-y-6">
           <Card className="border-border/50 shadow-sm">
             <CardHeader className="bg-primary/5 border-b pb-4">
               <CardTitle className="text-base flex items-center gap-2">
-                <UserSquare2 className="h-5 w-5 text-primary" /> Manajemen Tim
-                Kurir
+                <UserSquare2 className="h-5 w-5 text-primary" /> Tim Kurir Aktif
               </CardTitle>
-              <CardDescription>
-                Daftar kurir yang terhubung ke toko Anda. Klik Detail untuk
-                melihat KTP dan info kendaraan.
-              </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
               <div className="space-y-3">
                 {couriers.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    Belum ada kurir yang bergabung ke warung Anda.
+                    Belum ada kurir aktif.
                   </p>
                 ) : (
                   couriers.map((c) => (
                     <div
                       key={c.id}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border border-border/80 shadow-sm bg-card hover:bg-muted/10 transition-colors"
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl border shadow-sm bg-card"
                     >
                       <div className="flex items-start gap-4">
                         <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                           <Truck className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <h4 className="font-bold text-foreground text-sm flex items-center gap-2">
-                            {c.nama || c.name}
+                          <h4 className="font-bold text-sm flex items-center gap-2">
+                            {c.nama}{" "}
                             <span className="flex items-center gap-1 text-[10px] font-bold text-green-600 bg-green-500/10 px-2 py-0.5 rounded-full">
                               <CheckCircle2 className="h-3 w-3" /> Aktif
                             </span>
                           </h4>
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            {c.kontak || c.phone || "Tidak ada nomor telepon"}
+                            {c.kontak || "No HP Kosong"}
                           </p>
                         </div>
                       </div>
-
                       <div className="flex items-center gap-2 sm:self-center">
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleEditCourier(c)}
-                          className="h-8 gap-1.5 text-xs"
+                          onClick={() => setEditCourier({ ...c })}
+                          className="h-8 text-xs gap-1.5"
                         >
                           <Edit className="h-3.5 w-3.5" /> Edit
                         </Button>
-
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button
                               variant="outline"
                               size="sm"
-                              className="h-8 gap-1.5 text-xs text-destructive hover:bg-destructive/10 border-destructive/20"
+                              className="h-8 text-xs text-destructive border-destructive/20 gap-1.5"
                             >
                               <Trash2 className="h-3.5 w-3.5" /> Hapus
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Hapus Kurir?</AlertDialogTitle>
+                              <AlertDialogTitle>Pecat Kurir?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Apakah Anda yakin ingin memberhentikan kurir{" "}
-                                <strong>{c.nama || c.name}</strong>? Akun mereka
-                                akan dihapus permanen dari sistem toko Anda.
+                                Ini akan menghapus akun kurir{" "}
+                                <strong>{c.nama}</strong> dari toko Anda secara
+                                permanen.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Batal</AlertDialogCancel>
                               <AlertDialogAction
                                 onClick={() => handleDeleteCourier(c.id)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                className="bg-destructive"
                               >
-                                Hapus Kurir
+                                Ya, Berhentikan
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
-
                         <Button
                           size="sm"
                           onClick={() => setDetailCourier(c)}
-                          className="h-8 gap-1.5 text-xs bg-primary hover:bg-primary/90"
+                          className="h-8 text-xs bg-primary gap-1.5"
                         >
                           <Eye className="h-3.5 w-3.5" /> Detail
                         </Button>
@@ -567,50 +531,120 @@ const OwnerSettings = () => {
         </TabsContent>
       </Tabs>
 
-      {/* DIALOG DETAIL KURIR & KTP */}
+      {/* MODAL EDIT KURIR */}
+      <Dialog
+        open={!!editCourier}
+        onOpenChange={(open) => !open && setEditCourier(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Data Kurir</DialogTitle>
+          </DialogHeader>
+          {editCourier && (
+            <form onSubmit={handleUpdateCourierInfo} className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Nama Lengkap</Label>
+                <Input
+                  value={editCourier.nama}
+                  onChange={(e) =>
+                    setEditCourier({ ...editCourier, nama: e.target.value })
+                  }
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Nomor HP / WA</Label>
+                <Input
+                  value={editCourier.kontak}
+                  onChange={(e) =>
+                    setEditCourier({ ...editCourier, kontak: e.target.value })
+                  }
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Tipe Kendaraan</Label>
+                  <Input
+                    value={editCourier.tipe_kendaraan}
+                    onChange={(e) =>
+                      setEditCourier({
+                        ...editCourier,
+                        tipe_kendaraan: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Plat Nomor</Label>
+                  <Input
+                    value={editCourier.plat_nomor}
+                    onChange={(e) =>
+                      setEditCourier({
+                        ...editCourier,
+                        plat_nomor: e.target.value.toUpperCase(),
+                      })
+                    }
+                    className="uppercase"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditCourier(null)}
+                >
+                  Batal
+                </Button>
+                <Button type="submit" disabled={isUpdatingCourier}>
+                  Simpan Perubahan
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL DETAIL KTP KURIR */}
       <Dialog
         open={!!detailCourier}
         onOpenChange={(open) => !open && setDetailCourier(null)}
       >
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle className="text-lg flex items-center gap-2">
-              <IdCard className="h-5 w-5 text-primary" /> Detail Verifikasi
-              Kurir
+            <DialogTitle className="flex items-center gap-2">
+              <IdCard className="h-5 w-5 text-primary" /> Detail Informasi Kurir
             </DialogTitle>
           </DialogHeader>
-
           {detailCourier && (
             <div className="space-y-6 py-2">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
+                  <p className="text-xs text-muted-foreground uppercase font-semibold">
                     Nama Lengkap
                   </p>
-                  <p className="text-sm font-medium">
-                    {detailCourier.nama || detailCourier.name}
-                  </p>
+                  <p className="text-sm font-medium">{detailCourier.nama}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
+                  <p className="text-xs text-muted-foreground uppercase font-semibold">
                     Kontak
                   </p>
                   <p className="text-sm font-medium flex items-center gap-1.5">
-                    <Phone className="h-3.5 w-3.5 text-muted-foreground" />{" "}
-                    {detailCourier.kontak || detailCourier.phone || "-"}
+                    <Phone className="h-3.5 w-3.5" />{" "}
+                    {detailCourier.kontak || "-"}
                   </p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
+                  <p className="text-xs text-muted-foreground uppercase font-semibold">
                     Kendaraan
                   </p>
                   <p className="text-sm font-medium flex items-center gap-1.5">
-                    <CarFront className="h-3.5 w-3.5 text-muted-foreground" />{" "}
+                    <CarFront className="h-3.5 w-3.5" />{" "}
                     {detailCourier.tipe_kendaraan || "-"}
                   </p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">
+                  <p className="text-xs text-muted-foreground uppercase font-semibold">
                     Plat Nomor
                   </p>
                   <p className="text-sm font-mono font-bold bg-muted px-2 py-0.5 rounded w-fit uppercase">
@@ -618,13 +652,12 @@ const OwnerSettings = () => {
                   </p>
                 </div>
               </div>
-
               <div className="border border-border/80 rounded-xl overflow-hidden shadow-sm">
-                <div className="bg-muted/50 p-3 border-b border-border/80 flex justify-between items-center">
-                  <p className="text-sm font-bold flex items-center gap-2">
-                    <IdCard className="h-4 w-4 text-primary" /> Foto KTP (KYC)
+                <div className="bg-muted/50 p-3 border-b flex justify-between items-center">
+                  <p className="text-sm font-bold flex gap-2">
+                    <IdCard className="h-4 w-4 text-primary" /> Foto KTP
                   </p>
-                  <p className="text-xs font-mono font-medium text-muted-foreground">
+                  <p className="text-xs font-mono">
                     NIK: {detailCourier.nik || "-"}
                   </p>
                 </div>
@@ -632,18 +665,17 @@ const OwnerSettings = () => {
                   {detailCourier.foto_ktp ? (
                     <img
                       src={`http://localhost:5000/uploads/ktp/${detailCourier.foto_ktp}`}
-                      alt="Foto KTP Kurir"
-                      className="max-h-[300px] object-contain rounded-lg shadow-sm bg-white"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src =
-                          "https://placehold.co/600x400/eee/999?text=KTP+Gagal+Dimuat";
-                      }}
+                      alt="KTP Kurir"
+                      className="max-h-[300px] object-contain rounded-lg"
+                      onError={(e) =>
+                        ((e.target as HTMLImageElement).src =
+                          "https://placehold.co/600x400/eee/999?text=KTP+Gagal+Dimuat")
+                      }
                     />
                   ) : (
-                    <div className="flex flex-col items-center justify-center text-muted-foreground py-8">
-                      <IdCard className="h-10 w-10 mb-2 opacity-20" />
-                      <p className="text-sm">Foto KTP tidak tersedia</p>
-                    </div>
+                    <p className="text-sm text-muted-foreground self-center">
+                      Foto KTP tidak tersedia
+                    </p>
                   )}
                 </div>
               </div>

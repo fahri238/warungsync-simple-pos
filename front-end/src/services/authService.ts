@@ -46,3 +46,11 @@ export const fetchUsersByRole = async (role: string) => {
     return [];
   }
 };
+
+export const deleteCourierAccount = async (id: string | number) => {
+  const res = await apiFetch(`/users/courier/${id}/status`, {
+    method: "PUT",
+    body: JSON.stringify({ action: "reject" })
+  });
+  return res.data;
+};

@@ -34,3 +34,4 @@ database
 **/*.sln
 **/*.sw?
 **/*public
+**/*uploads

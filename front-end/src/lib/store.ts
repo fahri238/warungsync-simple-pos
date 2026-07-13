@@ -34,20 +34,20 @@ function set<T>(key: string, value: T) {
 export async function apiFetch(endpoint: string, options: RequestInit = {}) {
   const session = getSession();
 
-  // PERBAIKAN: Jangan hardcode Content-Type
+  // 1. Buat salinan headers
   const headers: Record<string, string> = {
     ...((options.headers as Record<string, string>) || {}),
   };
 
-  // Cek apakah data yang dikirim adalah FormData (File Upload)
+  // 2. Cek apakah ini FormData (upload file)
   const isFormData = options.body instanceof FormData;
 
-  // Jika BUKAN FormData, paksa gunakan JSON.
-  // Jika FormData, JANGAN set Content-Type, biarkan Browser yang mengaturnya.
+  // 3. HANYA set content-type jika BUKAN FormData
   if (!isFormData) {
     headers["Content-Type"] = "application/json";
   }
 
+  // 4. Tambahkan otorisasi
   if (session?.token) {
     headers["Authorization"] = `Bearer ${session.token}`;
   }
@@ -57,12 +57,12 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
     headers,
   });
 
-  // Mencegah error "Unexpected token <" jika server nyasar ke halaman HTML
+  // Validasi response agar tidak error saat menerima HTML (seperti 404/500 halaman error)
   const contentType = response.headers.get("content-type");
   if (!contentType || !contentType.includes("application/json")) {
-    throw new Error(
-      "Server gagal merespons dengan benar (Endpoint tidak ditemukan atau Error Server).",
-    );
+    // Jika bukan JSON, mungkin itu error dari server/proxy
+    const text = await response.text();
+    throw new Error(text || "Server gagal merespons dengan benar.");
   }
 
   const data = await response.json();

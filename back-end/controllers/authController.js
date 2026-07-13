@@ -328,8 +328,9 @@ const getUsers = async (req, res) => {
     }
 
     const params = [];
+    // PERBAIKAN: Sertakan atribut KYC khusus kurir
     let query =
-      "SELECT id, store_id, nama, email, peran, kontak, alamat FROM users WHERE 1=1";
+      "SELECT id, store_id, nama, email, peran, kontak, alamat, nik, tipe_kendaraan, plat_nomor, foto_ktp, is_approved FROM users WHERE 1=1";
 
     if (loggedInUserRole === "owner") {
       query += " AND store_id = ?";
@@ -339,6 +340,11 @@ const getUsers = async (req, res) => {
     if (role) {
       query += " AND peran = ?";
       params.push(role);
+      
+      // PERBAIKAN: Khusus untuk peran kurir (saat dicari Owner), ambil HANYA yang sudah di-approve
+      if (role === "kurir" && loggedInUserRole === "owner") {
+         query += " AND is_approved = 1";
+      }
     }
 
     query += " ORDER BY nama ASC";

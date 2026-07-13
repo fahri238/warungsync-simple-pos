@@ -25,13 +25,6 @@ const DEFAULT_STORES: Store[] = [
   },
 ];
 
-const DEFAULT_RATES: ShippingRate[] = [
-  { id: "rate-1", storeId: "store-mama-eva", villageName: "Montallat Tengah", rate: 5000 },
-  { id: "rate-2", storeId: "store-mama-eva", villageName: "Montallat Utara", rate: 7000 },
-  { id: "rate-3", storeId: "store-mama-eva", villageName: "Montallat Selatan", rate: 8000 },
-  { id: "rate-4", storeId: "store-mama-eva", villageName: "Luar Kecamatan", rate: 15000 },
-];
-
 const apiCall = async (endpoint: string) => {
   const response = await fetch(`${API_BASE_URL}${endpoint}`);
   const data = await response.json();
@@ -64,10 +57,10 @@ export const fetchStoreById = async (id: string): Promise<Store> => {
 export const fetchShippingRates = async (storeId: string): Promise<ShippingRate[]> => {
   try {
     const response = await apiCall(`/${storeId}/shipping-rates`);
-    if (response.data && response.data.length > 0) return response.data;
-    throw new Error("Data API Kosong");
+    // PERBAIKAN: Hanya kembalikan data asli dari API. Jika kosong, kembalikan array kosong.
+    return response.data || [];
   } catch {
-    const filtered = DEFAULT_RATES.filter((r) => r.storeId === storeId);
-    return filtered.length > 0 ? filtered : DEFAULT_RATES;
+    // Hilangkan data fallback (dummy). Jika error, anggap tidak ada wilayah.
+    return [];
   }
 };

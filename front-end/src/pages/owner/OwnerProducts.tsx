@@ -94,7 +94,6 @@ const OwnerProducts = () => {
   const [catDialogOpen, setCatDialogOpen] = useState(false);
   const [newCatName, setNewCatName] = useState("");
 
-  // STATE BARU: UX Tambah Kategori Inline (Di dalam form Produk)
   const [showInlineCatInput, setShowInlineCatInput] = useState(false);
   const [inlineCatName, setInlineCatName] = useState("");
 
@@ -146,16 +145,20 @@ const OwnerProducts = () => {
     setEditing(null);
     setForm(emptyProduct);
     setImagePreview("");
-    setShowInlineCatInput(false); // Reset status inline category
+    setShowInlineCatInput(false);
     setDialogOpen(true);
   };
 
   const openEdit = (p: Product) => {
     setEditing(p);
+    
+    // PERBAIKAN: Menangkap `capitalPrice` dari object product yang dibalikkan API
+    const modalValue = (p as any).capitalPrice || (p as any).harga_modal || 0;
+    
     setForm({
       name: p.name,
       price: p.price,
-      capitalPrice: (p as any).capitalPrice || 0,
+      capitalPrice: modalValue, // <-- Pastikan ini terisi
       stock: p.stock,
       category: p.category,
       barcode: p.barcode || "",
@@ -163,7 +166,7 @@ const OwnerProducts = () => {
       description: p.description || "",
     });
     setImagePreview(p.image || "");
-    setShowInlineCatInput(false); // Reset status inline category
+    setShowInlineCatInput(false);
     setDialogOpen(true);
   };
 
@@ -181,13 +184,10 @@ const OwnerProducts = () => {
     try {
       setSaving(true);
       if (editing) {
-        // HITUNG SELISIH STOK: Cari tahu apakah Owner menambah/mengurangi stok saat Edit
         const stockDiff = form.stock - editing.stock;
         let payload: any = { ...form };
 
         if (stockDiff !== 0) {
-          // Jika stok ditambah, hitung biayanya (Selisih Barang x Harga Modal). 
-          // Jika dikurangi, biayanya 0 karena tidak ada uang keluar.
           const calculatedCost = stockDiff > 0 ? (stockDiff * form.capitalPrice) : 0;
           
           payload = {
@@ -201,7 +201,6 @@ const OwnerProducts = () => {
         await updateProductInAPI(editing.id, payload);
         toast.success("Produk diperbarui");
       } else {
-        // PRODUK BARU: Uang Keluar = Jumlah Stok Awal × Harga Modal
         const totalBiayaModalAwal = form.stock * form.capitalPrice;
         
         const payload = {
@@ -233,7 +232,6 @@ const OwnerProducts = () => {
     }
   };
 
-  // Kategori Utama (Dialog Modal Kategori)
   const handleAddCategory = async () => {
     if (!newCatName.trim()) return;
     try {
@@ -249,7 +247,6 @@ const OwnerProducts = () => {
     }
   };
 
-  // UX BARU: Tambah Kategori Cepat (Di dalam form Produk)
   const handleInlineAddCategory = async () => {
     if (!inlineCatName.trim()) return;
     try {
@@ -259,7 +256,6 @@ const OwnerProducts = () => {
       setInlineCatName("");
       setShowInlineCatInput(false);
       await loadData();
-      // Kategori akan otomatis diperbarui di Select dropdown tanpa menutup modal produk!
     } catch {
       toast.error("Gagal menambahkan kategori baru");
     } finally {
@@ -351,7 +347,6 @@ const OwnerProducts = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
-      {/* Header Section */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-card p-6 rounded-3xl border border-border/50 shadow-sm relative overflow-hidden">
         <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-primary/5 to-transparent pointer-events-none"></div>
 
@@ -456,7 +451,6 @@ const OwnerProducts = () => {
         </div>
       </div>
 
-      {/* Product Grid */}
       {filteredProducts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 px-4 text-center border-2 border-dashed border-border/60 rounded-3xl bg-card/30">
           <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mb-4">
@@ -487,7 +481,6 @@ const OwnerProducts = () => {
               key={p.id}
               className="group overflow-hidden border-border/60 shadow-sm transition-all hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 bg-card flex flex-col relative rounded-2xl"
             >
-              {/* Image Section */}
               <div className="relative aspect-[4/3] bg-muted overflow-hidden">
                 <img
                   src={getProductImage(p)}
@@ -496,7 +489,6 @@ const OwnerProducts = () => {
                   loading="lazy"
                 />
 
-                {/* Category Badge */}
                 <div className="absolute top-2 left-2 z-10">
                   <span className="backdrop-blur-md bg-background/80 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase text-foreground shadow-sm border border-border/50">
                     {categories.find((c) => c.id === p.category)?.name ||
@@ -504,7 +496,6 @@ const OwnerProducts = () => {
                   </span>
                 </div>
 
-                {/* Floating Actions Overlay */}
                 <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] opacity-0 transition-opacity duration-300 group-hover:opacity-100 flex items-center justify-center gap-3 z-20">
                   <Button
                     size="icon"
@@ -525,7 +516,6 @@ const OwnerProducts = () => {
                 </div>
               </div>
 
-              {/* Content Section */}
               <CardContent className="p-4 flex flex-col flex-1">
                 <h3 className="font-bold text-foreground text-sm line-clamp-2 leading-tight group-hover:text-primary transition-colors">
                   {p.name}
@@ -537,7 +527,6 @@ const OwnerProducts = () => {
                       Rp {p.price.toLocaleString("id-ID")}
                     </p>
 
-                    {/* Stock Badge */}
                     <div
                       className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${
                         p.stock === 0
@@ -565,7 +554,6 @@ const OwnerProducts = () => {
         </div>
       )}
 
-      {/* Main Dialog: Add/Edit Product */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[90vh] gap-0 overflow-hidden p-0 sm:max-w-4xl rounded-3xl">
           <DialogHeader className="border-b border-border/50 px-6 py-5 bg-card/50 backdrop-blur-sm">
@@ -588,7 +576,6 @@ const OwnerProducts = () => {
 
           <div className="max-h-[calc(90vh-140px)] overflow-y-auto px-6 py-6 bg-secondary/5 custom-scrollbar">
             <div className="grid gap-8 lg:grid-cols-12">
-              {/* Kolom Kiri: original preview (True Preview) */}
               <div className="lg:col-span-4 space-y-4">
                 <p className="flex items-center gap-2 text-sm font-bold text-foreground">
                   <Eye className="h-4 w-4 text-primary" /> Pratinjau Tampilan
@@ -639,9 +626,7 @@ const OwnerProducts = () => {
                 </div>
               </div>
 
-              {/* right column: Form Inputs */}
               <div className="lg:col-span-8 space-y-8">
-                {/* Section 1: basic information */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 border-b border-border/50 pb-2">
                     <Package className="h-4 w-4 text-primary" />
@@ -667,7 +652,6 @@ const OwnerProducts = () => {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {/* UX BARU: Tambah Kategori Inline */}
                     <div className="space-y-2">
                       <Label>
                         Kategori <span className="text-destructive">*</span>
@@ -778,7 +762,6 @@ const OwnerProducts = () => {
                   </div>
                 </div>
 
-                {/* Section 2: price & stock (PERBAIKAN INPUT NUMBER) */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 border-b border-border/50 pb-2">
                     <Banknote className="h-4 w-4 text-primary" />
@@ -876,7 +859,6 @@ const OwnerProducts = () => {
                   </div>
                 </div>
 
-                {/* Section 3: Media & Description */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 border-b border-border/50 pb-2">
                     <ImageIcon className="h-4 w-4 text-primary" />

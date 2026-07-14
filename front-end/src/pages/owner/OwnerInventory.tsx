@@ -27,6 +27,8 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Save,
+  Banknote,
+  AlertCircle,
 } from "lucide-react";
 
 const OwnerInventory = () => {
@@ -39,9 +41,13 @@ const OwnerInventory = () => {
   const [adjustingProd, setAdjustingProd] = useState<Product | null>(null);
   const [adjustQty, setAdjustQty] = useState<number | "">("");
   const [adjustReason, setAdjustReason] = useState("");
-  // TAMBAHAN: State untuk menangkap biaya pengeluaran
   const [adjustCost, setAdjustCost] = useState<number | "">("");
   const [saving, setSaving] = useState(false);
+
+  // Kalkulasi Harga Modal saat ini
+  const currentHargaModal = adjustingProd 
+    ? Number((adjustingProd as any).capitalPrice || (adjustingProd as any).harga_modal || 0) 
+    : 0;
 
   const fetchInventory = async () => {
     if (!session?.store_id) return;
@@ -65,6 +71,15 @@ const OwnerInventory = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.store_id, session?.role]);
 
+  // FITUR: Auto-kalkulasi biaya pengeluaran berdasarkan Harga Modal x Qty
+  useEffect(() => {
+    if (typeof adjustQty === "number" && adjustQty > 0) {
+      setAdjustCost(adjustQty * currentHargaModal);
+    } else {
+      setAdjustCost("");
+    }
+  }, [adjustQty, currentHargaModal]);
+
   const handleAdjust = async () => {
     if (!adjustingProd || adjustQty === "" || Number(adjustQty) === 0) {
       toast.error("Masukkan jumlah penyesuaian yang valid");
@@ -77,7 +92,6 @@ const OwnerInventory = () => {
     try {
       setSaving(true);
 
-      // TAMBAHAN: Kita menyisipkan stock_change, reason, dan cost ke dalam payload
       await updateProductInAPI(adjustingProd.id, {
         name: adjustingProd.name,
         price: adjustingProd.price,
@@ -338,25 +352,29 @@ const OwnerInventory = () => {
                 )}
               </div>
 
-              {/* INPUT BARU: Hanya muncul jika Owner melakukan penambahan stok (angka positif) */}
+              {/* TAMPILAN PREVIEW DENGAN PERINGATAN HARGA MODAL */}
               {Number(adjustQty) > 0 && (
                 <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                  <Label>Total Biaya Pengeluaran (Rp)</Label>
-                  <Input
-                    type="number"
-                    placeholder="Contoh: 150000"
-                    value={adjustCost}
-                    onChange={(e) =>
-                      setAdjustCost(
-                        e.target.value ? Number(e.target.value) : "",
-                      )
-                    }
-                    className="bg-background"
-                  />
-                  <p className="text-[10px] text-muted-foreground">
-                    Catat total uang yang dikeluarkan untuk penambahan stok ini
-                    agar tercatat di Arus Kas.
-                  </p>
+                  <Label>Estimasi Biaya Pengeluaran</Label>
+                  <div className={`flex items-center justify-between rounded-xl border p-3 ${currentHargaModal === 0 ? "border-destructive/30 bg-destructive/5" : "border-border/80 bg-muted/30"}`}>
+                    <span className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                      <Banknote className="h-4 w-4" /> Otomatis dihitung:
+                    </span>
+                    <span className={`text-lg font-bold tracking-wide ${currentHargaModal === 0 ? "text-destructive" : "text-foreground"}`}>
+                      Rp {(Number(adjustCost) || 0).toLocaleString("id-ID")}
+                    </span>
+                  </div>
+                  
+                  {currentHargaModal === 0 ? (
+                    <p className="text-[11px] font-bold text-destructive flex items-center gap-1.5 mt-1">
+                      <AlertCircle className="h-3.5 w-3.5" /> 
+                      Harga modal belum diatur! Anda dapat mengedit harga modal di menu Produk.
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-muted-foreground">
+                      Dihitung dari (Harga Modal Rp {currentHargaModal.toLocaleString("id-ID")} × {adjustQty}) dan akan otomatis dicatat ke dalam laporan pengeluaran.
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -402,4 +420,4 @@ const OwnerInventory = () => {
   );
 };
 
-export default OwnerInventory;
+export default OwnerInventory; 

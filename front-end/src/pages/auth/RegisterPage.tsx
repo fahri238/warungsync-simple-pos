@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { WarungSyncLogo } from "@/components/brand/WarungSyncLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +12,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   ArrowLeft,
   Mail,
@@ -28,6 +35,7 @@ import {
   CheckCircle,
   CreditCard,
   CarFront,
+  FileText,
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/store";
@@ -37,7 +45,7 @@ const RegisterPage = () => {
 
   const navigate = useNavigate();
   const location = useLocation();
-  const { register, loading } = useAuth();
+  const { loading } = useAuth();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -61,8 +69,16 @@ const RegisterPage = () => {
   const [longitude, setLongitude] = useState<number | null>(null);
   const [ktpFile, setKtpFile] = useState<File | null>(null);
 
+  const [storePhoto, setStorePhoto] = useState<File | null>(null);
+
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [isTermsOpen, setIsTermsOpen] = useState(false);
+
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Penanda apakah role saat ini mewajibkan dokumen T&C
+  const requiresTerms = role === "store-owner" || role === "courier";
 
   useEffect(() => {
     const fetchStores = async () => {
@@ -70,7 +86,7 @@ const RegisterPage = () => {
         const res = await apiFetch("/stores/list");
         if (res.data) setAvailableStores(res.data);
       } catch (e) {
-        console.warn("Menunggu endpoint backend /stores/list dibuat...");
+        console.warn("Menunggu endpoint /stores/list");
       }
     };
     fetchStores();
@@ -104,51 +120,49 @@ const RegisterPage = () => {
   const handleRegister = async (e?: React.FormEvent) => {
     e?.preventDefault();
 
+    // VALIDASI PERSETUJUAN (Hanya untuk Owner & Kurir)
+    if (requiresTerms && !termsAccepted) {
+      toast.error(
+        "Anda harus menyetujui Syarat & Ketentuan untuk melanjutkan.",
+      );
+      return;
+    }
+
     if (!name || !email || !password || !phone) {
       toast.error("Isi semua field yang diwajibkan");
       return;
     }
 
     if (role === "courier") {
-      if (!homeAddress) {
-        toast.error("Kurir wajib mengisi alamat lengkap");
-        return;
-      }
-      if (!nik || nik.length !== 16 || isNaN(Number(nik))) {
-        toast.error("Kurir wajib mengisi NIK dengan 16 digit angka yang valid");
-        return;
-      }
-      if (!vehicleType || !vehiclePlate) {
-        toast.error("Kurir wajib mengisi tipe dan plat nomor kendaraan");
-        return;
-      }
-      if (!selectedStore) {
-        toast.error("Kurir wajib memilih toko tempat bekerja");
-        return;
-      }
+      if (!homeAddress)
+        return toast.error("Kurir wajib mengisi alamat lengkap");
+      if (!nik || nik.length !== 16 || isNaN(Number(nik)))
+        return toast.error(
+          "Kurir wajib mengisi NIK dengan 16 digit angka yang valid",
+        );
+      if (!vehicleType || !vehiclePlate)
+        return toast.error("Kurir wajib mengisi tipe dan plat nomor kendaraan");
+      if (!selectedStore)
+        return toast.error("Kurir wajib memilih toko tempat bekerja");
+      if (!ktpFile) return toast.error("Foto KTP wajib diunggah!");
     }
 
-    if (role === "customer" && !homeAddress) {
-      toast.error("Pembeli wajib mengisi alamat rumah");
-      return;
-    }
+    if (role === "customer" && !homeAddress)
+      return toast.error("Pembeli wajib mengisi alamat rumah");
 
-    if (role === "store-owner" && (!storeName || !storeAddress)) {
-      toast.error("Pemilik toko wajib mengisi nama dan alamat toko");
-      return;
+    if (role === "store-owner") {
+      if (!storeName || !storeAddress)
+        return toast.error("Pemilik toko wajib mengisi nama dan alamat toko");
+      if (!ktpFile) return toast.error("Anda wajib mengunggah foto KTP!");
+      if (!storePhoto)
+        return toast.error("Anda wajib mengunggah foto tampak depan warung!");
     }
 
     if (
       (role === "customer" || role === "store-owner") &&
       (latitude == null || longitude == null)
     ) {
-      toast.error("Pilih lokasi di peta sebelum melanjutkan");
-      return;
-    }
-
-    if ((role === "courier" || role === "store-owner") && !ktpFile) {
-      toast.error("Anda wajib mengunggah foto KTP untuk keperluan verifikasi!");
-      return;
+      return toast.error("Pilih lokasi di peta sebelum melanjutkan");
     }
 
     try {
@@ -159,14 +173,8 @@ const RegisterPage = () => {
       else if (role === "courier") mappedRole = "kurir";
 
       let finalAddress = homeAddress;
-      if (role === "store-owner") {
+      if (role === "store-owner")
         finalAddress = `${storeName} - ${storeAddress}`;
-      }
-
-      let finalStoreId = "";
-      if (mappedRole === "kurir") {
-        finalStoreId = selectedStore;
-      }
 
       const formData = new FormData();
       formData.append("nama", name);
@@ -176,7 +184,7 @@ const RegisterPage = () => {
       formData.append("peran", mappedRole);
       formData.append("alamat", finalAddress);
 
-      if (finalStoreId) formData.append("store_id", finalStoreId);
+      if (mappedRole === "kurir") formData.append("store_id", selectedStore);
       if (latitude) formData.append("latitude", latitude.toString());
       if (longitude) formData.append("longitude", longitude.toString());
       if (mappedRole === "owner") formData.append("nama_toko", storeName);
@@ -188,6 +196,8 @@ const RegisterPage = () => {
       }
 
       if (ktpFile) formData.append("foto_ktp", ktpFile);
+      if (storePhoto && mappedRole === "owner")
+        formData.append("foto_warung", storePhoto);
 
       const response = await fetch("http://localhost:5000/api/users/register", {
         method: "POST",
@@ -201,9 +211,7 @@ const RegisterPage = () => {
         return;
       }
 
-      toast.success(
-        "Registrasi berhasil! Silakan periksa status akun Anda saat login.",
-      );
+      toast.success(data.message || "Registrasi berhasil!");
       sessionStorage.removeItem("registerFormState");
       navigate("/login");
     } catch (error: any) {
@@ -213,30 +221,28 @@ const RegisterPage = () => {
     }
   };
 
-  // REDESIGN: Membatasi layar (h-screen) dan memusatkan konten seperti halaman Login
+  const isSubmitDisabled =
+    submitting || loading || (requiresTerms && !termsAccepted);
+
   return (
     <div className="flex h-screen w-full items-center justify-center bg-background overflow-hidden relative">
-      {/* Background Decor (Optional) */}
       <div
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,hsl(var(--primary)/0.08),transparent)]"
         aria-hidden
       />
 
-      {/* Main Container - Dibuat max-width seperti Login, tapi konten dalamnya bisa di-scroll */}
       <div className="w-full max-w-xl px-4 py-6 sm:px-8 flex flex-col max-h-screen relative z-10">
-        {/* Header Tetap di Atas */}
         <div className="shrink-0 mb-6 justify-center">
           <Button
-              variant="ghost"
-              size="sm"
-              className="-ml-2 mb-6 gap-1.5 text-muted-foreground"
-              asChild
-            >
-              <Link to="/">
-                <ArrowLeft className="h-4 w-4" />
-                Kembali ke beranda
-              </Link>
-            </Button>
+            variant="ghost"
+            size="sm"
+            className="-ml-2 mb-6 gap-1.5 text-muted-foreground"
+            asChild
+          >
+            <Link to="/">
+              <ArrowLeft className="h-4 w-4" /> Kembali ke beranda
+            </Link>
+          </Button>
 
           <h2 className="font-display text-2xl font-bold tracking-tight text-foreground">
             Daftar Akun Baru
@@ -246,20 +252,20 @@ const RegisterPage = () => {
           </p>
         </div>
 
-        {/* Form Area - Bisa di-scroll internal (overflow-y-auto) tanpa menggeser halaman utama */}
         <div className="flex-1 overflow-y-auto custom-scrollbar rounded-2xl border border-border/80 bg-card shadow-xl shadow-primary/5 p-1 relative">
           <form onSubmit={handleRegister} className="space-y-6 p-5 sm:p-7">
-            {/* Pemilihan Peran */}
             <div className="space-y-3">
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center block">
                 Pilih Peran Anda
               </Label>
               <RadioGroup
                 value={role}
-                onValueChange={(v) => setRole(v as Role)}
+                onValueChange={(v) => {
+                  setRole(v as Role);
+                  setTermsAccepted(false);
+                }}
                 className="grid grid-cols-3 gap-2 sm:gap-3"
               >
-                {/* Opsi Pelanggan */}
                 <div>
                   <RadioGroupItem
                     value="customer"
@@ -274,7 +280,6 @@ const RegisterPage = () => {
                     <span className="font-medium leading-tight">Pembeli</span>
                   </Label>
                 </div>
-                {/* Opsi Owner */}
                 <div>
                   <RadioGroupItem
                     value="store-owner"
@@ -289,7 +294,6 @@ const RegisterPage = () => {
                     <span className="font-medium leading-tight">Toko</span>
                   </Label>
                 </div>
-                {/* Opsi Kurir */}
                 <div>
                   <RadioGroupItem
                     value="courier"
@@ -308,7 +312,6 @@ const RegisterPage = () => {
             </div>
 
             <div className="space-y-4">
-              {/* Grid 2 Kolom untuk Inputan Dasar agar menghemat ruang vertikal */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="name" className="text-xs">
@@ -325,7 +328,6 @@ const RegisterPage = () => {
                     />
                   </div>
                 </div>
-
                 <div className="space-y-1.5">
                   <Label htmlFor="email" className="text-xs">
                     Email
@@ -342,7 +344,6 @@ const RegisterPage = () => {
                     />
                   </div>
                 </div>
-
                 <div className="space-y-1.5">
                   <Label htmlFor="phone" className="text-xs">
                     No. HP
@@ -359,7 +360,6 @@ const RegisterPage = () => {
                     />
                   </div>
                 </div>
-
                 <div className="space-y-1.5">
                   <Label htmlFor="password" className="text-xs">
                     Password
@@ -389,9 +389,6 @@ const RegisterPage = () => {
                 </div>
               </div>
 
-              {/* DYNAMIC FIELDS BERDASARKAN PERAN */}
-
-              {/* Field Alamat Rumah (Customer & Courier) */}
               {(role === "customer" || role === "courier") && (
                 <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
                   <Label htmlFor="home-address" className="text-xs">
@@ -416,7 +413,6 @@ const RegisterPage = () => {
                 </div>
               )}
 
-              {/* Field Toko (Owner) */}
               {role === "store-owner" && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in zoom-in-95 duration-200 pt-1">
                   <div className="space-y-1.5">
@@ -452,7 +448,6 @@ const RegisterPage = () => {
                 </div>
               )}
 
-              {/* Field KYC & Data Kurir (Courier) */}
               {role === "courier" && (
                 <div className="space-y-4 pt-4 border-t border-border/50 animate-in fade-in zoom-in-95 duration-200">
                   <div className="space-y-1.5">
@@ -485,7 +480,6 @@ const RegisterPage = () => {
                       </SelectContent>
                     </Select>
                   </div>
-
                   <div className="space-y-1.5">
                     <Label htmlFor="nik" className="text-xs">
                       NIK KTP Lengkap
@@ -502,7 +496,6 @@ const RegisterPage = () => {
                       />
                     </div>
                   </div>
-
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label htmlFor="vehicle-type" className="text-xs">
@@ -537,7 +530,6 @@ const RegisterPage = () => {
                 </div>
               )}
 
-              {/* Upload Dokumen KYC (Owner & Courier) */}
               {(role === "courier" || role === "store-owner") && (
                 <div className="space-y-1.5 pt-4 border-t border-border/50 animate-in fade-in zoom-in-95 duration-200">
                   <Label
@@ -559,20 +551,39 @@ const RegisterPage = () => {
                 </div>
               )}
 
-              {/* Pilih Lokasi Peta (Customer & Owner) */}
+              {role === "store-owner" && (
+                <div className="space-y-1.5 pt-2 animate-in fade-in zoom-in-95 duration-200">
+                  <Label
+                    htmlFor="warung-upload"
+                    className="text-xs font-semibold uppercase text-primary"
+                  >
+                    Unggah Foto Warung (Tampak Depan){" "}
+                    <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="warung-upload"
+                    type="file"
+                    accept="image/jpeg, image/png, image/jpg"
+                    onChange={(e) =>
+                      setStorePhoto(e.target.files ? e.target.files[0] : null)
+                    }
+                    className="h-9 cursor-pointer text-xs py-1.5 file:mr-4 file:rounded-md file:border-0 file:bg-primary/10 file:px-3 file:text-[10px] file:font-semibold file:text-primary"
+                  />
+                </div>
+              )}
+
+              {/* MAP LOKASI */}
               {role === "customer" || role === "store-owner" ? (
                 <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 pt-3 flex flex-col sm:flex-row gap-3 items-center justify-between mt-2">
                   <div className="flex-1 text-center sm:text-left">
                     <Label className="text-xs font-semibold text-primary flex items-center justify-center sm:justify-start gap-1.5 mb-1">
                       <MapPin className="h-3.5 w-3.5" />{" "}
-                      {latitude
-                        ? "Titik Lokasi Tersimpan"
-                        : "Titik Lokasi Pengiriman"}
+                      {latitude ? "Titik Lokasi Tersimpan" : "Titik Lokasi"}
                     </Label>
                     <p className="text-[11px] text-muted-foreground">
                       {latitude
                         ? `${latitude.toFixed(5)}, ${longitude?.toFixed(5)}`
-                        : "Tentukan koordinat untuk memudahkan pengiriman / pencarian."}
+                        : "Tentukan koordinat di peta."}
                     </p>
                   </div>
                   <Button
@@ -602,7 +613,7 @@ const RegisterPage = () => {
                       });
                     }}
                   >
-                    {latitude ? "Ubah Titik Peta" : "Buka Peta"}
+                    {latitude ? "Ubah Titik" : "Buka Peta"}
                   </Button>
                 </div>
               ) : (
@@ -615,12 +626,38 @@ const RegisterPage = () => {
               )}
             </div>
 
-            {/* Tombol Submit Melayang di Bawah Box */}
-            <div className="pt-2 sticky bottom-0 bg-card pb-2 border-t border-background mt-4 z-20">
+            {/* CHECKBOX SYARAT DAN KETENTUAN (HANYA MUNCUL JIKA OWNER ATAU KURIR) */}
+            {requiresTerms && (
+              <div className="flex items-start space-x-3 pt-4 border-t border-border/50 animate-in fade-in zoom-in-95">
+                <input
+                  type="checkbox"
+                  id="terms"
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-border text-primary focus:ring-primary/20 bg-background cursor-pointer"
+                />
+                <label
+                  htmlFor="terms"
+                  className="text-xs text-muted-foreground leading-relaxed select-none"
+                >
+                  Saya menyetujui{" "}
+                  <button
+                    type="button"
+                    onClick={() => setIsTermsOpen(true)}
+                    className="text-primary hover:underline font-bold"
+                  >
+                    Dokumen Syarat & Ketentuan
+                  </button>{" "}
+                  serta Kebijakan Privasi penggunaan platform WarungSync.
+                </label>
+              </div>
+            )}
+
+            <div className="pt-2 sticky bottom-0 bg-card pb-2 mt-4 z-20">
               <Button
                 type="submit"
-                className="h-11 w-full font-bold shadow-md shadow-primary/20"
-                disabled={submitting || loading}
+                className={`h-11 w-full font-bold shadow-md transition-all ${isSubmitDisabled ? "opacity-50 grayscale cursor-not-allowed" : "shadow-primary/20"}`}
+                disabled={isSubmitDisabled}
               >
                 {submitting
                   ? "Memproses Registrasi..."
@@ -630,7 +667,6 @@ const RegisterPage = () => {
           </form>
         </div>
 
-        {/* Footer Text */}
         <div className="shrink-0 mt-4 text-center">
           <p className="text-sm text-muted-foreground">
             Sudah punya akun?{" "}
@@ -643,6 +679,83 @@ const RegisterPage = () => {
           </p>
         </div>
       </div>
+
+      {/* POP-UP / MODAL SYARAT DAN KETENTUAN */}
+      <Dialog open={isTermsOpen} onOpenChange={setIsTermsOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" /> Dokumen Persetujuan
+            </DialogTitle>
+            <DialogDescription>
+              Syarat & Ketentuan Penggunaan Layanan WarungSync
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5 py-4 max-h-[60vh] overflow-y-auto custom-scrollbar text-sm text-muted-foreground pr-4">
+            <div className="space-y-2">
+              <h4 className="font-bold text-foreground">
+                1. Biaya Layanan & Komisi (Admin Fee)
+              </h4>
+              <p>
+                Untuk mendukung biaya pemeliharaan aplikasi, pengambangan fitur,
+                dan operasional server WarungSync, sistem akan mengenakan
+                potongan otomatis sebesar{" "}
+                <strong>5% dari total setiap transaksi</strong> yang berhasil
+                diselesaikan melalui platform ini. Dengan mendaftar sebagai
+                Pemilik Toko, Anda menyetujui kebijakan pemotongan ini.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <h4 className="font-bold text-foreground">
+                2. Keamanan & Privasi Data Pengguna
+              </h4>
+              <p>
+                Seluruh dokumen sensitif yang diunggah ke dalam sistem, termasuk
+                namun tidak terbatas pada{" "}
+                <strong>Foto KTP, Data Rekening Bank, dan Foto Warung</strong>,
+                disimpan secara rahasia dan aman. Data tersebut murni digunakan
+                untuk keperluan verifikasi identitas (KYC) internal guna
+                mencegah penipuan, dan{" "}
+                <strong>
+                  sama sekali tidak akan diperjualbelikan atau disalahgunakan
+                </strong>{" "}
+                oleh pihak ketiga.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <h4 className="font-bold text-foreground">
+                3. Tanggung Jawab & Kewajiban
+              </h4>
+              <p>
+                Setiap Pelanggan, Kurir, dan Pemilik Toko berkewajiban
+                memberikan informasi identitas yang valid dan aktual. Segala
+                bentuk indikasi kecurangan, pemalsuan identitas, atau
+                penyalahgunaan aplikasi akan mengakibatkan pemblokiran akun
+                secara permanen tanpa memerlukan pemberitahuan sebelumnya dari
+                pihak Admin.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="sm:justify-between flex-row items-center border-t pt-4">
+            <Button variant="ghost" onClick={() => setIsTermsOpen(false)}>
+              Tutup
+            </Button>
+            <Button
+              onClick={() => {
+                setTermsAccepted(true);
+                setIsTermsOpen(false);
+              }}
+              className="font-bold"
+            >
+              Saya Mengerti & Setuju
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

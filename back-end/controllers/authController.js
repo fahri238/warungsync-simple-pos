@@ -8,7 +8,6 @@ const JWT_EXPIRY = "24h";
 
 // ================= REGISTER =================
 const register = async (req, res) => {
-  // PERBAIKAN: Menerima data dari req.body (teks) dan req.file (gambar KTP dari multer)
   const {
     nama, email, kata_sandi, kontak, peran = "pelanggan",
     alamat, store_id = null, nama_toko = null,
@@ -20,7 +19,7 @@ const register = async (req, res) => {
 
   try {
     if (!nama || !email || !kata_sandi || !kontak) {
-      return res.status(400).json({ success: false, message: "Semua field wajib diisi (nama, email, kata sandi, kontak)" });
+      return res.status(400).json({ success: false, message: "Semua field wajib diisi" });
     }
 
     const [existingUser] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
@@ -32,31 +31,34 @@ const register = async (req, res) => {
     if (peran === "kurir" && !store_id) return res.status(400).json({ success: false, message: "Kurir wajib mencantumkan ID Toko" });
     if (peran === "owner" && !nama_toko) return res.status(400).json({ success: false, message: "Pemilik Toko wajib mencantumkan nama_toko" });
 
-    // Validasi Wajib KTP untuk Kurir dan Owner
-    const fotoKtp = req.file ? req.file.filename : null;
+    // Menangkap Multiple Files dari req.files
+    const fotoKtp = req.files && req.files['foto_ktp'] ? req.files['foto_ktp'][0].filename : null;
+    const fotoWarung = req.files && req.files['foto_warung'] ? req.files['foto_warung'][0].filename : null;
+
     if ((peran === "kurir" || peran === "owner") && !fotoKtp) {
       return res.status(400).json({ success: false, message: "Foto KTP wajib diunggah untuk verifikasi!" });
+    }
+    if (peran === "owner" && !fotoWarung) {
+      return res.status(400).json({ success: false, message: "Foto tampak depan warung wajib diunggah!" });
     }
 
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(kata_sandi, saltRounds);
     let finalStoreId = store_id;
-
-    // PERBAIKAN REVISI: Kurir DAN Owner baru otomatis belum disetujui (0)
     const isApproved = (peran === "kurir" || peran === "owner") ? 0 : 1;
 
     connection = await db.getConnection();
     await connection.beginTransaction();
 
     if (peran === "owner") {
+      // PERBAIKAN: Menyisipkan foto_warung ke tabel stores
       const [storeResult] = await connection.query(
-        "INSERT INTO stores (nama, alamat, latitude, longitude, kontak) VALUES (?, ?, ?, ?, ?)",
-        [nama_toko, alamat, latitude, longitude, kontak],
+        "INSERT INTO stores (nama, alamat, latitude, longitude, kontak, foto_warung) VALUES (?, ?, ?, ?, ?, ?)",
+        [nama_toko, alamat, latitude, longitude, kontak, fotoWarung],
       );
       finalStoreId = storeResult.insertId;
     }
 
-    // PERBAIKAN: Menambahkan foto_ktp ke dalam query insert
     const [result] = await connection.query(
       "INSERT INTO users (store_id, nama, email, kata_sandi, kontak, peran, alamat, nik, tipe_kendaraan, plat_nomor, is_approved, foto_ktp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [finalStoreId, nama, email, hashedPassword, kontak, peran, alamat || null, nik, tipe_kendaraan, plat_nomor, isApproved, fotoKtp],
@@ -65,7 +67,7 @@ const register = async (req, res) => {
     if (peran === "owner") {
       await connection.query(
         "INSERT INTO notifications (user_id, role, title, message, is_read) VALUES (NULL, 'admin', 'Toko Mitra Baru', ?, 0)",
-        [`${nama} mendaftarkan toko ${nama_toko}. Menunggu verifikasi KTP Anda!`]
+        [`${nama} mendaftarkan toko ${nama_toko}. Menunggu verifikasi dokumen!`]
       );
     }
 
@@ -75,7 +77,7 @@ const register = async (req, res) => {
     res.status(201).json({
       success: true,
       message: (peran === "kurir" || peran === "owner")
-          ? "Registrasi berhasil! Akun Anda sedang menunggu proses verifikasi identitas (KTP)."
+          ? "Registrasi berhasil! Akun Anda sedang menunggu proses verifikasi identitas (KYC)."
           : "Registrasi berhasil. Silakan login.",
       data: { id: result.insertId, nama, email, peran, store_id: finalStoreId },
     });

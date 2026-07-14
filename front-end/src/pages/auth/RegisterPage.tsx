@@ -448,6 +448,59 @@ const RegisterPage = () => {
                 </div>
               )}
 
+              {/* MAP LOKASI */}
+              {role === "customer" || role === "store-owner" ? (
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 pt-3 flex flex-col sm:flex-row gap-3 items-center justify-between mt-2">
+                  <div className="flex-1 text-center sm:text-left">
+                    <Label className="text-xs font-semibold text-primary flex items-center justify-center sm:justify-start gap-1.5 mb-1">
+                      <MapPin className="h-3.5 w-3.5" />{" "}
+                      {latitude ? "Titik Lokasi Tersimpan" : "Titik Lokasi"}
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      {latitude
+                        ? `${latitude.toFixed(5)}, ${longitude?.toFixed(5)}`
+                        : "Tentukan koordinat di peta."}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={latitude ? "outline" : "default"}
+                    className="w-full sm:w-auto text-xs h-9 shrink-0"
+                    onClick={() => {
+                      sessionStorage.setItem(
+                        "registerFormState",
+                        JSON.stringify({
+                          role,
+                          name,
+                          email,
+                          phone,
+                          homeAddress,
+                          storeName,
+                          storeAddress,
+                          nik,
+                          vehicleType,
+                          vehiclePlate,
+                          selectedStore,
+                        }),
+                      );
+                      navigate(`/register/location?role=${role}`, {
+                        state: { latitude, longitude },
+                      });
+                    }}
+                  >
+                    {latitude ? "Ubah Titik" : "Buka Peta"}
+                  </Button>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-muted-foreground/30 bg-muted/30 p-3 text-center mt-2">
+                  <p className="text-[11px] text-muted-foreground flex items-center justify-center gap-1.5">
+                    <CheckCircle className="h-3.5 w-3.5 text-primary" /> Kurir
+                    tidak memerlukan titik lokasi statis.
+                  </p>
+                </div>
+              )}
+
               {role === "courier" && (
                 <div className="space-y-4 pt-4 border-t border-border/50 animate-in fade-in zoom-in-95 duration-200">
                   <div className="space-y-1.5">
@@ -572,58 +625,7 @@ const RegisterPage = () => {
                 </div>
               )}
 
-              {/* MAP LOKASI */}
-              {role === "customer" || role === "store-owner" ? (
-                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 pt-3 flex flex-col sm:flex-row gap-3 items-center justify-between mt-2">
-                  <div className="flex-1 text-center sm:text-left">
-                    <Label className="text-xs font-semibold text-primary flex items-center justify-center sm:justify-start gap-1.5 mb-1">
-                      <MapPin className="h-3.5 w-3.5" />{" "}
-                      {latitude ? "Titik Lokasi Tersimpan" : "Titik Lokasi"}
-                    </Label>
-                    <p className="text-[11px] text-muted-foreground">
-                      {latitude
-                        ? `${latitude.toFixed(5)}, ${longitude?.toFixed(5)}`
-                        : "Tentukan koordinat di peta."}
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={latitude ? "outline" : "default"}
-                    className="w-full sm:w-auto text-xs h-9 shrink-0"
-                    onClick={() => {
-                      sessionStorage.setItem(
-                        "registerFormState",
-                        JSON.stringify({
-                          role,
-                          name,
-                          email,
-                          phone,
-                          homeAddress,
-                          storeName,
-                          storeAddress,
-                          nik,
-                          vehicleType,
-                          vehiclePlate,
-                          selectedStore,
-                        }),
-                      );
-                      navigate(`/register/location?role=${role}`, {
-                        state: { latitude, longitude },
-                      });
-                    }}
-                  >
-                    {latitude ? "Ubah Titik" : "Buka Peta"}
-                  </Button>
-                </div>
-              ) : (
-                <div className="rounded-xl border border-dashed border-muted-foreground/30 bg-muted/30 p-3 text-center mt-2">
-                  <p className="text-[11px] text-muted-foreground flex items-center justify-center gap-1.5">
-                    <CheckCircle className="h-3.5 w-3.5 text-primary" /> Kurir
-                    tidak memerlukan titik lokasi statis.
-                  </p>
-                </div>
-              )}
+              
             </div>
 
             {/* CHECKBOX SYARAT DAN KETENTUAN (HANYA MUNCUL JIKA OWNER ATAU KURIR) */}

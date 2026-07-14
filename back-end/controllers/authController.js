@@ -77,7 +77,7 @@ const register = async (req, res) => {
     res.status(201).json({
       success: true,
       message: (peran === "kurir" || peran === "owner")
-          ? "Registrasi berhasil! Akun Anda sedang menunggu proses verifikasi identitas (KYC)."
+          ? "Registrasi berhasil! Akun Anda sedang menunggu proses verifikasi identitas."
           : "Registrasi berhasil. Silakan login.",
       data: { id: result.insertId, nama, email, peran, store_id: finalStoreId },
     });

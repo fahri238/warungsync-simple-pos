@@ -455,7 +455,98 @@ const deleteAdminBankAccount = async (req, res) => {
 };
 
 const getReports = async (req, res) => {
-  /* ... Kode Laporan ... */ res.status(200).json({ success: true });
+  const { period } = req.query;
+
+  let dateFilter = "";
+  let dateFilterUsers = "";
+
+  if (period === "hari_ini") {
+    dateFilter = "AND DATE(tanggal_dibuat) = CURDATE()";
+    dateFilterUsers = "WHERE DATE(tanggal_dibuat) = CURDATE()";
+  } else if (period === "minggu_ini") {
+    dateFilter = "AND tanggal_dibuat >= DATE(NOW()) - INTERVAL 7 DAY";
+    dateFilterUsers = "WHERE tanggal_dibuat >= DATE(NOW()) - INTERVAL 7 DAY";
+  } else if (period === "bulan_ini") {
+    dateFilter =
+      "AND MONTH(tanggal_dibuat) = MONTH(CURDATE()) AND YEAR(tanggal_dibuat) = YEAR(CURDATE())";
+    dateFilterUsers =
+      "WHERE MONTH(tanggal_dibuat) = MONTH(CURDATE()) AND YEAR(tanggal_dibuat) = YEAR(CURDATE())";
+  }
+
+  try {
+    // 1. STATISTIK RINGKASAN (TAMBAHAN: SUM komisi_sistem)
+    const [omzetRes] = await db.query(
+      `SELECT SUM(total_harga) as total, SUM(komisi_sistem) as komisi FROM orders WHERE status = 'selesai' ${dateFilter}`,
+    );
+    const [trxRes] = await db.query(
+      `SELECT COUNT(*) as total FROM orders WHERE status = 'selesai' ${dateFilter}`,
+    );
+    const [tokoAktifRes] = await db.query(
+      "SELECT COUNT(*) as total FROM stores WHERE status = 'aktif'",
+    );
+    const [userBaruRes] = await db.query(
+      `SELECT COUNT(*) as total FROM users ${dateFilterUsers}`,
+    );
+
+    // 2. DATA TRANSAKSI (TAMBAHAN: o.komisi_sistem)
+    const [transaksi] = await db.query(`
+      SELECT o.id, o.tanggal_dibuat, o.total_harga, o.komisi_sistem, o.status,
+             IFNULL(s.nama, 'Toko Tidak Diketahui') as nama_toko,
+             IFNULL(u.nama, 'Pelanggan Umum') as nama_pelanggan
+      FROM orders o
+      LEFT JOIN stores s ON o.store_id = s.id
+      LEFT JOIN users u ON o.id_pengguna = u.id
+      WHERE 1=1 ${dateFilter.replace(/tanggal_dibuat/g, "o.tanggal_dibuat")}
+      ORDER BY o.tanggal_dibuat DESC
+    `);
+
+    // 3. DATA PERFORMA TOKO (TAMBAHAN: SUM(o.komisi_sistem) as total_komisi)
+    const [toko] = await db.query(`
+      SELECT s.id, s.nama,
+             IFNULL(MAX(u.nama), 'Tanpa Owner') as nama_owner,
+             COUNT(o.id) as total_pesanan,
+             IFNULL(SUM(o.total_harga), 0) as omzet,
+             IFNULL(SUM(o.komisi_sistem), 0) as total_komisi
+      FROM stores s
+      LEFT JOIN users u ON u.store_id = s.id AND u.peran = 'owner'
+      LEFT JOIN orders o ON o.store_id = s.id AND o.status = 'selesai' ${dateFilter.replace(/tanggal_dibuat/g, "o.tanggal_dibuat")}
+      GROUP BY s.id, s.nama
+      ORDER BY omzet DESC
+    `);
+
+    // 4. DATA PENGGUNA
+    const [pengguna] = await db.query(`
+      SELECT id, nama, peran, tanggal_dibuat, status
+      FROM users
+      ${dateFilterUsers}
+      ORDER BY tanggal_dibuat DESC
+    `);
+
+    // Kirim semua data ke Frontend
+    res.status(200).json({
+      success: true,
+      data: {
+        stats: {
+          omzetTotal: omzetRes[0].total || 0,
+          komisiTotal: omzetRes[0].komisi || 0, // State baru untuk Dashboard
+          totalTransaksi: trxRes[0].total || 0,
+          tokoAktif: tokoAktifRes[0].total || 0,
+          penggunaBaru: userBaruRes[0].total || 0,
+        },
+        transaksi,
+        toko,
+        pengguna,
+      },
+    });
+  } catch (error) {
+    console.error("Error mengambil laporan:", error);
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Gagal memuat data laporan dari database",
+      });
+  }
 };
 
 

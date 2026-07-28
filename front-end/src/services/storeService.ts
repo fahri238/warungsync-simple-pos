@@ -3,6 +3,7 @@ const API_BASE_URL = "http://localhost:5000/api/stores";
 export interface Store {
   id: string;
   name: string;
+  kategori_toko?: string; 
   address?: string;
   latitude: number | null;
   longitude: number | null;
@@ -19,6 +20,7 @@ const DEFAULT_STORES: Store[] = [
   {
     id: "store-mama-eva",
     name: "Warung Mama Eva",
+    kategori_toko: "Sembako & Kebutuhan Pokok", 
     address: "Kecamatan Montallat, Kalimantan Selatan",
     latitude: -2.1234567,
     longitude: 115.1234567,

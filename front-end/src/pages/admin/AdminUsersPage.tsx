@@ -74,6 +74,7 @@ interface UserData {
   plat_nomor?: string;
   nama_toko?: string;
   alamat_toko?: string;
+  kategori_toko?: string;
   foto_ktp?: string;
   foto_warung?: string;
   latitude?: number;
@@ -426,19 +427,19 @@ const AdminUsersPage = () => {
 
   const handleDeleteBank = (id: number) => {
     confirmAction(
-      "Hapus Rekening?", 
-      "Apakah Anda yakin ingin menghapus rekening ini? Tindakan ini tidak dapat dibatalkan.", 
-      "Hapus Rekening", 
-      "destructive", 
+      "Hapus Rekening?",
+      "Apakah Anda yakin ingin menghapus rekening ini? Tindakan ini tidak dapat dibatalkan.",
+      "Hapus Rekening",
+      "destructive",
       async () => {
-        try { 
-          await apiFetch(`/admin/banks/delete/${id}`, { method: "DELETE" }); 
-          toast.success("Rekening dihapus"); 
-          openBankModal(selectedOwnerForBank!); 
-        } catch (error: any) { 
-          toast.error(error.message); 
+        try {
+          await apiFetch(`/admin/banks/delete/${id}`, { method: "DELETE" });
+          toast.success("Rekening dihapus");
+          openBankModal(selectedOwnerForBank!);
+        } catch (error: any) {
+          toast.error(error.message);
         }
-      }
+      },
     );
   };
 
@@ -524,10 +525,20 @@ const AdminUsersPage = () => {
                           {user.peran}
                         </span>
                         {(user.peran === "owner" || user.peran === "kurir") && (
-                          <p className="text-xs mt-2 text-muted-foreground">
-                            <Store className="inline h-3 w-3 mr-1" />{" "}
-                            {user.nama_toko || "Store ID: " + user.store_id}
-                          </p>
+                          <div className="mt-2">
+                            <p className="text-xs text-muted-foreground">
+                              <Store className="inline h-3 w-3 mr-1" />{" "}
+                              {user.nama_toko || "Store ID: " + user.store_id}
+                            </p>
+                            {/* 👈 FITUR BARU: Tampilkan Kategori Toko Hanya Untuk Owner */}
+                            {user.peran === "owner" && user.kategori_toko && (
+                              <div className="mt-1.5">
+                                <span className="px-2 py-0.5 rounded-md bg-muted text-foreground text-[10px] font-bold border border-border/80 uppercase tracking-wider">
+                                  {user.kategori_toko}
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         )}
                       </td>
                       <td className="px-6 py-4 space-y-2">
@@ -901,28 +912,65 @@ const AdminUsersPage = () => {
       {/* MODAL KELOLA REKENING */}
       <Dialog open={isBankModalOpen} onOpenChange={setIsBankModalOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle className="flex items-center gap-2"><Landmark className="h-5 w-5 text-primary"/> Kelola Rekening Owner</DialogTitle><DialogDescription>Admin Support untuk Toko: {selectedOwnerForBank?.nama_toko}</DialogDescription></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Landmark className="h-5 w-5 text-primary" /> Kelola Rekening
+              Owner
+            </DialogTitle>
+            <DialogDescription>
+              Admin Support untuk Toko: {selectedOwnerForBank?.nama_toko}
+            </DialogDescription>
+          </DialogHeader>
           <div className="space-y-4 pt-4">
             <div className="flex gap-2">
-              <Input placeholder="Nama Bank" value={newBankName} onChange={e => setNewBankName(e.target.value)}/>
-              
-              {/* PERBAIKAN: Input tipe number khusus rekening */}
-              <Input 
-                type="number" 
-                placeholder="No Rekening" 
-                value={newAccNumber} 
-                onChange={e => setNewAccNumber(e.target.value)}
+              <Input
+                placeholder="Nama Bank"
+                value={newBankName}
+                onChange={(e) => setNewBankName(e.target.value)}
               />
-              
-              <Button onClick={handleAddBank}><Plus className="h-4 w-4"/></Button>
+
+              {/* PERBAIKAN: Input tipe number khusus rekening */}
+              <Input
+                type="number"
+                placeholder="No Rekening"
+                value={newAccNumber}
+                onChange={(e) => setNewAccNumber(e.target.value)}
+              />
+
+              <Button onClick={handleAddBank}>
+                <Plus className="h-4 w-4" />
+              </Button>
             </div>
             <div className="space-y-2 mt-4 max-h-48 overflow-y-auto">
-              {banks.length === 0 ? <p className="text-center text-sm text-muted-foreground py-4">Belum ada rekening</p> : banks.map(b => (
-                <div key={b.id} className="flex justify-between items-center p-3 border rounded-lg bg-muted/20">
-                  <div><p className="font-bold text-sm">{b.bank_name} - {b.account_number}</p><p className="text-xs text-muted-foreground">a.n {b.account_name}</p></div>
-                  <Button variant="ghost" size="icon" onClick={() => handleDeleteBank(b.id)} className="text-destructive"><Trash2 className="h-4 w-4"/></Button>
-                </div>
-              ))}
+              {banks.length === 0 ? (
+                <p className="text-center text-sm text-muted-foreground py-4">
+                  Belum ada rekening
+                </p>
+              ) : (
+                banks.map((b) => (
+                  <div
+                    key={b.id}
+                    className="flex justify-between items-center p-3 border rounded-lg bg-muted/20"
+                  >
+                    <div>
+                      <p className="font-bold text-sm">
+                        {b.bank_name} - {b.account_number}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        a.n {b.account_name}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteBank(b.id)}
+                      className="text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </DialogContent>

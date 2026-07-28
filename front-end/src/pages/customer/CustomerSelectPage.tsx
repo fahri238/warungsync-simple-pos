@@ -6,7 +6,13 @@ import { useStoreContext } from "@/context/StoreContext";
 import StoreMap from "@/components/maps/StoreMap";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { MapPin, Store as StoreIcon, Loader2, ArrowRight, User } from "lucide-react";
+import {
+  MapPin,
+  Store as StoreIcon,
+  Loader2,
+  ArrowRight,
+  User,
+} from "lucide-react";
 import { toast } from "sonner";
 import { getSession } from "@/lib/store";
 
@@ -41,7 +47,8 @@ const CustomerSelectPage = () => {
           <Button variant="outline" size="sm" asChild>
             {/* PERBAIKAN RUTE: Tombol diubah menjadi Profil karena user pasti sudah login */}
             <Link to="/customer" className="gap-2">
-              <User className="h-4 w-4" /> {session?.name?.split(" ")[0] || "Profil"}
+              <User className="h-4 w-4" />{" "}
+              {session?.name?.split(" ")[0] || "Profil"}
             </Link>
           </Button>
         </div>
@@ -51,7 +58,8 @@ const CustomerSelectPage = () => {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-foreground">Pilih Toko</h1>
           <p className="mt-2 text-muted-foreground">
-            Pilih satu toko terlebih dahulu. Keranjang hanya berisi produk dari toko yang sama.
+            Pilih satu toko terlebih dahulu. Keranjang hanya berisi produk dari
+            toko yang sama.
           </p>
         </div>
 
@@ -61,7 +69,11 @@ const CustomerSelectPage = () => {
           </div>
         ) : (
           <>
-            <StoreMap stores={stores} onSelectStore={chooseStore} height="360px" />
+            <StoreMap
+              stores={stores}
+              onSelectStore={chooseStore}
+              height="360px"
+            />
 
             <div className="grid gap-3 sm:grid-cols-2">
               {stores.map((store) => (
@@ -75,7 +87,18 @@ const CustomerSelectPage = () => {
                       <StoreIcon className="h-5 w-5 text-primary" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-foreground">{store.name}</h3>
+                      {/* MULAI PERUBAHAN DI SINI: Dibungkus dengan flex untuk badge */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-semibold text-foreground">
+                          {store.name}
+                        </h3>
+                        {store.kategori_toko && (
+                          <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider border border-primary/20">
+                            {store.kategori_toko}
+                          </span>
+                        )}
+                      </div>
+
                       {store.address && (
                         <p className="mt-1 flex items-start gap-1 text-sm text-muted-foreground">
                           <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />

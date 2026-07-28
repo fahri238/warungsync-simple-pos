@@ -519,7 +519,7 @@ const OwnerReports = () => {
             value="lowstock"
             className="flex-1 min-w-[120px] data-[state=active]:bg-background data-[state=active]:shadow-sm"
           >
-            Stok Rendah
+            Stok Menipis
           </TabsTrigger>
         </TabsList>
 

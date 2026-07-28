@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import DeliveryLocationPicker from "@/components/maps/DeliveryLocationPicker";
 import {
   Select,
   SelectContent,
@@ -57,6 +58,10 @@ const RegisterPage = () => {
   const [storeName, setStoreName] = useState("");
   const [storeAddress, setStoreAddress] = useState("");
 
+  // PERBAIKAN: Hanya ada satu deklarasi storeCategory di sini
+  const [storeCategory, setStoreCategory] = useState("");
+  const [customCategory, setCustomCategory] = useState("");
+
   const [nik, setNik] = useState("");
   const [vehicleType, setVehicleType] = useState("");
   const [vehiclePlate, setVehiclePlate] = useState("");
@@ -68,8 +73,13 @@ const RegisterPage = () => {
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [ktpFile, setKtpFile] = useState<File | null>(null);
-
   const [storePhoto, setStorePhoto] = useState<File | null>(null);
+
+  // State untuk Peta Modal
+  const [isMapOpen, setIsMapOpen] = useState(false);
+  const [mapCenter, setMapCenter] = useState<[number, number]>([
+    -3.316694, 114.590111,
+  ]);
 
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
@@ -91,31 +101,8 @@ const RegisterPage = () => {
     };
     fetchStores();
 
-    const state = location.state as {
-      latitude?: number;
-      longitude?: number;
-    } | null;
-    if (state?.latitude != null && state?.longitude != null) {
-      setLatitude(state.latitude);
-      setLongitude(state.longitude);
-    }
-
-    const savedForm = sessionStorage.getItem("registerFormState");
-    if (savedForm) {
-      const parsed = JSON.parse(savedForm);
-      if (parsed.role) setRole(parsed.role);
-      if (parsed.name) setName(parsed.name);
-      if (parsed.email) setEmail(parsed.email);
-      if (parsed.phone) setPhone(parsed.phone);
-      if (parsed.homeAddress) setHomeAddress(parsed.homeAddress);
-      if (parsed.storeName) setStoreName(parsed.storeName);
-      if (parsed.storeAddress) setStoreAddress(parsed.storeAddress);
-      if (parsed.nik) setNik(parsed.nik);
-      if (parsed.vehicleType) setVehicleType(parsed.vehicleType);
-      if (parsed.vehiclePlate) setVehiclePlate(parsed.vehiclePlate);
-      if (parsed.selectedStore) setSelectedStore(parsed.selectedStore);
-    }
-  }, [location.state]);
+    // Hapus logika sessionStorage untuk map lama agar tidak mengganggu pop-up modal
+  }, []);
 
   const handleRegister = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -153,6 +140,9 @@ const RegisterPage = () => {
     if (role === "store-owner") {
       if (!storeName || !storeAddress)
         return toast.error("Pemilik toko wajib mengisi nama dan alamat toko");
+      if (!storeCategory) return toast.error("Pilih klasifikasi toko Anda!");
+      if (storeCategory === "Lainnya" && !customCategory.trim())
+        return toast.error("Isi kategori manual untuk toko Anda!");
       if (!ktpFile) return toast.error("Anda wajib mengunggah foto KTP!");
       if (!storePhoto)
         return toast.error("Anda wajib mengunggah foto tampak depan warung!");
@@ -187,7 +177,13 @@ const RegisterPage = () => {
       if (mappedRole === "kurir") formData.append("store_id", selectedStore);
       if (latitude) formData.append("latitude", latitude.toString());
       if (longitude) formData.append("longitude", longitude.toString());
-      if (mappedRole === "owner") formData.append("nama_toko", storeName);
+
+      if (mappedRole === "owner") {
+        formData.append("nama_toko", storeName);
+        const finalCategory =
+          storeCategory === "Lainnya" ? customCategory : storeCategory;
+        formData.append("kategori_toko", finalCategory);
+      }
 
       if (mappedRole === "kurir") {
         formData.append("nik", nik);
@@ -212,7 +208,6 @@ const RegisterPage = () => {
       }
 
       toast.success(data.message || "Registrasi berhasil!");
-      sessionStorage.removeItem("registerFormState");
       navigate("/login");
     } catch (error: any) {
       toast.error(error?.message || "Gagal mendaftar");
@@ -430,7 +425,52 @@ const RegisterPage = () => {
                       />
                     </div>
                   </div>
+
+                  {/* INPUT KATEGORI TOKO */}
                   <div className="space-y-1.5">
+                    <Label className="text-xs">
+                      Klasifikasi Toko{" "}
+                      <span className="text-destructive">*</span>
+                    </Label>
+                    <Select
+                      value={storeCategory}
+                      onValueChange={setStoreCategory}
+                    >
+                      <SelectTrigger className="h-10 bg-background text-sm">
+                        <SelectValue placeholder="Pilih jenis toko..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Sembako & Kebutuhan Pokok">
+                          Sembako & Kebutuhan Pokok
+                        </SelectItem>
+                        <SelectItem value="Makanan & Minuman">
+                          Makanan & Minuman
+                        </SelectItem>
+                        <SelectItem value="Apotek & Obat-obatan">
+                          Apotek / Obat-obatan
+                        </SelectItem>
+                        <SelectItem value="Toko Bangunan">
+                          Toko Bangunan
+                        </SelectItem>
+                        <SelectItem value="Lainnya">
+                          Kategori Lainnya (Ketik Manual)
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    {/* Input text muncul hanya jika memilih "Lainnya" */}
+                    {storeCategory === "Lainnya" && (
+                      <Input
+                        placeholder="Ketik kategori toko Anda..."
+                        value={customCategory}
+                        onChange={(e) => setCustomCategory(e.target.value)}
+                        className="h-10 mt-2 bg-background text-sm animate-in fade-in slide-in-from-top-2"
+                        autoFocus
+                      />
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5 sm:col-span-2">
                     <Label htmlFor="store-address" className="text-xs">
                       Alamat Toko
                     </Label>
@@ -462,34 +502,15 @@ const RegisterPage = () => {
                         : "Tentukan koordinat di peta."}
                     </p>
                   </div>
+                  {/* TOMBOL BUKA MODAL PETA */}
                   <Button
                     type="button"
                     size="sm"
                     variant={latitude ? "outline" : "default"}
                     className="w-full sm:w-auto text-xs h-9 shrink-0"
-                    onClick={() => {
-                      sessionStorage.setItem(
-                        "registerFormState",
-                        JSON.stringify({
-                          role,
-                          name,
-                          email,
-                          phone,
-                          homeAddress,
-                          storeName,
-                          storeAddress,
-                          nik,
-                          vehicleType,
-                          vehiclePlate,
-                          selectedStore,
-                        }),
-                      );
-                      navigate(`/register/location?role=${role}`, {
-                        state: { latitude, longitude },
-                      });
-                    }}
+                    onClick={() => setIsMapOpen(true)}
                   >
-                    {latitude ? "Ubah Titik" : "Buka Peta"}
+                    {latitude ? "Ubah Titik Peta" : "Buka Peta"}
                   </Button>
                 </div>
               ) : (
@@ -624,11 +645,9 @@ const RegisterPage = () => {
                   />
                 </div>
               )}
-
-              
             </div>
 
-            {/* CHECKBOX SYARAT DAN KETENTUAN (HANYA MUNCUL JIKA OWNER ATAU KURIR) */}
+            {/* CHECKBOX SYARAT DAN KETENTUAN */}
             {requiresTerms && (
               <div className="flex items-start space-x-3 pt-4 border-t border-border/50 animate-in fade-in zoom-in-95">
                 <input
@@ -682,6 +701,43 @@ const RegisterPage = () => {
         </div>
       </div>
 
+      {/* POP-UP / MODAL PETA GEOMAPPING */}
+      <Dialog open={isMapOpen} onOpenChange={setIsMapOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-primary" /> Tentukan Lokasi Anda
+            </DialogTitle>
+            <DialogDescription>
+              Geser peta atau klik pada lokasi untuk menempatkan pin merah
+              secara akurat.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="h-[300px] w-full rounded-xl overflow-hidden border border-border/50 shadow-inner mt-2">
+            <DeliveryLocationPicker
+              latitude={latitude}
+              longitude={longitude}
+              mapCenter={mapCenter}
+              onChange={(lat, lng) => {
+                setLatitude(lat);
+                setLongitude(lng);
+              }}
+              height="100%"
+            />
+          </div>
+
+          <DialogFooter className="mt-4">
+            <Button
+              onClick={() => setIsMapOpen(false)}
+              className="w-full font-bold"
+            >
+              Simpan & Tutup Peta
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* POP-UP / MODAL SYARAT DAN KETENTUAN */}
       <Dialog open={isTermsOpen} onOpenChange={setIsTermsOpen}>
         <DialogContent className="sm:max-w-lg">
@@ -708,7 +764,6 @@ const RegisterPage = () => {
                 Pemilik Toko, Anda menyetujui kebijakan pemotongan ini.
               </p>
             </div>
-
             <div className="space-y-2">
               <h4 className="font-bold text-foreground">
                 2. Keamanan & Privasi Data Pengguna
@@ -724,20 +779,6 @@ const RegisterPage = () => {
                   sama sekali tidak akan diperjualbelikan atau disalahgunakan
                 </strong>{" "}
                 oleh pihak ketiga.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <h4 className="font-bold text-foreground">
-                3. Tanggung Jawab & Kewajiban
-              </h4>
-              <p>
-                Setiap Pelanggan, Kurir, dan Pemilik Toko berkewajiban
-                memberikan informasi identitas yang valid dan aktual. Segala
-                bentuk indikasi kecurangan, pemalsuan identitas, atau
-                penyalahgunaan aplikasi akan mengakibatkan pemblokiran akun
-                secara permanen tanpa memerlukan pemberitahuan sebelumnya dari
-                pihak Admin.
               </p>
             </div>
           </div>

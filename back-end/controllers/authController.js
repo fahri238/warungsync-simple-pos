@@ -9,65 +9,127 @@ const JWT_EXPIRY = "24h";
 // ================= REGISTER =================
 const register = async (req, res) => {
   const {
-    nama, email, kata_sandi, kontak, peran = "pelanggan",
-    alamat, store_id = null, nama_toko = null,
-    nik = null, tipe_kendaraan = null, plat_nomor = null,
-    latitude = null, longitude = null,
+    nama,
+    email,
+    kata_sandi,
+    kontak,
+    peran = "pelanggan",
+    alamat,
+    store_id = null,
+    nama_toko = null,
+    nik = null,
+    tipe_kendaraan = null,
+    plat_nomor = null,
+    latitude = null,
+    longitude = null,
+    kategori_toko = null,
   } = req.body;
 
   let connection;
 
   try {
     if (!nama || !email || !kata_sandi || !kontak) {
-      return res.status(400).json({ success: false, message: "Semua field wajib diisi" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Semua field wajib diisi" });
     }
 
-    const [existingUser] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
-    if (existingUser.length > 0) return res.status(409).json({ success: false, message: "Email sudah terdaftar" });
+    const [existingUser] = await db.query(
+      "SELECT id FROM users WHERE email = ?",
+      [email],
+    );
+    if (existingUser.length > 0)
+      return res
+        .status(409)
+        .json({ success: false, message: "Email sudah terdaftar" });
 
     const validRoles = ["admin", "owner", "pelanggan", "kurir"];
-    if (!validRoles.includes(peran)) return res.status(400).json({ success: false, message: "Peran tidak valid" });
+    if (!validRoles.includes(peran))
+      return res
+        .status(400)
+        .json({ success: false, message: "Peran tidak valid" });
 
-    if (peran === "kurir" && !store_id) return res.status(400).json({ success: false, message: "Kurir wajib mencantumkan ID Toko" });
-    if (peran === "owner" && !nama_toko) return res.status(400).json({ success: false, message: "Pemilik Toko wajib mencantumkan nama_toko" });
+    if (peran === "kurir" && !store_id)
+      return res
+        .status(400)
+        .json({ success: false, message: "Kurir wajib mencantumkan ID Toko" });
+    if (peran === "owner" && !nama_toko)
+      return res.status(400).json({
+        success: false,
+        message: "Pemilik Toko wajib mencantumkan nama_toko",
+      });
 
     // Menangkap Multiple Files dari req.files
-    const fotoKtp = req.files && req.files['foto_ktp'] ? req.files['foto_ktp'][0].filename : null;
-    const fotoWarung = req.files && req.files['foto_warung'] ? req.files['foto_warung'][0].filename : null;
+    const fotoKtp =
+      req.files && req.files["foto_ktp"]
+        ? req.files["foto_ktp"][0].filename
+        : null;
+    const fotoWarung =
+      req.files && req.files["foto_warung"]
+        ? req.files["foto_warung"][0].filename
+        : null;
 
     if ((peran === "kurir" || peran === "owner") && !fotoKtp) {
-      return res.status(400).json({ success: false, message: "Foto KTP wajib diunggah untuk verifikasi!" });
+      return res.status(400).json({
+        success: false,
+        message: "Foto KTP wajib diunggah untuk verifikasi!",
+      });
     }
     if (peran === "owner" && !fotoWarung) {
-      return res.status(400).json({ success: false, message: "Foto tampak depan warung wajib diunggah!" });
+      return res.status(400).json({
+        success: false,
+        message: "Foto tampak depan warung wajib diunggah!",
+      });
     }
 
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(kata_sandi, saltRounds);
     let finalStoreId = store_id;
-    const isApproved = (peran === "kurir" || peran === "owner") ? 0 : 1;
+    const isApproved = peran === "kurir" || peran === "owner" ? 0 : 1;
 
     connection = await db.getConnection();
     await connection.beginTransaction();
 
     if (peran === "owner") {
-      // PERBAIKAN: Menyisipkan foto_warung ke tabel stores
       const [storeResult] = await connection.query(
-        "INSERT INTO stores (nama, alamat, latitude, longitude, kontak, foto_warung) VALUES (?, ?, ?, ?, ?, ?)",
-        [nama_toko, alamat, latitude, longitude, kontak, fotoWarung],
+        "INSERT INTO stores (nama, kategori_toko, alamat, latitude, longitude, kontak, foto_warung) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [
+          nama_toko,
+          kategori_toko,
+          alamat,
+          latitude,
+          longitude,
+          kontak,
+          fotoWarung,
+        ],
       );
       finalStoreId = storeResult.insertId;
     }
 
     const [result] = await connection.query(
       "INSERT INTO users (store_id, nama, email, kata_sandi, kontak, peran, alamat, nik, tipe_kendaraan, plat_nomor, is_approved, foto_ktp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-      [finalStoreId, nama, email, hashedPassword, kontak, peran, alamat || null, nik, tipe_kendaraan, plat_nomor, isApproved, fotoKtp],
+      [
+        finalStoreId,
+        nama,
+        email,
+        hashedPassword,
+        kontak,
+        peran,
+        alamat || null,
+        nik,
+        tipe_kendaraan,
+        plat_nomor,
+        isApproved,
+        fotoKtp,
+      ],
     );
 
     if (peran === "owner") {
       await connection.query(
         "INSERT INTO notifications (user_id, role, title, message, is_read) VALUES (NULL, 'admin', 'Toko Mitra Baru', ?, 0)",
-        [`${nama} mendaftarkan toko ${nama_toko}. Menunggu verifikasi dokumen!`]
+        [
+          `${nama} mendaftarkan toko ${nama_toko}. Menunggu verifikasi dokumen!`,
+        ],
       );
     }
 
@@ -76,14 +138,22 @@ const register = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: (peran === "kurir" || peran === "owner")
-          ? "Registrasi berhasil! Akun Anda sedang menunggu proses verifikasi identitas."
+      message:
+        peran === "kurir" || peran === "owner"
+          ? "Registrasi berhasil! Verifikasi data Anda akan diproses dalam waktu 1x24 jam."
           : "Registrasi berhasil. Silakan login.",
       data: { id: result.insertId, nama, email, peran, store_id: finalStoreId },
     });
   } catch (error) {
-    if (connection) { await connection.rollback(); connection.release(); }
-    res.status(500).json({ success: false, message: "Gagal mendaftar pengguna", error: error.message });
+    if (connection) {
+      await connection.rollback();
+      connection.release();
+    }
+    res.status(500).json({
+      success: false,
+      message: "Gagal mendaftar pengguna",
+      error: error.message,
+    });
   }
 };
 
@@ -106,15 +176,15 @@ const login = async (req, res) => {
         .json({ success: false, message: "Email atau kata sandi salah" });
 
     const user = users[0];
-    
+
     // PERBAIKAN: Cek status aktif/nonaktif SEBELUM mengecek password
     // Jika akun dinonaktifkan, tolak seketika.
     if (user.status === "nonaktif") {
       return res
         .status(403) // Menggunakan 403 Forbidden (Lebih tepat untuk akun yang diblokir/nonaktif)
-        .json({ 
-          success: false, 
-          message: "Akun anda dinonaktifkan oleh admin" // Pesan notifikasi kustom sesuai permintaan Anda
+        .json({
+          success: false,
+          message: "Akun anda dinonaktifkan oleh admin", // Pesan notifikasi kustom sesuai permintaan Anda
         });
     }
 
@@ -126,13 +196,21 @@ const login = async (req, res) => {
 
     // FITUR BARU: Blokir login jika akun belum disetujui
     if (user.is_approved === 0) {
-      return res
-        .status(403)
-        .json({
+      if (user.status === "ditolak") {
+        return res.status(403).json({
           success: false,
+          kyc_status: "rejected",
           message:
-            "Akun Anda belum disetujui, Harap tunggu.",
+            user.alasan_penolakan ||
+            "Mohon maaf, pendaftaran Anda ditolak karena dokumen tidak valid.",
         });
+      }
+      return res.status(403).json({
+        success: false,
+        kyc_status: "pending",
+        message:
+          "Verifikasi akun sedang diproses (Maksimal 1x24 Jam). Harap tunggu pemberitahuan selanjutnya.",
+      });
     }
 
     const token = jwt.sign(
@@ -181,13 +259,11 @@ const getPendingCouriers = async (req, res) => {
     );
     res.status(200).json({ success: true, data: rows });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Gagal mengambil data",
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: "Gagal mengambil data",
+      error: error.message,
+    });
   }
 };
 
@@ -210,23 +286,19 @@ const manageCourierStatus = async (req, res) => {
         "DELETE FROM users WHERE id = ? AND store_id = ? AND is_approved = 0",
         [id, req.user.store_id],
       );
-      res
-        .status(200)
-        .json({
-          success: true,
-          message: "Pendaftaran kurir ditolak dan dihapus",
-        });
+      res.status(200).json({
+        success: true,
+        message: "Pendaftaran kurir ditolak dan dihapus",
+      });
     } else {
       res.status(400).json({ success: false, message: "Aksi tidak valid" });
     }
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Gagal memperbarui status",
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: "Gagal memperbarui status",
+      error: error.message,
+    });
   }
 };
 
@@ -246,13 +318,11 @@ const getCurrentUser = async (req, res) => {
 
     res.status(200).json({ success: true, data: users[0] });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Gagal mengambil data user",
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: "Gagal mengambil data user",
+      error: error.message,
+    });
   }
 };
 
@@ -263,12 +333,10 @@ const updateProfile = async (req, res) => {
 
   try {
     if (!nama && !kontak && !alamat) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Minimal ada satu field yang harus diubah",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Minimal ada satu field yang harus diubah",
+      });
     }
 
     const updates = [];
@@ -296,21 +364,17 @@ const updateProfile = async (req, res) => {
       [userId],
     );
 
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: "Profil berhasil diperbarui",
-        data: users[0],
-      });
+    res.status(200).json({
+      success: true,
+      message: "Profil berhasil diperbarui",
+      data: users[0],
+    });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Gagal memperbarui profil",
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: "Gagal memperbarui profil",
+      error: error.message,
+    });
   }
 };
 
@@ -342,10 +406,10 @@ const getUsers = async (req, res) => {
     if (role) {
       query += " AND peran = ?";
       params.push(role);
-      
+
       // PERBAIKAN: Khusus untuk peran kurir (saat dicari Owner), ambil HANYA yang sudah di-approve
       if (role === "kurir" && loggedInUserRole === "owner") {
-         query += " AND is_approved = 1";
+        query += " AND is_approved = 1";
       }
     }
 
@@ -354,13 +418,11 @@ const getUsers = async (req, res) => {
     const [rows] = await db.query(query, params);
     res.status(200).json({ success: true, data: rows });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Gagal mengambil data pengguna",
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: "Gagal mengambil data pengguna",
+      error: error.message,
+    });
   }
 };
 
@@ -371,11 +433,15 @@ const getActiveCouriers = async (req, res) => {
     // Mengambil kurir yang SUDAH disetujui (is_approved = 1) dengan data lengkap
     const [rows] = await db.query(
       "SELECT id, nama, email, kontak, nik, tipe_kendaraan, plat_nomor, foto_ktp, status FROM users WHERE peran = 'kurir' AND store_id = ? AND is_approved = 1 ORDER BY id DESC",
-      [storeId]
+      [storeId],
     );
     res.status(200).json({ success: true, data: rows });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Gagal mengambil data kurir aktif", error: error.message });
+    res.status(500).json({
+      success: false,
+      message: "Gagal mengambil data kurir aktif",
+      error: error.message,
+    });
   }
 };
 
@@ -383,42 +449,60 @@ const getActiveCouriers = async (req, res) => {
 const updateCourier = async (req, res) => {
   const { id } = req.params;
   const { nama, kontak, tipe_kendaraan, plat_nomor } = req.body;
-  
+
   try {
     // Memastikan Owner hanya bisa mengedit kurir dari tokonya sendiri
     const [result] = await db.query(
       "UPDATE users SET nama = ?, kontak = ?, tipe_kendaraan = ?, plat_nomor = ? WHERE id = ? AND store_id = ? AND peran = 'kurir'",
-      [nama, kontak, tipe_kendaraan, plat_nomor, id, req.user.store_id]
+      [nama, kontak, tipe_kendaraan, plat_nomor, id, req.user.store_id],
     );
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: "Kurir tidak ditemukan atau Anda tidak berhak mengubahnya" });
+      return res.status(404).json({
+        success: false,
+        message: "Kurir tidak ditemukan atau Anda tidak berhak mengubahnya",
+      });
     }
-    
-    res.status(200).json({ success: true, message: "Data kurir berhasil diperbarui" });
+
+    res
+      .status(200)
+      .json({ success: true, message: "Data kurir berhasil diperbarui" });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Gagal memperbarui kurir", error: error.message });
+    res.status(500).json({
+      success: false,
+      message: "Gagal memperbarui kurir",
+      error: error.message,
+    });
   }
 };
 
 // ================= DELETE / DEACTIVATE COURIER =================
 const deleteCourier = async (req, res) => {
   const { id } = req.params;
-  
+
   try {
     // Kita melakukan Soft Delete (Hapus Permanen) karena kurir bisa mendaftar ulang
     const [result] = await db.query(
       "DELETE FROM users WHERE id = ? AND store_id = ? AND peran = 'kurir'",
-      [id, req.user.store_id]
+      [id, req.user.store_id],
     );
 
     if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: "Kurir tidak ditemukan" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Kurir tidak ditemukan" });
     }
 
-    res.status(200).json({ success: true, message: "Kurir berhasil diberhentikan dan dihapus dari sistem" });
+    res.status(200).json({
+      success: true,
+      message: "Kurir berhasil diberhentikan dan dihapus dari sistem",
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Gagal memberhentikan kurir", error: error.message });
+    res.status(500).json({
+      success: false,
+      message: "Gagal memberhentikan kurir",
+      error: error.message,
+    });
   }
 };
 
@@ -432,5 +516,5 @@ module.exports = {
   getUsers,
   getActiveCouriers,
   updateCourier,
-  deleteCourier
+  deleteCourier,
 };

@@ -4,7 +4,7 @@ const db = require("../config/db");
 const getStores = async (req, res) => {
   try {
     const [rows] = await db.query(
-      "SELECT id, nama AS name, alamat AS address, latitude, longitude, kontak FROM stores ORDER BY nama ASC",
+      "SELECT id, nama AS name, kategori_toko, alamat AS address, latitude, longitude, kontak FROM stores ORDER BY nama ASC",
     );
 
     const formattedRows = rows.map((r) => ({
@@ -16,13 +16,11 @@ const getStores = async (req, res) => {
     res.status(200).json({ success: true, data: formattedRows });
   } catch (error) {
     console.error("Error getStores:", error);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Gagal mengambil data toko",
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: "Gagal mengambil data toko",
+      error: error.message,
+    });
   }
 };
 
@@ -32,7 +30,7 @@ const getStoreById = async (req, res) => {
 
   try {
     const [rows] = await db.query(
-      "SELECT id, nama AS name, alamat AS address, latitude, longitude, kontak FROM stores WHERE id = ?",
+      "SELECT id, nama AS name, kategori_toko, alamat AS address, latitude, longitude, kontak FROM stores WHERE id = ?",
       [id],
     );
 
@@ -49,13 +47,11 @@ const getStoreById = async (req, res) => {
     res.status(200).json({ success: true, data: store });
   } catch (error) {
     console.error("Error getStoreById:", error);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Terjadi kesalahan server",
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: "Terjadi kesalahan server",
+      error: error.message,
+    });
   }
 };
 
@@ -73,13 +69,11 @@ const getShippingRates = async (req, res) => {
     res.status(200).json({ success: true, data: formattedRows });
   } catch (error) {
     console.error("Error getShippingRates:", error);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Gagal memuat tarif ongkir",
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: "Gagal memuat tarif ongkir",
+      error: error.message,
+    });
   }
 };
 
@@ -92,20 +86,16 @@ const addShippingRate = async (req, res) => {
       "INSERT INTO shipping_rates (store_id, nama_desa, tarif) VALUES (?, ?, ?)",
       [storeId, villageName, rate],
     );
-    res
-      .status(201)
-      .json({
-        success: true,
-        message: "Wilayah pengiriman berhasil ditambahkan",
-      });
+    res.status(201).json({
+      success: true,
+      message: "Wilayah pengiriman berhasil ditambahkan",
+    });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Gagal menambah wilayah",
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: "Gagal menambah wilayah",
+      error: error.message,
+    });
   }
 };
 
@@ -117,13 +107,11 @@ const deleteShippingRate = async (req, res) => {
       .status(200)
       .json({ success: true, message: "Wilayah berhasil dihapus" });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Gagal menghapus wilayah",
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: "Gagal menghapus wilayah",
+      error: error.message,
+    });
   }
 };
 
@@ -161,13 +149,11 @@ const createStore = async (req, res) => {
       message: "Toko berhasil didaftarkan",
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Gagal mendaftarkan toko",
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: "Gagal mendaftarkan toko",
+      error: error.message,
+    });
   }
 };
 
@@ -181,13 +167,11 @@ const getBankAccounts = async (req, res) => {
     );
     res.status(200).json({ success: true, data: rows });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Gagal memuat rekening bank",
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: "Gagal memuat rekening bank",
+      error: error.message,
+    });
   }
 };
 
@@ -203,13 +187,11 @@ const addBankAccount = async (req, res) => {
       .status(201)
       .json({ success: true, message: "Rekening berhasil ditambahkan" });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Gagal menambah rekening",
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: "Gagal menambah rekening",
+      error: error.message,
+    });
   }
 };
 
@@ -221,13 +203,11 @@ const deleteBankAccount = async (req, res) => {
       .status(200)
       .json({ success: true, message: "Rekening berhasil dihapus" });
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Gagal menghapus rekening",
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: "Gagal menghapus rekening",
+      error: error.message,
+    });
   }
 };
 

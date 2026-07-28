@@ -58,7 +58,6 @@ const RegisterPage = () => {
   const [storeName, setStoreName] = useState("");
   const [storeAddress, setStoreAddress] = useState("");
 
-  // PERBAIKAN: Hanya ada satu deklarasi storeCategory di sini
   const [storeCategory, setStoreCategory] = useState("");
   const [customCategory, setCustomCategory] = useState("");
 
@@ -84,6 +83,9 @@ const RegisterPage = () => {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
 
+  // FITUR BARU: State untuk Pop-Up Sukses (KYC)
+  const [successModal, setSuccessModal] = useState(false);
+
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -100,8 +102,6 @@ const RegisterPage = () => {
       }
     };
     fetchStores();
-
-    // Hapus logika sessionStorage untuk map lama agar tidak mengganggu pop-up modal
   }, []);
 
   const handleRegister = async (e?: React.FormEvent) => {
@@ -207,8 +207,14 @@ const RegisterPage = () => {
         return;
       }
 
-      toast.success(data.message || "Registrasi berhasil!");
-      navigate("/login");
+      // PERBAIKAN: Jika role Owner atau Kurir, buka modal besar. Jika Pelanggan, toast kecil.
+      if (mappedRole === "owner" || mappedRole === "kurir") {
+        setSuccessModal(true);
+      } else {
+        toast.success(data.message || "Registrasi berhasil!");
+        navigate("/login");
+      }
+
     } catch (error: any) {
       toast.error(error?.message || "Gagal mendaftar");
     } finally {
@@ -797,6 +803,38 @@ const RegisterPage = () => {
               Saya Mengerti & Setuju
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* FITUR BARU: POP-UP MODAL SUKSES REGISTER (KYC) */}
+      <Dialog 
+        open={successModal} 
+        onOpenChange={(open) => {
+          if (!open) { 
+            setSuccessModal(false); 
+            navigate("/login"); 
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md text-center p-8 border-0 shadow-2xl">
+          <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full mb-4 bg-green-500/10">
+            <CheckCircle className="h-12 w-12 text-green-500" />
+          </div>
+          <DialogTitle className="text-2xl font-bold mb-2 text-green-600">
+            Pendaftaran Berhasil!
+          </DialogTitle>
+          <DialogDescription className="text-base text-foreground font-medium mb-6">
+            Verifikasi data Anda akan dilakukan dalam waktu <span className="font-bold text-primary">1 x 24 jam</span>.
+          </DialogDescription>
+          <Button
+            className="w-full h-12 text-base font-bold shadow-md"
+            onClick={() => { 
+              setSuccessModal(false); 
+              navigate("/login"); 
+            }}
+          >
+            Mengerti & Ke Halaman Login
+          </Button>
         </DialogContent>
       </Dialog>
     </div>

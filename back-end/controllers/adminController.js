@@ -457,62 +457,49 @@ const deleteAdminBankAccount = async (req, res) => {
 const getReports = async (req, res) => {
   /* ... Kode Laporan ... */ res.status(200).json({ success: true });
 };
+
+
 const getPendingOwners = async (req, res) => {
   try {
     const [rows] = await db.query(
-      `SELECT u.id, u.nama, u.email, u.kontak, u.foto_ktp, s.nama as nama_toko, s.alamat as alamat_toko FROM users u LEFT JOIN stores s ON u.store_id = s.id WHERE u.peran = 'owner' AND u.is_approved = 0 ORDER BY u.id DESC`,
+      `SELECT u.id, u.nama, u.email, u.kontak, u.foto_ktp, s.nama as nama_toko, s.alamat as alamat_toko, s.foto_warung 
+       FROM users u LEFT JOIN stores s ON u.store_id = s.id 
+       WHERE u.peran = 'owner' AND u.is_approved = 0 AND u.status != 'ditolak' ORDER BY u.id DESC`,
     );
     res.status(200).json({ success: true, data: rows });
   } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, message: "Gagal mengambil data verifikasi" });
+    res.status(500).json({ success: false, message: "Gagal mengambil data verifikasi" });
   }
 };
+
 const manageOwnerStatus = async (req, res) => {
   const { id } = req.params;
-  const { action } = req.body;
+  const { action, alasan } = req.body; // Menerima alasan dari frontend
   let connection;
   try {
     connection = await db.getConnection();
     await connection.beginTransaction();
-    const [users] = await connection.query(
-      "SELECT store_id FROM users WHERE id = ?",
-      [id],
-    );
+    const [users] = await connection.query("SELECT store_id FROM users WHERE id = ?", [id]);
     const storeId = users[0]?.store_id;
+
     if (action === "approve") {
-      await connection.query(
-        "UPDATE users SET is_approved = 1, status = 'aktif' WHERE id = ?",
-        [id],
-      );
-      if (storeId)
-        await connection.query(
-          "UPDATE stores SET status = 'aktif' WHERE id = ?",
-          [storeId],
-        );
-      res
-        .status(200)
-        .json({ success: true, message: "Pemilik Toko disetujui!" });
+      await connection.query("UPDATE users SET is_approved = 1, status = 'aktif' WHERE id = ?", [id]);
+      if (storeId) await connection.query("UPDATE stores SET status = 'aktif' WHERE id = ?", [storeId]);
+      res.status(200).json({ success: true, message: "Pemilik Toko disetujui!" });
     } else if (action === "reject") {
-      await connection.query("DELETE FROM users WHERE id = ?", [id]);
-      if (storeId)
-        await connection.query("DELETE FROM stores WHERE id = ?", [storeId]);
-      res.status(200).json({
-        success: true,
-        message: "Pendaftaran ditolak dan data dihapus",
-      });
+      // TIDAK DI-DELETE, TETAPI DI-UPDATE STATUSNYA
+      await connection.query(
+        "UPDATE users SET status = 'ditolak', alasan_penolakan = ? WHERE id = ?", 
+        [alasan || "Dokumen tidak valid/blur", id]
+      );
+      if (storeId) await connection.query("UPDATE stores SET status = 'nonaktif' WHERE id = ?", [storeId]);
+      res.status(200).json({ success: true, message: "Pendaftaran ditolak" });
     }
     await connection.commit();
     connection.release();
   } catch (error) {
-    if (connection) {
-      await connection.rollback();
-      connection.release();
-    }
-    res
-      .status(500)
-      .json({ success: false, message: "Gagal memperbarui status verifikasi" });
+    if (connection) { await connection.rollback(); connection.release(); }
+    res.status(500).json({ success: false, message: "Gagal memperbarui status verifikasi" });
   }
 };
 

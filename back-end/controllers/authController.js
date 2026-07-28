@@ -253,52 +253,35 @@ const getPendingCouriers = async (req, res) => {
   try {
     const storeId = req.user.store_id;
     const [rows] = await db.query(
-      // PERBAIKAN: Menambahkan kolom foto_ktp di dalam perintah SELECT
-      "SELECT id, nama, email, kontak, nik, tipe_kendaraan, plat_nomor, foto_ktp FROM users WHERE peran = 'kurir' AND store_id = ? AND is_approved = 0 ORDER BY id DESC",
+      "SELECT id, nama, email, kontak, nik, tipe_kendaraan, plat_nomor, foto_ktp FROM users WHERE peran = 'kurir' AND store_id = ? AND is_approved = 0 AND status != 'ditolak' ORDER BY id DESC",
       [storeId],
     );
     res.status(200).json({ success: true, data: rows });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Gagal mengambil data",
-      error: error.message,
-    });
+    res.status(500).json({ success: false, message: "Gagal mengambil data" });
   }
 };
 
 // ================= APPROVE/REJECT COURIER =================
 const manageCourierStatus = async (req, res) => {
   const { id } = req.params;
-  const { action } = req.body;
+  const { action, alasan } = req.body;
 
   try {
     if (action === "approve") {
-      await db.query(
-        "UPDATE users SET is_approved = 1 WHERE id = ? AND store_id = ?",
-        [id, req.user.store_id],
-      );
-      res
-        .status(200)
-        .json({ success: true, message: "Kurir berhasil disetujui" });
+      await db.query("UPDATE users SET is_approved = 1, status = 'aktif' WHERE id = ? AND store_id = ?", [id, req.user.store_id]);
+      res.status(200).json({ success: true, message: "Kurir berhasil disetujui" });
     } else if (action === "reject") {
       await db.query(
-        "DELETE FROM users WHERE id = ? AND store_id = ? AND is_approved = 0",
-        [id, req.user.store_id],
+        "UPDATE users SET status = 'ditolak', alasan_penolakan = ? WHERE id = ? AND store_id = ?",
+        [alasan || "Dokumen tidak memenuhi syarat", id, req.user.store_id]
       );
-      res.status(200).json({
-        success: true,
-        message: "Pendaftaran kurir ditolak dan dihapus",
-      });
+      res.status(200).json({ success: true, message: "Pendaftaran kurir ditolak" });
     } else {
       res.status(400).json({ success: false, message: "Aksi tidak valid" });
     }
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Gagal memperbarui status",
-      error: error.message,
-    });
+    res.status(500).json({ success: false, message: "Gagal memperbarui status" });
   }
 };
 

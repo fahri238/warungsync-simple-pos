@@ -46,6 +46,9 @@ interface CompletedSale {
 
 const OwnerPOS = () => {
   const session = getSession();
+  
+  // PERBAIKAN: Mengambil nama toko dari session jika ada, atau menggunakan nama lengkap tanpa dipotong
+  const displayStoreName = (session as any)?.nama_toko || (session as any)?.store_name || `Toko ${session?.name || "Kita"}`;
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -160,7 +163,6 @@ const OwnerPOS = () => {
     try {
       setSubmitting(true);
       
-      // Kirim pesanan ke backend (Backend akan otomatis memotong stok produk)
       const response = await createOrder({
         storeId: session.store_id.toString(),
         customerName: "Pelanggan Toko (Walk-in)",
@@ -186,7 +188,6 @@ const OwnerPOS = () => {
       setCart([]);
       setShowPayment(false);
       
-      // Sinkronisasi pembaruan visual stok kasir agar tidak perlu reload browser
       setProducts((prev) =>
         prev.map((product) => {
           const cartItem = cart.find((item) => item.product.id === product.id);
@@ -243,7 +244,7 @@ const OwnerPOS = () => {
       </head>
       <body>
         <div class="center">
-          <div class="title">Toko ${session?.name?.split(" ")[0] || "Kita"}</div>
+          <div class="title">${displayStoreName}</div>
           <div style="font-size: 11px; margin-top: 4px;">STRUK PEMBELIAN KASIR (POS)</div>
           <div style="color: #333; font-size: 10px; margin-top: 4px;">${formattedDate}</div>
           <div style="color: #333; font-size: 10px; margin-top: 2px;">Order ID: #${completedSale.orderId.toString().slice(0, 8).toUpperCase()}</div>
@@ -327,7 +328,6 @@ const OwnerPOS = () => {
     Math.ceil(total / 100000) * 100000,
   ].filter((v, i, a) => a.indexOf(v) === i && v >= total);
 
-  // PENGECEKAN KEAMANAN UNTUK OWNER
   if (!session || session.role !== "owner") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-secondary/10 px-4 animate-in fade-in zoom-in duration-500">
@@ -683,7 +683,7 @@ const OwnerPOS = () => {
               >
                 <div className="text-center mb-3">
                   <p className="text-sm font-bold uppercase tracking-widest">
-                    {session?.name?.split(" ")[0] || "Toko"}
+                    {displayStoreName}
                   </p>
                   <p className="text-[10px] text-gray-500 mt-1">
                     Struk Pembelian Kasir

@@ -41,6 +41,9 @@ const statusColors: Record<string, string> = {
 
 const OwnerOrders = () => {
   const session = getSession();
+  
+  // PERBAIKAN: Mengambil nama toko dari session jika ada, atau menggunakan nama lengkap
+  const displayStoreName = (session as any)?.nama_toko || (session as any)?.store_name || `Toko ${session?.name || "Kita"}`;
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -148,7 +151,7 @@ const OwnerOrders = () => {
       </head>
       <body>
         <div class="center">
-          <div class="title">Toko ${session?.name?.split(' ')[0] || 'Kita'}</div>
+          <div class="title">${displayStoreName}</div>
           <div>Invoice / Struk Belanja</div>
           <div style="color: #555; font-size: 10px; margin-top: 4px;">${formattedDate}</div>
           <div style="color: #555; font-size: 10px;">ID: #${order.id.toString().slice(-8).toUpperCase()}</div>
@@ -268,7 +271,6 @@ const OwnerOrders = () => {
         </TabsContent>
 
         <TabsContent value="pending" className="space-y-4 mt-6">
-          {/* PERBAIKAN: Cast status ke generic string saat melakukan filter array */}
           {orders.filter(o => !o.status || ["pending", "menunggu", "processing", "diproses"].includes(o.status as string)).map(o => renderOrderCard(o))}
         </TabsContent>
 
@@ -295,11 +297,9 @@ const OwnerOrders = () => {
                 </SelectTrigger>
                 <SelectContent>
                   {couriers
-                    // PERBAIKAN 1: Filter agar hanya kurir dari toko ini yang muncul
                     .filter(c => Number(c.store_id || c.storeId) === Number(session?.store_id))
                     .map(c => (
                     <SelectItem key={c.id} value={c.id.toString()}>
-                      {/* PERBAIKAN 2: Gunakan properti bahasa Indonesia (nama & kontak) */}
                       {c.nama || c.name} {(c.kontak || c.phone) ? `(${c.kontak || c.phone})` : ""}
                     </SelectItem>
                   ))}

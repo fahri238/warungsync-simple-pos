@@ -97,12 +97,14 @@ const AdminReportsPage = () => {
       <style>
         {`
           @media print {
-            @page { margin: 0; size: A4; }
+            /* PERBAIKAN 1: Mengatur margin halaman cetak agar pas dan tidak terlalu ke bawah */
+            @page { margin: 1cm; size: A4; }
             body * { visibility: hidden; }
             html, body { overflow: visible !important; height: auto !important; background-color: white !important; }
             #printable-report, #printable-report * { visibility: visible; }
             #printable-report {
-              position: absolute; left: 0; top: 0; width: 100%; padding: 2cm !important;
+              position: absolute; left: 0; top: 0; width: 100%; 
+              padding: 0 !important; /* Dihapus padding 2cm yang membuat space atas terlalu besar */
               background-color: white; color: black;
             }
           }
@@ -280,7 +282,6 @@ const AdminReportsPage = () => {
                         <th className="px-6 py-4 font-medium text-right">
                           Total Transaksi
                         </th>
-                        {/* TAMBAHAN KOLOM KOMISI */}
                         <th className="px-6 py-4 font-medium text-right text-green-600">
                           Komisi Sistem (5%)
                         </th>
@@ -322,7 +323,6 @@ const AdminReportsPage = () => {
                             <td className="px-6 py-4 font-bold text-right text-foreground">
                               {formatRupiah(t.total_harga)}
                             </td>
-                            {/* NILAI KOMISI PER TRANSAKSI */}
                             <td className="px-6 py-4 font-bold text-right text-green-600 bg-green-500/5">
                               {formatRupiah(t.komisi_sistem || 0)}
                             </td>
@@ -355,7 +355,6 @@ const AdminReportsPage = () => {
                         <th className="px-6 py-4 font-medium text-right">
                           Omzet Pendapatan
                         </th>
-                        {/* TAMBAHAN KOLOM KOMISI TOKO */}
                         <th className="px-6 py-4 font-medium text-right text-green-600">
                           Total Komisi Sistem
                         </th>
@@ -389,7 +388,6 @@ const AdminReportsPage = () => {
                             <td className="px-6 py-4 font-bold text-right text-primary">
                               {formatRupiah(t.omzet)}
                             </td>
-                            {/* TOTAL KOMISI DARI TOKO INI */}
                             <td className="px-6 py-4 font-black text-right text-green-600 bg-green-500/5">
                               {formatRupiah(t.total_komisi || 0)}
                             </td>
@@ -520,11 +518,11 @@ const AdminReportsPage = () => {
           </div>
         </div>
 
-        {/* Ringkasan Laporan dengan Tambahan Pendapatan Sistem */}
+        {/* PERBAIKAN 2: Ringkasan Laporan menggunakan Flex dengan proporsi sama (flex: 1) dan GAP */}
         <div
           style={{
             display: "flex",
-            justifyContent: "space-between",
+            gap: "16px" /* Memisahkan kotak dengan jarak konsisten */,
             marginBottom: "24px",
             border: "1px solid #000",
             padding: "14px",
@@ -534,25 +532,26 @@ const AdminReportsPage = () => {
         >
           <div
             style={{
+              flex: 1 /* Memaksa kotak mengisi ruang yang sama rata */,
               backgroundColor: "#f0fdf4",
-              padding: "8px",
+              padding: "10px",
               border: "1px solid #16a34a",
               borderRadius: "4px",
             }}
           >
             <p
               style={{
-                fontSize: "11px",
-                margin: "0 0 4px 0",
+                fontSize: "10px",
+                margin: "0 0 6px 0",
                 color: "#166534",
                 fontWeight: "bold",
               }}
             >
-              PENDAPATAN SISTEM (KOMISI 5%)
+              PENDAPATAN SISTEM (5%)
             </p>
             <h3
               style={{
-                fontSize: "18px",
+                fontSize: "16px",
                 margin: "0",
                 fontWeight: "bold",
                 color: "#16a34a",
@@ -561,24 +560,45 @@ const AdminReportsPage = () => {
               {formatRupiah(reportData.stats.komisiTotal)}
             </h3>
           </div>
-          <div>
-            <p style={{ fontSize: "11px", margin: "0 0 4px 0", color: "#555" }}>
+          <div style={{ flex: 1, padding: "10px" }}>
+            <p
+              style={{
+                fontSize: "10px",
+                margin: "0 0 6px 0",
+                color: "#555",
+                fontWeight: "bold",
+              }}
+            >
               TOTAL OMZET BRUTO
             </p>
             <h3 style={{ fontSize: "16px", margin: "0", fontWeight: "bold" }}>
               {formatRupiah(reportData.stats.omzetTotal)}
             </h3>
           </div>
-          <div>
-            <p style={{ fontSize: "11px", margin: "0 0 4px 0", color: "#555" }}>
+          <div style={{ flex: 1, padding: "10px" }}>
+            <p
+              style={{
+                fontSize: "10px",
+                margin: "0 0 6px 0",
+                color: "#555",
+                fontWeight: "bold",
+              }}
+            >
               TOTAL TRANSAKSI SUKSES
             </p>
             <h3 style={{ fontSize: "16px", margin: "0", fontWeight: "bold" }}>
               {reportData.stats.totalTransaksi} Pesanan
             </h3>
           </div>
-          <div>
-            <p style={{ fontSize: "11px", margin: "0 0 4px 0", color: "#555" }}>
+          <div style={{ flex: 1, padding: "10px" }}>
+            <p
+              style={{
+                fontSize: "10px",
+                margin: "0 0 6px 0",
+                color: "#555",
+                fontWeight: "bold",
+              }}
+            >
               MITRA TENANT AKTIF
             </p>
             <h3 style={{ fontSize: "16px", margin: "0", fontWeight: "bold" }}>

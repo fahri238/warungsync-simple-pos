@@ -105,7 +105,7 @@ const CustomerDashboard = () => {
               <tr>
                 <td>${new Date(o.createdAt).toLocaleDateString("id-ID")}</td>
                 <td>${o.items.map(i => `${i.product.name} x${i.quantity}`).join(", ")}</td>
-                <td>${statusLabels[o.status] || o.status}</td>
+                <td style="text-transform: capitalize;">${statusLabels[o.status] || o.status}</td>
                 <td class="right">Rp ${getOrderTotal(o).toLocaleString("id-ID")}</td>
               </tr>
             `).join('')}
@@ -131,25 +131,59 @@ const CustomerDashboard = () => {
       <head>
         <title>Laporan - ${title}</title>
         <style>
-          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px; color: #333; }
+          /* Menyembunyikan header default browser */
+          @page { size: A4 portrait; margin: 0; }
+          
+          html, body { height: 100%; margin: 0; }
+          body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            padding: 2cm; 
+            color: #333; 
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+          }
+          
+          .content-wrapper { flex: 1; }
+
           .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #222; padding-bottom: 20px; }
           h1 { margin: 0; font-size: 24px; color: #111; text-transform: uppercase; }
           .subtitle { font-size: 14px; color: #555; margin-top: 5px; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; page-break-inside: auto; }
+          tr { page-break-inside: avoid; page-break-after: auto; }
+          thead { display: table-header-group; }
           th { background-color: #f4f4f5; text-align: left; padding: 12px; border: 1px solid #ddd; font-weight: 600; }
           td { padding: 10px 12px; border: 1px solid #ddd; }
           .right { text-align: right; } .center { text-align: center; } .bold { font-weight: bold; }
           .highlight { background-color: #f8fafc; }
-          .footer { margin-top: 40px; font-size: 12px; color: #777; text-align: right; }
+          
+          /* Footer selalu di bagian bawah halaman */
+          .footer { 
+             margin-top: auto; 
+             font-size: 12px; 
+             color: #777; 
+             text-align: right; 
+             padding-top: 40px; 
+             page-break-inside: avoid;
+          }
         </style>
       </head>
       <body>
-        <div class="header">
-          <h1>${title}</h1>
-          <div class="subtitle">Pelanggan: <b>${session?.name || 'Umum'}</b></div>
-          ${filterStr}
+        <div class="content-wrapper">
+          <div style="display: flex; justify-content: space-between; font-size: 11px; color: #333; margin-bottom: 30px;">
+            <span>${dateStr}</span>
+            <span style="font-weight: bold;">WarungSync — E-Commerce</span>
+          </div>
+
+          <div class="header">
+            <h1>${title}</h1>
+            <div class="subtitle">Pelanggan: <b>${session?.name || 'Umum'}</b></div>
+            ${filterStr}
+          </div>
+          ${tableContent}
         </div>
-        ${tableContent}
+        
         <div class="footer">Dicetak otomatis dari WarungSync pada ${dateStr}</div>
         <script>window.onload = () => { setTimeout(() => window.print(), 500); }</script>
       </body>

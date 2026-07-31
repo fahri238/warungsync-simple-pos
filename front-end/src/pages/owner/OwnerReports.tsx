@@ -18,7 +18,7 @@ import {
   Wallet,
   PackageSearch,
   ArrowDownCircle,
-  Percent, // Icon tambahan untuk persentase komisi
+  Percent,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -34,6 +34,9 @@ interface StockLog {
 
 const OwnerReports = () => {
   const session = getSession();
+
+  // PERBAIKAN: Mengambil nama toko dari session jika ada, atau menggunakan nama lengkap tanpa dipotong
+  const displayStoreName = (session as any)?.nama_toko || (session as any)?.store_name || `Toko ${session?.name || "Kita"}`;
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -278,8 +281,9 @@ const OwnerReports = () => {
       <head>
         <title>${title}</title>
         <style>
-          @page { size: A4 portrait; margin: 15mm; }
-          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; margin: 0; padding: 20px; font-size: 12px; }
+          /* PERBAIKAN: Margin 0 untuk menyembunyikan header/footer bawaan Chrome */
+          @page { size: A4 portrait; margin: 0; }
+          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; margin: 0; padding: 1.5cm 2cm; font-size: 12px; box-sizing: border-box; }
           .header { text-align: center; border-bottom: 2px solid #2c3e50; padding-bottom: 15px; margin-bottom: 20px; }
           .title { font-size: 22px; font-weight: 800; margin: 0 0 5px 0; color: #2c3e50; letter-spacing: 1px; text-transform: uppercase; }
           .subtitle { font-size: 14px; color: #7f8c8d; margin: 0; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -299,8 +303,14 @@ const OwnerReports = () => {
         </style>
       </head>
       <body>
+        <!-- Header Buatan Sendiri Pengganti Bawaan Browser -->
+        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #333; margin-bottom: 30px; font-family: sans-serif;">
+          <span>${new Date().toLocaleDateString("id-ID", { day: '2-digit', month: '2-digit', year: 'numeric' })}, ${new Date().toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit' })}</span>
+          <span style="font-weight: bold;">WarungSync — POS & Toko Online</span>
+        </div>
+
         <div class="header">
-          <h1 class="title">${session?.name || "Toko Kita"}</h1>
+          <h1 class="title">${displayStoreName}</h1>
           <p class="subtitle">${title}</p>
         </div>
         <div class="meta">

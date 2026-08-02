@@ -11,11 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import {
   Search,
   Plus,
@@ -31,7 +27,7 @@ import {
   Loader2,
   ShieldAlert,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/custom-toast";
 import { createOrder } from "@/services/orderService";
 import { Link } from "react-router-dom";
 
@@ -46,9 +42,12 @@ interface CompletedSale {
 
 const OwnerPOS = () => {
   const session = getSession();
-  
+
   // PERBAIKAN: Mengambil nama toko dari session jika ada, atau menggunakan nama lengkap tanpa dipotong
-  const displayStoreName = (session as any)?.nama_toko || (session as any)?.store_name || `Toko ${session?.name || "Kita"}`;
+  const displayStoreName =
+    (session as any)?.nama_toko ||
+    (session as any)?.store_name ||
+    `Toko ${session?.name || "Kita"}`;
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -56,8 +55,8 @@ const OwnerPOS = () => {
   const [search, setSearch] = useState("");
   const [barcodeInput, setBarcodeInput] = useState("");
   const [catFilter, setCatFilter] = useState("all");
-  const [loading, setLoading] = useState(true); 
-  
+  const [loading, setLoading] = useState(true);
+
   // Payment flow
   const [showPayment, setShowPayment] = useState(false);
   const [cashInput, setCashInput] = useState("");
@@ -65,7 +64,9 @@ const OwnerPOS = () => {
   const [submitting, setSubmitting] = useState(false);
 
   // Receipt
-  const [completedSale, setCompletedSale] = useState<CompletedSale | null>(null);
+  const [completedSale, setCompletedSale] = useState<CompletedSale | null>(
+    null,
+  );
 
   useEffect(() => {
     if (!session || session.role !== "owner" || !session.store_id) {
@@ -77,8 +78,8 @@ const OwnerPOS = () => {
     setLoading(true);
 
     Promise.all([
-      getProductsFromAPI(storeIdStr), 
-      getCategoriesFromAPI(storeIdStr)
+      getProductsFromAPI(storeIdStr),
+      getCategoriesFromAPI(storeIdStr),
     ])
       .then(([prods, cats]) => {
         setProducts(prods);
@@ -162,7 +163,7 @@ const OwnerPOS = () => {
 
     try {
       setSubmitting(true);
-      
+
       const response = await createOrder({
         storeId: session.store_id.toString(),
         customerName: "Pelanggan Toko (Walk-in)",
@@ -173,8 +174,9 @@ const OwnerPOS = () => {
         status: "completed",
         items: cart,
       });
-      
-      const orderId = response?.data?.id || `POS-${Date.now().toString().slice(-6)}`;
+
+      const orderId =
+        response?.data?.id || `POS-${Date.now().toString().slice(-6)}`;
 
       setCompletedSale({
         orderId,
@@ -187,7 +189,7 @@ const OwnerPOS = () => {
 
       setCart([]);
       setShowPayment(false);
-      
+
       setProducts((prev) =>
         prev.map((product) => {
           const cartItem = cart.find((item) => item.product.id === product.id);
@@ -284,7 +286,11 @@ const OwnerPOS = () => {
   const formatDate = (iso: string) => {
     const d = new Date(iso);
     return (
-      d.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric", }) +
+      d.toLocaleDateString("id-ID", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }) +
       " • " +
       d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
     );
@@ -297,7 +303,7 @@ const OwnerPOS = () => {
 
     const storeIdStr = session.store_id.toString();
     let product = products.find((p) => p.barcode === code);
-    
+
     if (!product) {
       try {
         const fromApi = await fetchProductByBarcode(storeIdStr, code);
@@ -337,11 +343,17 @@ const OwnerPOS = () => {
             <div className="mx-auto h-24 w-24 bg-destructive/10 rounded-full flex items-center justify-center mb-6 ring-8 ring-destructive/5">
               <ShieldAlert className="h-12 w-12 text-destructive" />
             </div>
-            <h2 className="text-2xl font-black tracking-tight mb-2 text-foreground">Akses Ditolak</h2>
+            <h2 className="text-2xl font-black tracking-tight mb-2 text-foreground">
+              Akses Ditolak
+            </h2>
             <p className="mb-8 text-muted-foreground text-sm px-4">
-              Sesi pemilik warung (owner) Anda tidak ditemukan atau Anda tidak memiliki izin untuk mengakses halaman ini.
+              Sesi pemilik warung (owner) Anda tidak ditemukan atau Anda tidak
+              memiliki izin untuk mengakses halaman ini.
             </p>
-            <Button asChild className="w-full rounded-xl h-14 text-base font-bold shadow-lg shadow-primary/20">
+            <Button
+              asChild
+              className="w-full rounded-xl h-14 text-base font-bold shadow-lg shadow-primary/20"
+            >
               <Link to="/login">Masuk Kembali</Link>
             </Button>
           </CardContent>

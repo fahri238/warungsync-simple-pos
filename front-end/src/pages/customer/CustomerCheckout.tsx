@@ -36,7 +36,7 @@ import {
   Receipt,
   ShoppingBag,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/custom-toast";
 import type { FulfillmentType, PaymentMethod } from "@/types";
 
 const DEFAULT_CENTER: [number, number] = [-3.316694, 114.590111];
@@ -142,35 +142,62 @@ const CustomerCheckout = () => {
   };
 
   const handleOrder = async () => {
-    if (!name.trim() || !phone.trim()) { toast.error("Isi nama dan nomor HP"); return; }
-    if (fulfillment === "delivery") {
-      if (!village) { toast.error("Pilih area pengiriman"); return; }
-      if (!address.trim()) { toast.error("Isi alamat pengiriman lengkap"); return; }
-      if (latitude == null || longitude == null) { toast.error("Tandai lokasi pengiriman di peta"); return; }
+    if (!name.trim() || !phone.trim()) {
+      toast.error("Isi nama dan nomor HP");
+      return;
     }
-    if (payment === "transfer" && !transferProof) { toast.error("Unggah bukti transfer untuk pembayaran manual"); return; }
-    if (cart.length === 0) { toast.error("Keranjang kosong"); return; }
+    if (fulfillment === "delivery") {
+      if (!village) {
+        toast.error("Pilih area pengiriman");
+        return;
+      }
+      if (!address.trim()) {
+        toast.error("Isi alamat pengiriman lengkap");
+        return;
+      }
+      if (latitude == null || longitude == null) {
+        toast.error("Tandai lokasi pengiriman di peta");
+        return;
+      }
+    }
+    if (payment === "transfer" && !transferProof) {
+      toast.error("Unggah bukti transfer untuk pembayaran manual");
+      return;
+    }
+    if (cart.length === 0) {
+      toast.error("Keranjang kosong");
+      return;
+    }
 
     try {
       setSubmitting(true);
-      
+
       const formData = new FormData();
       formData.append("id_pengguna", session?.id?.toString() || "");
       formData.append("storeId", storeId);
       formData.append("customerName", name.trim());
       formData.append("customerPhone", phone.trim());
       formData.append("tipe_pesanan", "online");
-      formData.append("tipe_pengiriman", fulfillment === "delivery" ? "kurir" : "pickup");
-      formData.append("metode_pembayaran", payment === "cash" ? "tunai" : "transfer");
-      
+      formData.append(
+        "tipe_pengiriman",
+        fulfillment === "delivery" ? "kurir" : "pickup",
+      );
+      formData.append(
+        "metode_pembayaran",
+        payment === "cash" ? "tunai" : "transfer",
+      );
+
       if (fulfillment === "delivery") {
-        formData.append("alamat_pengiriman", `${address.trim()} (Area: ${village})`);
+        formData.append(
+          "alamat_pengiriman",
+          `${address.trim()} (Area: ${village})`,
+        );
         formData.append("latitude", latitude!.toString());
         formData.append("longitude", longitude!.toString());
       }
-      
+
       formData.append("items", JSON.stringify(cart));
-      
+
       if (payment === "transfer" && transferProof) {
         formData.append("bukti_transfer", transferProof);
       }
@@ -179,11 +206,11 @@ const CustomerCheckout = () => {
       // Karena isinya FormData, apiFetch akan otomatis mengenali dan memproses file-nya
       const response = await apiFetch("/orders", {
         method: "POST",
-        body: formData
+        body: formData,
       });
 
       if (!response.success) {
-         throw new Error(response.message || "Gagal membuat pesanan");
+        throw new Error(response.message || "Gagal membuat pesanan");
       }
 
       updateStock(cart);
@@ -191,7 +218,9 @@ const CustomerCheckout = () => {
       toast.success("Pesanan berhasil dibuat!");
       navigate(`/customer/store/${storeId}/orders`);
     } catch (error: any) {
-      toast.error(error.message || "Terjadi kesalahan sistem saat memproses pesanan.");
+      toast.error(
+        error.message || "Terjadi kesalahan sistem saat memproses pesanan.",
+      );
     } finally {
       setSubmitting(false);
     }

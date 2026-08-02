@@ -38,7 +38,8 @@ import {
   CarFront,
   FileText,
 } from "lucide-react";
-import { toast } from "sonner";
+// PERBAIKAN: Gunakan useToast, bukan sonner
+import { useToast } from "@/hooks/use-toast";
 import { apiFetch } from "@/lib/store";
 
 const RegisterPage = () => {
@@ -47,6 +48,7 @@ const RegisterPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { loading } = useAuth();
+  const { toast } = useToast(); // Inisialisasi hook toast
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -92,6 +94,15 @@ const RegisterPage = () => {
   // Penanda apakah role saat ini mewajibkan dokumen T&C
   const requiresTerms = role === "store-owner" || role === "courier";
 
+  // HELPER FUNCTION: Agar pemanggilan toast error tidak terlalu panjang
+  const showError = (msg: string) => {
+    toast({
+      variant: "destructive",
+      title: "Peringatan",
+      description: msg,
+    });
+  };
+
   useEffect(() => {
     const fetchStores = async () => {
       try {
@@ -109,50 +120,43 @@ const RegisterPage = () => {
 
     // VALIDASI PERSETUJUAN (Hanya untuk Owner & Kurir)
     if (requiresTerms && !termsAccepted) {
-      toast.error(
-        "Anda harus menyetujui Syarat & Ketentuan untuk melanjutkan.",
-      );
-      return;
+      return showError("Anda harus menyetujui Syarat & Ketentuan untuk melanjutkan.");
     }
 
     if (!name || !email || !password || !phone) {
-      toast.error("Isi semua field yang diwajibkan");
-      return;
+      return showError("Isi semua field yang diwajibkan");
     }
 
     if (role === "courier") {
-      if (!homeAddress)
-        return toast.error("Kurir wajib mengisi alamat lengkap");
+      if (!homeAddress) return showError("Kurir wajib mengisi alamat lengkap");
       if (!nik || nik.length !== 16 || isNaN(Number(nik)))
-        return toast.error(
-          "Kurir wajib mengisi NIK dengan 16 digit angka yang valid",
-        );
+        return showError("Kurir wajib mengisi NIK dengan 16 digit angka yang valid");
       if (!vehicleType || !vehiclePlate)
-        return toast.error("Kurir wajib mengisi tipe dan plat nomor kendaraan");
+        return showError("Kurir wajib mengisi tipe dan plat nomor kendaraan");
       if (!selectedStore)
-        return toast.error("Kurir wajib memilih toko tempat bekerja");
-      if (!ktpFile) return toast.error("Foto KTP wajib diunggah!");
+        return showError("Kurir wajib memilih toko tempat bekerja");
+      if (!ktpFile) return showError("Foto KTP wajib diunggah!");
     }
 
     if (role === "customer" && !homeAddress)
-      return toast.error("Pembeli wajib mengisi alamat rumah");
+      return showError("Pembeli wajib mengisi alamat rumah");
 
     if (role === "store-owner") {
       if (!storeName || !storeAddress)
-        return toast.error("Pemilik toko wajib mengisi nama dan alamat toko");
-      if (!storeCategory) return toast.error("Pilih klasifikasi toko Anda!");
+        return showError("Pemilik toko wajib mengisi nama dan alamat toko");
+      if (!storeCategory) return showError("Pilih klasifikasi toko Anda!");
       if (storeCategory === "Lainnya" && !customCategory.trim())
-        return toast.error("Isi kategori manual untuk toko Anda!");
-      if (!ktpFile) return toast.error("Anda wajib mengunggah foto KTP!");
+        return showError("Isi kategori manual untuk toko Anda!");
+      if (!ktpFile) return showError("Anda wajib mengunggah foto KTP!");
       if (!storePhoto)
-        return toast.error("Anda wajib mengunggah foto tampak depan warung!");
+        return showError("Anda wajib mengunggah foto tampak depan warung!");
     }
 
     if (
       (role === "customer" || role === "store-owner") &&
       (latitude == null || longitude == null)
     ) {
-      return toast.error("Pilih lokasi di peta sebelum melanjutkan");
+      return showError("Pilih lokasi di peta sebelum melanjutkan");
     }
 
     try {
@@ -203,20 +207,22 @@ const RegisterPage = () => {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        toast.error(data.message || "Gagal mendaftar");
-        return;
+        return showError(data.message || "Gagal mendaftar");
       }
 
-      // PERBAIKAN: Jika role Owner atau Kurir, buka modal besar. Jika Pelanggan, toast kecil.
       if (mappedRole === "owner" || mappedRole === "kurir") {
         setSuccessModal(true);
       } else {
-        toast.success(data.message || "Registrasi berhasil!");
+        toast({
+          variant: "success",
+          title: "Registrasi Berhasil",
+          description: data.message || "Silakan login untuk melanjutkan.",
+        });
         navigate("/login");
       }
 
     } catch (error: any) {
-      toast.error(error?.message || "Gagal mendaftar");
+      showError(error?.message || "Gagal mendaftar");
     } finally {
       setSubmitting(false);
     }

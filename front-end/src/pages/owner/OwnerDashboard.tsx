@@ -23,7 +23,7 @@ import {
 } from "recharts";
 import { Button } from "@/components/ui/button";
 import type { Product, Order } from "@/types";
-import { toast } from "sonner";
+import { toast } from "@/lib/custom-toast";
 
 const OwnerDashboard = () => {
   const session = getSession();
@@ -44,9 +44,11 @@ const OwnerDashboard = () => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        
+
         // 1. Tembak API produk berdasarkan storeId
-        const productsRes = await apiFetch(`/products?storeId=${session.store_id}`);
+        const productsRes = await apiFetch(
+          `/products?storeId=${session.store_id}`,
+        );
         setProducts(productsRes.data || []);
 
         // 2. Tembak API pesanan berdasarkan storeId
@@ -122,11 +124,17 @@ const OwnerDashboard = () => {
             <div className="mx-auto h-24 w-24 bg-destructive/10 rounded-full flex items-center justify-center mb-6 ring-8 ring-destructive/5">
               <ShieldAlert className="h-12 w-12 text-destructive" />
             </div>
-            <h2 className="text-2xl font-black tracking-tight mb-2 text-foreground">Akses Ditolak</h2>
+            <h2 className="text-2xl font-black tracking-tight mb-2 text-foreground">
+              Akses Ditolak
+            </h2>
             <p className="mb-8 text-muted-foreground text-sm px-4">
-              Sesi pemilik warung (owner) Anda tidak ditemukan atau Anda tidak memiliki izin untuk mengakses halaman ini.
+              Sesi pemilik warung (owner) Anda tidak ditemukan atau Anda tidak
+              memiliki izin untuk mengakses halaman ini.
             </p>
-            <Button asChild className="w-full rounded-xl h-14 text-base font-bold shadow-lg shadow-primary/20">
+            <Button
+              asChild
+              className="w-full rounded-xl h-14 text-base font-bold shadow-lg shadow-primary/20"
+            >
               <Link to="/login">Masuk Kembali</Link>
             </Button>
           </CardContent>
@@ -164,7 +172,9 @@ const OwnerDashboard = () => {
     {
       title: "Produk Terlaris",
       value: stats.topProduct ? `${stats.topProduct[0]}` : "Belum ada",
-      trend: stats.topProduct ? `${stats.topProduct[1]} terjual` : "Belum ada transaksi",
+      trend: stats.topProduct
+        ? `${stats.topProduct[1]} terjual`
+        : "Belum ada transaksi",
       icon: TrendingUp,
       color: "text-accent",
       bg: "bg-accent/10",
@@ -185,7 +195,7 @@ const OwnerDashboard = () => {
       <div className="flex flex-col gap-2 rounded-2xl bg-primary/10 p-6 md:p-8 border border-primary/20 relative overflow-hidden">
         <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-primary/20 blur-3xl"></div>
         <h2 className="text-2xl md:text-3xl font-display font-bold text-foreground">
-          Selamat datang kembali, {session.name.split(' ')[0]}! 👋
+          Selamat datang kembali, {session.name.split(" ")[0]}! 👋
         </h2>
         <p className="text-muted-foreground max-w-xl text-sm md:text-base leading-relaxed">
           Berikut adalah ringkasan performa toko Anda hari ini. Jangan lupa
@@ -219,9 +229,7 @@ const OwnerDashboard = () => {
             <CardContent>
               <div className="flex items-center text-xs font-medium text-muted-foreground gap-1 mt-1">
                 <ArrowUpRight className="h-3 w-3 text-primary" />
-                <span className="text-primary">
-                  {c.trend}
-                </span>
+                <span className="text-primary">{c.trend}</span>
               </div>
             </CardContent>
           </Card>
@@ -392,11 +400,15 @@ const OwnerDashboard = () => {
               <table className="w-full text-sm text-left">
                 <thead className="text-xs text-muted-foreground uppercase bg-muted/50 border-b border-border/80">
                   <tr>
-                    <th className="px-4 py-3 font-medium rounded-tl-lg">Pelanggan</th>
+                    <th className="px-4 py-3 font-medium rounded-tl-lg">
+                      Pelanggan
+                    </th>
                     <th className="px-4 py-3 font-medium">Tanggal</th>
                     <th className="px-4 py-3 font-medium">Items</th>
                     <th className="px-4 py-3 font-medium">Total Harga</th>
-                    <th className="px-4 py-3 font-medium text-right rounded-tr-lg">Status</th>
+                    <th className="px-4 py-3 font-medium text-right rounded-tr-lg">
+                      Status
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/50">

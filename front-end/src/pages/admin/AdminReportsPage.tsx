@@ -14,7 +14,7 @@ import {
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/store";
-import { toast } from "sonner";
+import { toast } from "@/lib/custom-toast";
 
 const AdminReportsPage = () => {
   const [activeTab, setActiveTab] = useState<"transaksi" | "toko" | "pengguna">(
@@ -336,7 +336,9 @@ const AdminReportsPage = () => {
         <div className="relative z-10 flex gap-2 w-full md:w-auto">
           <Button
             variant="default"
-            onClick={() => handlePrintReport("global", "Laporan Global Keseluruhan")}
+            onClick={() =>
+              handlePrintReport("global", "Laporan Global Keseluruhan")
+            }
             className="flex-1 md:flex-none shadow-sm gap-2"
           >
             <Printer className="h-4 w-4" /> Cetak Laporan Global
@@ -455,12 +457,17 @@ const AdminReportsPage = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => handlePrintReport(activeTab, `Laporan ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`)}
+              onClick={() =>
+                handlePrintReport(
+                  activeTab,
+                  `Laporan ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`,
+                )
+              }
               className="w-full sm:w-auto gap-2"
             >
               <Printer className="h-4 w-4" /> Cetak Tabel Ini
             </Button>
-            
+
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <Filter className="h-4 w-4 text-muted-foreground hidden lg:block" />
               <div className="relative w-full sm:w-48">
@@ -562,9 +569,7 @@ const AdminReportsPage = () => {
                 <table className="w-full text-sm text-left">
                   <thead className="text-xs text-muted-foreground uppercase bg-muted/40 border-b border-border/80">
                     <tr>
-                      <th className="px-6 py-4 font-medium">
-                        Nama Mitra Toko
-                      </th>
+                      <th className="px-6 py-4 font-medium">Nama Mitra Toko</th>
                       <th className="px-6 py-4 font-medium">
                         Nama Pemilik (Owner)
                       </th>
@@ -623,9 +628,7 @@ const AdminReportsPage = () => {
                   <thead className="text-xs text-muted-foreground uppercase bg-muted/40 border-b border-border/80">
                     <tr>
                       <th className="px-6 py-4 font-medium">Nama Pengguna</th>
-                      <th className="px-6 py-4 font-medium">
-                        Hak Akses Peran
-                      </th>
+                      <th className="px-6 py-4 font-medium">Hak Akses Peran</th>
                       <th className="px-6 py-4 font-medium">
                         Waktu Registrasi
                       </th>

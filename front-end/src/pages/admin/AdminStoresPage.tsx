@@ -17,7 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { apiFetch } from "@/lib/store";
-import { toast } from "sonner";
+import { toast } from "@/lib/custom-toast";
 
 // Tipe data Toko
 interface StoreData {

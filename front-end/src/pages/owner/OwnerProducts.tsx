@@ -51,7 +51,7 @@ import {
   CheckCheck,
   ShieldAlert,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/custom-toast";
 import { Link } from "react-router-dom";
 
 interface ProductFormState {
@@ -151,10 +151,10 @@ const OwnerProducts = () => {
 
   const openEdit = (p: Product) => {
     setEditing(p);
-    
+
     // PERBAIKAN: Menangkap `capitalPrice` dari object product yang dibalikkan API
     const modalValue = (p as any).capitalPrice || (p as any).harga_modal || 0;
-    
+
     setForm({
       name: p.name,
       price: p.price,
@@ -175,7 +175,7 @@ const OwnerProducts = () => {
       toast.error("Lengkapi nama, kategori, dan harga jual");
       return;
     }
-    
+
     if (form.capitalPrice > form.price) {
       toast.error("Peringatan: Harga Modal lebih besar dari Harga Jual!");
       return;
@@ -188,13 +188,17 @@ const OwnerProducts = () => {
         let payload: any = { ...form };
 
         if (stockDiff !== 0) {
-          const calculatedCost = stockDiff > 0 ? (stockDiff * form.capitalPrice) : 0;
-          
+          const calculatedCost =
+            stockDiff > 0 ? stockDiff * form.capitalPrice : 0;
+
           payload = {
             ...form,
             stock_change: stockDiff,
-            reason: stockDiff > 0 ? "Edit Produk (Penambahan Manual)" : "Edit Produk (Pengurangan Manual)",
-            cost: calculatedCost
+            reason:
+              stockDiff > 0
+                ? "Edit Produk (Penambahan Manual)"
+                : "Edit Produk (Pengurangan Manual)",
+            cost: calculatedCost,
           };
         }
 
@@ -202,12 +206,12 @@ const OwnerProducts = () => {
         toast.success("Produk diperbarui");
       } else {
         const totalBiayaModalAwal = form.stock * form.capitalPrice;
-        
+
         const payload = {
           ...form,
           stock_change: form.stock > 0 ? form.stock : undefined,
           reason: form.stock > 0 ? "Stok awal barang baru" : undefined,
-          cost: totalBiayaModalAwal
+          cost: totalBiayaModalAwal,
         };
 
         await addProductToAPI(payload);

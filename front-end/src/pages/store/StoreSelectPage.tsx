@@ -7,7 +7,7 @@ import StoreMap from "@/components/maps/StoreMap";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { MapPin, Store as StoreIcon, Loader2, ArrowRight } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/custom-toast";
 
 const StoreSelectPage = () => {
   const navigate = useNavigate();
@@ -44,7 +44,8 @@ const StoreSelectPage = () => {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-foreground">Pilih Toko</h1>
           <p className="mt-2 text-muted-foreground">
-            Pilih satu toko terlebih dahulu. Keranjang hanya berisi produk dari toko yang sama.
+            Pilih satu toko terlebih dahulu. Keranjang hanya berisi produk dari
+            toko yang sama.
           </p>
         </div>
 
@@ -54,7 +55,11 @@ const StoreSelectPage = () => {
           </div>
         ) : (
           <>
-            <StoreMap stores={stores} onSelectStore={chooseStore} height="360px" />
+            <StoreMap
+              stores={stores}
+              onSelectStore={chooseStore}
+              height="360px"
+            />
 
             <div className="grid gap-3 sm:grid-cols-2">
               {stores.map((store) => (
@@ -68,7 +73,9 @@ const StoreSelectPage = () => {
                       <StoreIcon className="h-5 w-5 text-primary" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-foreground">{store.name}</h3>
+                      <h3 className="font-semibold text-foreground">
+                        {store.name}
+                      </h3>
                       {store.address && (
                         <p className="mt-1 flex items-start gap-1 text-sm text-muted-foreground">
                           <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />

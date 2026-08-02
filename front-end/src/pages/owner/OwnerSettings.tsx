@@ -53,7 +53,7 @@ import {
   Phone,
   CarFront,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/custom-toast";
 
 const OwnerSettings = () => {
   const session = getSession();

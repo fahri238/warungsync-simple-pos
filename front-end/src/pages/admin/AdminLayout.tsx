@@ -33,7 +33,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
+import { toast } from "@/lib/custom-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -59,7 +59,7 @@ const AdminLayout = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedOwner, setSelectedOwner] = useState<any>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  
+
   const [rejectionReason, setRejectionReason] = useState("");
   const [showRejectInput, setShowRejectInput] = useState(false);
 

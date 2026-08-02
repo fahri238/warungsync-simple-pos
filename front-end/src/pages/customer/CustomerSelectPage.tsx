@@ -13,7 +13,7 @@ import {
   ArrowRight,
   User,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/lib/custom-toast";
 import { getSession } from "@/lib/store";
 
 const CustomerSelectPage = () => {

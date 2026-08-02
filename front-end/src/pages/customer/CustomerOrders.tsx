@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Package } from "lucide-react";
 import type { Order, OrderStatus } from "@/types";
 import { fetchOrders } from "@/services/orderService";
-import { toast } from "sonner";
+import { toast } from "@/lib/custom-toast";
 
 const statusLabels: Record<OrderStatus, string> = {
   pending: "Menunggu",

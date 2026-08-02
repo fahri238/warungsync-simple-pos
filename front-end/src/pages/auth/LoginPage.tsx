@@ -1,51 +1,12 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { WarungSyncLogo } from "@/components/brand/WarungSyncLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  ArrowLeft,
-  Mail,
-  Lock,
-  Eye,
-  EyeOff,
-  ShoppingBag,
-  LayoutDashboard,
-  Truck,
-  MapPin,
-  Barcode,
-  CheckCircle2,
-  ShieldAlert,
-  Clock
-} from "lucide-react";
-import { toast } from "sonner";
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-
-const highlights = [
-  {
-    icon: LayoutDashboard,
-    title: "Admin & Kasir",
-    desc: "Kelola produk, POS, dan pesanan toko Anda.",
-  },
-  {
-    icon: ShoppingBag,
-    title: "Pelanggan",
-    desc: "Belanja dari toko pilihan dan lacak pesanan.",
-  },
-  {
-    icon: Truck,
-    title: "Kurir",
-    desc: "Terima tugas antar dan perbarui status pengiriman.",
-  },
-];
-
-const perks = [
-  { icon: Barcode, text: "Kasir cepat dengan scan barcode" },
-  { icon: MapPin, text: "Peta toko & lokasi antar" },
-  { icon: CheckCircle2, text: "Satu akun, panel sesuai peran" },
-];
+import { ArrowLeft, Mail, Lock, Eye, EyeOff } from "lucide-react";
+// PERBAIKAN: Gunakan useToast bawaan Shadcn, bukan sonner
+import { useToast } from "@/hooks/use-toast";
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -55,20 +16,31 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   
-  // STATE BARU: Untuk menampilkan Pop-Up KYC di tengah layar
-  const [kycModal, setKycModal] = useState({ isOpen: false, status: "pending", message: "" });
+  // Inisialisasi hook toast
+  const { toast } = useToast();
 
   const handleLogin = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!email || !password) {
-      toast.error("Isi email dan password");
+      // PERBAIKAN: Format penulisan toast baru
+      toast({
+        variant: "destructive",
+        title: "Akses Ditolak",
+        description: "Isi email dan kata sandi terlebih dahulu.",
+      });
       return;
     }
 
     try {
       setSubmitting(true);
       const userData = await login(email, password);
-      toast.success(`Selamat datang, ${userData.name}!`);
+      
+      // Toast sukses
+      toast({
+        variant: "success",
+        title: "Berhasil Masuk",
+        description: `Selamat datang kembali, ${userData.name}!`,
+      });
       
       if (userData.role === "admin") {
         navigate("/admin");
@@ -79,29 +51,36 @@ const LoginPage = () => {
       } else if (userData.role === "pelanggan" || userData.role === "customer") {
         navigate("/customer");
       } else {
-        toast.error("Peran pengguna tidak dikenal oleh sistem.");
+        toast({
+          variant: "destructive",
+          title: "Terjadi Kesalahan",
+          description: "Peran pengguna tidak dikenal oleh sistem.",
+        });
       }
 
     } catch (error: unknown) {
       // Menangkap pesan error dari backend
       const msg = error instanceof Error ? error.message : "Email atau password salah";
 
-      // LOGIKA BARU: Filter jenis error untuk ditampilkan di Pop-Up
+      // LOGIKA: Filter jenis error untuk ditampilkan di Pop-Up
       if (msg.includes("1x24 Jam") || msg.toLowerCase().includes("diproses")) {
-        // Jika error mengandung kata "1x24 Jam", berarti status Pending
-        setKycModal({ isOpen: true, status: "pending", message: "Verifikasi akan dilakukan 1x24 jam." });
-      } else if (
-        msg === "Email atau kata sandi salah" || 
-        msg === "Email dan kata sandi wajib diisi" || 
-        msg.includes("dinonaktifkan") ||
-        msg.includes("Network") ||
-        msg.includes("fetch")
-      ) {
-        // Jika error sistem biasa, tampilkan toast kecil
-        toast.error(msg);
+        toast({
+          variant: "default", // Akan menggunakan ikon Info berwarna biru (yang kita set di toaster.tsx)
+          title: "Sedang Diverifikasi",
+          description: "Verifikasi akan dilakukan 1x24 jam.",
+        });
+      } else if (msg.includes("ditolak") || msg.includes("dinonaktifkan")) {
+        toast({
+          variant: "destructive",
+          title: "Verifikasi Ditolak",
+          description: msg,
+        });
       } else {
-        // Sisa error lainnya diasumsikan sebagai "Alasan Penolakan" dari Admin
-        setKycModal({ isOpen: true, status: "rejected", message: msg });
+        toast({
+          variant: "destructive",
+          title: "Gagal Masuk",
+          description: msg,
+        });
       }
     } finally {
       setSubmitting(false);
@@ -209,32 +188,6 @@ const LoginPage = () => {
           </div>
         </div>
       </div>
-
-      {/* POP-UP MODAL STATUS KYC (DITOLAK ATAU PENDING) */}
-      <Dialog open={kycModal.isOpen} onOpenChange={(open) => setKycModal(prev => ({ ...prev, isOpen: open }))}>
-        <DialogContent className="sm:max-w-sm text-center p-8 border-0 shadow-2xl">
-          <div className={`mx-auto flex h-24 w-24 items-center justify-center rounded-full mb-4 ${kycModal.status === 'rejected' ? 'bg-destructive/10' : 'bg-green-500/10'}`}>
-            {kycModal.status === 'rejected' ? (
-              <ShieldAlert className="h-12 w-12 text-destructive" />
-            ) : (
-              <Clock className="h-12 w-12 text-green-500" />
-            )}
-          </div>
-          <DialogTitle className={`text-2xl font-bold mb-2 ${kycModal.status === 'rejected' ? 'text-destructive' : 'text-green-600'}`}>
-            {kycModal.status === 'rejected' ? 'Verifikasi Ditolak' : 'Sedang Diverifikasi'}
-          </DialogTitle>
-          <DialogDescription className="text-base text-foreground font-medium mb-6">
-            {kycModal.message}
-          </DialogDescription>
-          <Button
-            className="w-full h-12 text-base font-bold shadow-md"
-            variant={kycModal.status === 'rejected' ? 'destructive' : 'default'}
-            onClick={() => setKycModal(prev => ({ ...prev, isOpen: false }))}
-          >
-            Mengerti
-          </Button>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

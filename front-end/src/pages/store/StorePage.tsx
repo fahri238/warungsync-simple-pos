@@ -14,8 +14,15 @@ import { useStoreContext } from "@/context/StoreContext";
 import type { OrderItem, Product } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, ShoppingCart, Plus, User, Loader2, MapPin } from "lucide-react";
-import { toast } from "sonner";
+import {
+  Search,
+  ShoppingCart,
+  Plus,
+  User,
+  Loader2,
+  MapPin,
+} from "lucide-react";
+import { toast } from "@/lib/custom-toast";
 
 const StorePage = () => {
   const { storeId } = useParams<{ storeId: string }>();
@@ -28,7 +35,9 @@ const StorePage = () => {
 
   const [storeName, setStoreName] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState<OrderItem[]>(() => getCart(storeId));
   const [search, setSearch] = useState("");
@@ -99,10 +108,15 @@ const StorePage = () => {
       <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur">
         <div className="container mx-auto flex items-center justify-between px-4 py-3">
           <div className="flex min-w-0 flex-col">
-            <Link to="/stores" className="text-xs text-muted-foreground hover:text-foreground">
+            <Link
+              to="/stores"
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
               Ganti toko
             </Link>
-            <span className="truncate font-bold text-foreground">{storeName || "Toko"}</span>
+            <span className="truncate font-bold text-foreground">
+              {storeName || "Toko"}
+            </span>
           </div>
           <div className="flex items-center gap-3">
             <Link
@@ -148,7 +162,8 @@ const StorePage = () => {
       <div className="container mx-auto px-4 py-6">
         <p className="mb-4 flex items-center gap-1 text-xs text-muted-foreground">
           <MapPin className="h-3.5 w-3.5" />
-          Belanja hanya dari toko ini — keranjang tidak bisa mencampur toko lain.
+          Belanja hanya dari toko ini — keranjang tidak bisa mencampur toko
+          lain.
         </p>
 
         <div className="mb-6 space-y-3">
@@ -206,13 +221,21 @@ const StorePage = () => {
                   />
                 </div>
                 <div className="p-3">
-                  <h3 className="font-semibold text-foreground line-clamp-1">{p.name}</h3>
-                  <p className="text-xs text-muted-foreground line-clamp-1">{p.description}</p>
+                  <h3 className="font-semibold text-foreground line-clamp-1">
+                    {p.name}
+                  </h3>
+                  <p className="text-xs text-muted-foreground line-clamp-1">
+                    {p.description}
+                  </p>
                   <div className="mt-2 flex items-center justify-between">
                     <span className="text-sm font-bold text-primary">
                       Rp {p.price.toLocaleString("id-ID")}
                     </span>
-                    <Button size="icon" className="h-8 w-8" onClick={() => addToCart(p)}>
+                    <Button
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => addToCart(p)}
+                    >
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>

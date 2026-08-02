@@ -4,7 +4,7 @@ import { getCart, saveCart, getProductImage } from "@/lib/store";
 import type { OrderItem } from "@/types";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Plus, Minus, Trash2, ShoppingBag } from "lucide-react";
-import { toast } from "sonner"; 
+import { toast } from "@/lib/custom-toast";
 
 const CustomerCart = () => {
   const { storeId } = useParams<{ storeId: string }>();
@@ -18,9 +18,11 @@ const CustomerCart = () => {
   const total = cart.reduce((s, i) => s + i.product.price * i.quantity, 0);
 
   const updateQty = (id: string, delta: number) => {
-    const item = cart.find(i => i.product.id === id);
+    const item = cart.find((i) => i.product.id === id);
     if (item && delta > 0 && item.quantity >= item.product.stock) {
-      toast.error(`Maksimal pembelian tercapai! Sisa stok hanya ${item.product.stock} barang.`);
+      toast.error(
+        `Maksimal pembelian tercapai! Sisa stok hanya ${item.product.stock} barang.`,
+      );
       return;
     }
 
@@ -57,7 +59,9 @@ const CustomerCart = () => {
               <ArrowLeft className="h-5 w-5" />
             </Link>
           </Button>
-          <h1 className="font-bold text-foreground">Keranjang ({cart.length})</h1>
+          <h1 className="font-bold text-foreground">
+            Keranjang ({cart.length})
+          </h1>
         </div>
       </header>
 
@@ -85,9 +89,14 @@ const CustomerCart = () => {
                     className="h-14 w-14 rounded-lg object-cover"
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-foreground">{item.product.name}</p>
+                    <p className="truncate font-medium text-foreground">
+                      {item.product.name}
+                    </p>
                     <p className="text-sm font-bold text-primary">
-                      Rp {(item.product.price * item.quantity).toLocaleString("id-ID")}
+                      Rp{" "}
+                      {(item.product.price * item.quantity).toLocaleString(
+                        "id-ID",
+                      )}
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
@@ -99,7 +108,9 @@ const CustomerCart = () => {
                     >
                       <Minus className="h-3 w-3" />
                     </Button>
-                    <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
+                    <span className="w-8 text-center text-sm font-medium">
+                      {item.quantity}
+                    </span>
                     <Button
                       variant="outline"
                       size="icon"

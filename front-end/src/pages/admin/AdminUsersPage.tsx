@@ -57,7 +57,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { apiFetch, getSession } from "@/lib/store";
-import { toast } from "sonner";
+import { toast } from "@/lib/custom-toast";
 import DeliveryLocationPicker from "@/components/maps/DeliveryLocationPicker";
 
 interface UserData {

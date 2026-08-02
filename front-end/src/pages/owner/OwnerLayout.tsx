@@ -34,7 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
+import { toast } from "@/lib/custom-toast";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -64,7 +64,7 @@ const OwnerLayout = () => {
   // STATE BARU: Untuk Modal Detail Kurir
   const [selectedCourier, setSelectedCourier] = useState<any>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  
+
   const [rejectionReason, setRejectionReason] = useState("");
   const [showRejectInput, setShowRejectInput] = useState(false);
 
@@ -421,8 +421,8 @@ const OwnerLayout = () => {
               <div className="border border-border/80 rounded-xl overflow-hidden shadow-sm flex flex-col">
                 <div className="bg-muted/50 p-2.5 border-b border-border/80 flex justify-between items-center">
                   <p className="text-xs font-bold flex items-center gap-2">
-                    <IdCard className="h-4 w-4 text-muted-foreground" /> Foto KTP
-                    (KYC)
+                    <IdCard className="h-4 w-4 text-muted-foreground" /> Foto
+                    KTP (KYC)
                   </p>
                   <p className="text-xs font-mono font-bold text-primary">
                     NIK: {selectedCourier.nik}

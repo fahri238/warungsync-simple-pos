@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import { Toaster as Sonner } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 import Index from "./pages/Index";
@@ -50,13 +50,17 @@ const App = () => (
     <AuthProvider>
       <StoreProvider>
         <TooltipProvider>
-          <Sonner />
+          <Toaster/>
+
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
-              <Route path="/register/location" element={<LocationPickerPage />} />
+              <Route
+                path="/register/location"
+                element={<LocationPickerPage />}
+              />
 
               {/* === RUTE SUPER ADMIN (Pemilik Sistem) === */}
               <Route path="/admin" element={<AdminLayout />}>
@@ -64,7 +68,7 @@ const App = () => (
                 {/* Nanti kita buat halamannya satu per satu */}
                 <Route path="tenants" element={<AdminStoresPage />} />
                 <Route path="users" element={<AdminUsersPage />} />
-                <Route path="reports" element={< AdminReportsPage/>} />
+                <Route path="reports" element={<AdminReportsPage />} />
               </Route>
 
               {/* === RUTE OWNER (Pemilik Warung) === */}
@@ -85,13 +89,16 @@ const App = () => (
                 <Route path="store" element={<StoreRedirect />} />
                 <Route path="store/:storeId" element={<StorePage />} />
                 <Route path="store/:storeId/cart" element={<StoreCart />} />
-                <Route path="store/:storeId/checkout" element={<StoreCheckout />} />
+                <Route
+                  path="store/:storeId/checkout"
+                  element={<StoreCheckout />}
+                />
                 <Route path="store/:storeId/orders" element={<StoreOrders />} />
               </Route>
 
               {/* === RUTE COURIER === */}
               <Route path="/courier" element={<CourierDashboard />} />
-              
+
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

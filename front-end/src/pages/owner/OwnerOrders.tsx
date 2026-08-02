@@ -4,26 +4,41 @@ import type { Order } from "@/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "@/lib/custom-toast";
 import { Printer, Truck, CheckCircle, ShieldAlert } from "lucide-react";
-import { fetchOrders, updateOrderStatus as updateOrderStatusApi } from "@/services/orderService";
+import {
+  fetchOrders,
+  updateOrderStatus as updateOrderStatusApi,
+} from "@/services/orderService";
 import { fetchUsersByRole } from "@/services/authService";
 import { assignCourier } from "@/services/deliveryService";
 import { getSession } from "@/lib/store";
 
 const statusLabels: Record<string, string> = {
-  pending: "Menunggu", 
+  pending: "Menunggu",
   menunggu: "Menunggu",
-  processing: "Diproses", 
+  processing: "Diproses",
   diproses: "Diproses",
-  ready: "Siap Ambil", 
+  ready: "Siap Ambil",
   siap_ambil: "Siap Ambil",
-  delivering: "Sedang Diantar", 
+  delivering: "Sedang Diantar",
   diantar: "Sedang Diantar",
   completed: "Selesai",
-  selesai: "Selesai"
+  selesai: "Selesai",
 };
 
 const statusColors: Record<string, string> = {
@@ -41,15 +56,20 @@ const statusColors: Record<string, string> = {
 
 const OwnerOrders = () => {
   const session = getSession();
-  
+
   // PERBAIKAN: Mengambil nama toko dari session jika ada, atau menggunakan nama lengkap
-  const displayStoreName = (session as any)?.nama_toko || (session as any)?.store_name || `Toko ${session?.name || "Kita"}`;
+  const displayStoreName =
+    (session as any)?.nama_toko ||
+    (session as any)?.store_name ||
+    `Toko ${session?.name || "Kita"}`;
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [couriers, setCouriers] = useState<any[]>([]);
-  
-  const [courierDialogOrder, setCourierDialogOrder] = useState<Order | null>(null);
+
+  const [courierDialogOrder, setCourierDialogOrder] = useState<Order | null>(
+    null,
+  );
   const [selectedCourierId, setSelectedCourierId] = useState<string>("");
 
   const refresh = async () => {
@@ -65,8 +85,8 @@ const OwnerOrders = () => {
     }
 
     Promise.all([
-      fetchOrders(session.store_id as any), 
-      fetchUsersByRole("kurir") // PERBAIKAN 1: Ubah 'courier' menjadi 'kurir' (bahasa Indonesia)
+      fetchOrders(session.store_id as any),
+      fetchUsersByRole("kurir"), // PERBAIKAN 1: Ubah 'courier' menjadi 'kurir' (bahasa Indonesia)
     ])
       .then(([orderRows, courierRows]) => {
         setOrders(orderRows || []);
@@ -77,8 +97,12 @@ const OwnerOrders = () => {
   }, [session?.store_id, session?.role]);
 
   const getOrderTotal = (order: Order) => {
-    if (typeof order.total === 'number') return order.total;
-    const itemsTotal = order.items?.reduce((sum, item) => sum + (item.product?.price * item.quantity), 0) || 0;
+    if (typeof order.total === "number") return order.total;
+    const itemsTotal =
+      order.items?.reduce(
+        (sum, item) => sum + item.product?.price * item.quantity,
+        0,
+      ) || 0;
     return itemsTotal + ((order as any).shippingFee || 0);
   };
 
@@ -124,16 +148,26 @@ const OwnerOrders = () => {
     const printWindow = window.open("", "_blank", "width=800,height=600");
     if (!printWindow) return;
 
-    const itemsHtml = (order.items || []).map(i => `
+    const itemsHtml = (order.items || [])
+      .map(
+        (i) => `
       <div class="row">
-        <span class="item-name">${i.product?.name || 'Product'} x${i.quantity}</span>
+        <span class="item-name">${i.product?.name || "Product"} x${i.quantity}</span>
         <span>Rp ${(i.product?.price * i.quantity).toLocaleString("id-ID")}</span>
       </div>
-    `).join('');
+    `,
+      )
+      .join("");
 
     const d = new Date(order.createdAt || Date.now());
-    const formattedDate = d.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) +
-      " • " + d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+    const formattedDate =
+      d.toLocaleDateString("id-ID", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }) +
+      " • " +
+      d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -157,8 +191,8 @@ const OwnerOrders = () => {
           <div style="color: #555; font-size: 10px;">ID: #${order.id.toString().slice(-8).toUpperCase()}</div>
         </div>
         <div class="divider"></div>
-        <div>Customer: <span class="bold">${order.customerName || 'Walk-in'}</span></div>
-        <div>Type: <span class="bold">${order.fulfillment === 'delivery' ? 'Delivery' : 'Pickup'}</span></div>
+        <div>Customer: <span class="bold">${order.customerName || "Walk-in"}</span></div>
+        <div>Type: <span class="bold">${order.fulfillment === "delivery" ? "Delivery" : "Pickup"}</span></div>
         <div class="divider"></div>
         ${itemsHtml}
         <div class="divider"></div>
@@ -186,11 +220,17 @@ const OwnerOrders = () => {
             <div className="mx-auto h-24 w-24 bg-destructive/10 rounded-full flex items-center justify-center mb-6 ring-8 ring-destructive/5">
               <ShieldAlert className="h-12 w-12 text-destructive" />
             </div>
-            <h2 className="text-2xl font-black tracking-tight mb-2 text-foreground">Akses Ditolak</h2>
+            <h2 className="text-2xl font-black tracking-tight mb-2 text-foreground">
+              Akses Ditolak
+            </h2>
             <p className="mb-8 text-muted-foreground text-sm px-4">
-              Sesi pemilik warung (owner) Anda tidak ditemukan atau Anda tidak memiliki izin untuk mengakses halaman ini.
+              Sesi pemilik warung (owner) Anda tidak ditemukan atau Anda tidak
+              memiliki izin untuk mengakses halaman ini.
             </p>
-            <Button asChild className="w-full rounded-xl h-14 text-base font-bold shadow-lg shadow-primary/20">
+            <Button
+              asChild
+              className="w-full rounded-xl h-14 text-base font-bold shadow-lg shadow-primary/20"
+            >
               <Link to="/login">Masuk Kembali</Link>
             </Button>
           </CardContent>
@@ -202,50 +242,80 @@ const OwnerOrders = () => {
   const renderOrderCard = (o: Order) => {
     const totalTagihan = getOrderTotal(o);
     // PERBAIKAN: Cast status dan fulfillment ke generic string agar TS tidak komplain
-    const st = (o.status as string) || 'pending';
-    const fulfillment = (o.fulfillment as string);
+    const st = (o.status as string) || "pending";
+    const fulfillment = o.fulfillment as string;
 
     return (
-      <Card key={o.id} className="overflow-hidden border border-border/50 shadow-sm hover:shadow-md transition-all">
+      <Card
+        key={o.id}
+        className="overflow-hidden border border-border/50 shadow-sm hover:shadow-md transition-all"
+      >
         <CardContent className="p-0 flex flex-col sm:flex-row items-center justify-between">
           <div className="p-5 flex-1 w-full">
             <div className="flex items-center gap-3 mb-2">
               <span className="font-bold text-lg">{o.customerName}</span>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${statusColors[st] || 'bg-gray-100'}`}>
+              <span
+                className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${statusColors[st] || "bg-gray-100"}`}
+              >
                 {statusLabels[st] || st}
               </span>
             </div>
-            <p className="text-sm text-muted-foreground">{o.items?.map(i => i.product.name).join(", ") || "No items"}</p>
+            <p className="text-sm text-muted-foreground">
+              {o.items?.map((i) => i.product.name).join(", ") || "No items"}
+            </p>
             <div className="flex gap-4 mt-2">
-              <p className="font-bold text-primary">Rp {totalTagihan.toLocaleString("id-ID")}</p>
+              <p className="font-bold text-primary">
+                Rp {totalTagihan.toLocaleString("id-ID")}
+              </p>
               <p className="text-xs text-muted-foreground font-semibold uppercase bg-muted px-2 py-0.5 rounded">
-                {fulfillment === 'delivery' || fulfillment === 'kurir' ? 'Diantar Kurir' : 'Ambil Sendiri'}
+                {fulfillment === "delivery" || fulfillment === "kurir"
+                  ? "Diantar Kurir"
+                  : "Ambil Sendiri"}
               </p>
             </div>
           </div>
-          
+
           <div className="flex sm:flex-col gap-2 p-5 sm:border-l border-t sm:border-t-0 border-border/50 w-full sm:w-auto bg-muted/10">
-            <Button size="sm" onClick={() => handlePrintInvoice(o)} className="gap-2 w-full">
+            <Button
+              size="sm"
+              onClick={() => handlePrintInvoice(o)}
+              className="gap-2 w-full"
+            >
               <Printer className="h-4 w-4" /> Cetak Struk
             </Button>
-            
+
             {(st === "pending" || st === "menunggu") && (
-              <Button size="sm" variant="outline" className="w-full bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 border-blue-200" onClick={() => handleProcessOrder(o.id.toString())}>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 border-blue-200"
+                onClick={() => handleProcessOrder(o.id.toString())}
+              >
                 Proses Pesanan
               </Button>
             )}
 
-            {(st === "processing" || st === "diproses") && (fulfillment === "delivery" || fulfillment === "kurir") && (
-              <Button size="sm" className="w-full gap-2 bg-orange-500 hover:bg-orange-600" onClick={() => handleOpenCourierDialog(o)}>
-                <Truck className="h-4 w-4" /> Tugaskan Kurir
-              </Button>
-            )}
+            {(st === "processing" || st === "diproses") &&
+              (fulfillment === "delivery" || fulfillment === "kurir") && (
+                <Button
+                  size="sm"
+                  className="w-full gap-2 bg-orange-500 hover:bg-orange-600"
+                  onClick={() => handleOpenCourierDialog(o)}
+                >
+                  <Truck className="h-4 w-4" /> Tugaskan Kurir
+                </Button>
+              )}
 
-            {(st === "processing" || st === "diproses") && (fulfillment === "pickup") && (
-              <Button size="sm" className="w-full gap-2 bg-green-500 hover:bg-green-600" onClick={() => handleCompletePickup(o.id.toString())}>
-                <CheckCircle className="h-4 w-4" /> Selesai (Diambil)
-              </Button>
-            )}
+            {(st === "processing" || st === "diproses") &&
+              fulfillment === "pickup" && (
+                <Button
+                  size="sm"
+                  className="w-full gap-2 bg-green-500 hover:bg-green-600"
+                  onClick={() => handleCompletePickup(o.id.toString())}
+                >
+                  <CheckCircle className="h-4 w-4" /> Selesai (Diambil)
+                </Button>
+              )}
           </div>
         </CardContent>
       </Card>
@@ -256,7 +326,9 @@ const OwnerOrders = () => {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Manajemen Pesanan</h2>
-        <Button onClick={refresh} variant="outline" size="sm">Perbarui Data</Button>
+        <Button onClick={refresh} variant="outline" size="sm">
+          Perbarui Data
+        </Button>
       </div>
 
       <Tabs defaultValue="all" className="w-full">
@@ -267,49 +339,89 @@ const OwnerOrders = () => {
         </TabsList>
 
         <TabsContent value="all" className="space-y-4 mt-6">
-          {orders.map(o => renderOrderCard(o))}
+          {orders.map((o) => renderOrderCard(o))}
         </TabsContent>
 
         <TabsContent value="pending" className="space-y-4 mt-6">
-          {orders.filter(o => !o.status || ["pending", "menunggu", "processing", "diproses"].includes(o.status as string)).map(o => renderOrderCard(o))}
+          {orders
+            .filter(
+              (o) =>
+                !o.status ||
+                ["pending", "menunggu", "processing", "diproses"].includes(
+                  o.status as string,
+                ),
+            )
+            .map((o) => renderOrderCard(o))}
         </TabsContent>
 
         <TabsContent value="completed" className="space-y-4 mt-6">
-          {orders.filter(o => ["completed", "selesai"].includes(o.status as string)).map(o => renderOrderCard(o))}
+          {orders
+            .filter((o) =>
+              ["completed", "selesai"].includes(o.status as string),
+            )
+            .map((o) => renderOrderCard(o))}
         </TabsContent>
       </Tabs>
 
-      <Dialog open={!!courierDialogOrder} onOpenChange={(open) => !open && setCourierDialogOrder(null)}>
+      <Dialog
+        open={!!courierDialogOrder}
+        onOpenChange={(open) => !open && setCourierDialogOrder(null)}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Tugaskan Kurir Pengiriman</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="rounded-lg bg-muted p-3 text-sm">
-              <p className="font-semibold text-foreground">Pelanggan: {courierDialogOrder?.customerName}</p>
-              <p className="text-muted-foreground mt-1">Alamat: {(courierDialogOrder as any)?.deliveryAddress || courierDialogOrder?.customerAddress}</p>
+              <p className="font-semibold text-foreground">
+                Pelanggan: {courierDialogOrder?.customerName}
+              </p>
+              <p className="text-muted-foreground mt-1">
+                Alamat:{" "}
+                {(courierDialogOrder as any)?.deliveryAddress ||
+                  courierDialogOrder?.customerAddress}
+              </p>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Pilih Kurir yang Tersedia:</label>
-              <Select value={selectedCourierId} onValueChange={setSelectedCourierId}>
+              <label className="text-sm font-medium">
+                Pilih Kurir yang Tersedia:
+              </label>
+              <Select
+                value={selectedCourierId}
+                onValueChange={setSelectedCourierId}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="-- Klik untuk memilih kurir --" />
                 </SelectTrigger>
                 <SelectContent>
                   {couriers
-                    .filter(c => Number(c.store_id || c.storeId) === Number(session?.store_id))
-                    .map(c => (
-                    <SelectItem key={c.id} value={c.id.toString()}>
-                      {c.nama || c.name} {(c.kontak || c.phone) ? `(${c.kontak || c.phone})` : ""}
-                    </SelectItem>
-                  ))}
+                    .filter(
+                      (c) =>
+                        Number(c.store_id || c.storeId) ===
+                        Number(session?.store_id),
+                    )
+                    .map((c) => (
+                      <SelectItem key={c.id} value={c.id.toString()}>
+                        {c.nama || c.name}{" "}
+                        {c.kontak || c.phone ? `(${c.kontak || c.phone})` : ""}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCourierDialogOrder(null)}>Batal</Button>
-            <Button disabled={!selectedCourierId} onClick={handleSubmitAssignCourier} className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setCourierDialogOrder(null)}
+            >
+              Batal
+            </Button>
+            <Button
+              disabled={!selectedCourierId}
+              onClick={handleSubmitAssignCourier}
+              className="gap-2"
+            >
               <Truck className="h-4 w-4" /> Konfirmasi & Kirim
             </Button>
           </DialogFooter>

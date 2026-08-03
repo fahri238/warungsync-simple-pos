@@ -1,0 +1,271 @@
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { getSession, apiFetch } from "@/lib/store";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "@/lib/custom-toast";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Clock,
+  XCircle,
+  CheckCircle2,
+  RotateCcw,
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  CarFront,
+  CreditCard,
+  IdCard,
+  ShieldAlert,
+  Store
+} from "lucide-react";
+
+const CourierStatus = () => {
+  const session = getSession();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+  
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [userData, setUserData] = useState<any>(session);
+  const [isLoading, setIsLoading] = useState(true);
+  const [storeName, setStoreName] = useState("Memuat nama toko...");
+
+  // Mengambil data lengkap dan Nama Toko dari backend
+  useEffect(() => {
+    const fetchCompleteData = async () => {
+      try {
+        const res = await apiFetch("/users/me");
+        if (res.data) {
+          setUserData(res.data);
+          
+          // Cari nama toko berdasarkan store_id
+          if (res.data.store_id) {
+            const storeRes = await apiFetch("/stores/list");
+            const matchedStore = storeRes.data?.find((s: any) => Number(s.id) === Number(res.data.store_id));
+            if (matchedStore) {
+              setStoreName(matchedStore.name || matchedStore.nama);
+            } else {
+              setStoreName(`Toko ID: ${res.data.store_id}`);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Gagal memuat data lengkap kurir:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchCompleteData();
+  }, []);
+
+  const handleDeleteAndReRegister = async () => {
+    try {
+      setIsDeleting(true);
+      await apiFetch("/users/me", { method: "DELETE" });
+      toast.success("Akun sebelumnya telah dihapus. Silakan daftar ulang.");
+      logout();
+      navigate("/register");
+    } catch (error: any) {
+      toast.error(error?.message || "Gagal menghapus akun.");
+      setIsDeleting(false);
+    }
+  };
+
+  const isApproved = userData?.is_approved === 1;
+  const isRejected = userData?.status === "ditolak";
+
+  const DataRow = ({ icon: Icon, label, value }: any) => (
+    <div className="flex items-start gap-3 p-3 rounded-xl hover:bg-muted/30 transition-colors">
+      <div className="mt-0.5 bg-primary/10 p-2 rounded-lg text-primary shrink-0">
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="space-y-0.5 min-w-0">
+        <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{label}</p>
+        <p className="text-sm font-semibold text-foreground truncate">{value || "-"}</p>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-[85vh] w-full p-4 md:p-6 lg:p-8 animate-in fade-in zoom-in-95 duration-500">
+      <div className="max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 lg:gap-8 items-start">
+          
+          {/* KOLOM KIRI: STATUS PENGAJUAN */}
+          <div className="xl:col-span-5 flex flex-col gap-6 xl:sticky xl:top-8">
+            <Card className="border-0 shadow-2xl rounded-[2rem] overflow-hidden bg-card/90 backdrop-blur-xl">
+              <div className={`h-3 w-full ${isApproved ? 'bg-green-500' : isRejected ? 'bg-destructive' : 'bg-primary'}`} />
+              <CardContent className="pt-10 pb-8 px-6 text-center">
+                
+                <div className={`mx-auto h-24 w-24 rounded-full flex items-center justify-center mb-6 ring-8 ${
+                  isApproved ? 'bg-green-100 ring-green-50' : 
+                  isRejected ? 'bg-destructive/10 ring-destructive/5' : 
+                  'bg-primary/10 ring-primary/5 animate-pulse'
+                }`}>
+                  {isApproved ? <CheckCircle2 className="h-12 w-12 text-green-600" /> :
+                   isRejected ? <XCircle className="h-12 w-12 text-destructive" /> :
+                   <Clock className="h-12 w-12 text-primary" />}
+                </div>
+
+                <h2 className="text-2xl font-black mb-3 text-foreground tracking-tight">
+                  {isApproved ? "Status: Aktif" : isRejected ? "Pengajuan Ditolak" : "Sedang Diverifikasi"}
+                </h2>
+
+                <p className="text-muted-foreground text-sm mb-8 leading-relaxed px-2">
+                  {isApproved 
+                    ? "Selamat! Pengajuan Anda telah disetujui. Anda sekarang memiliki akses penuh untuk mulai menerima pesanan."
+                    : isRejected 
+                    ? "Mohon maaf, pendaftaran Anda tidak dapat disetujui oleh pemilik toko."
+                    : "Data pendaftaran dan dokumen KTP Anda saat ini sedang ditinjau oleh pemilik toko (Maks 1x24 jam)."}
+                </p>
+
+                <div className="bg-muted/30 border border-border/50 rounded-xl p-5 mb-8 shadow-inner text-left">
+                  {isRejected ? (
+                    <>
+                      <p className="text-xs font-bold text-muted-foreground uppercase mb-2 tracking-wider flex items-center gap-1.5">
+                        <ShieldAlert className="h-4 w-4" /> Catatan Pemilik Toko
+                      </p>
+                      <p className="text-sm font-semibold text-foreground italic border-l-2 border-destructive pl-3">
+                        "{userData?.alasan_penolakan || "Dokumen tidak memenuhi persyaratan verifikasi."}"
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between items-center text-sm mb-3 border-b border-border/50 pb-3">
+                        <span className="text-muted-foreground font-medium">Tujuan Penugasan</span>
+                        <span className="font-bold text-foreground bg-secondary/10 px-3 py-1 rounded-md text-secondary flex items-center gap-1.5">
+                          <Store className="h-3.5 w-3.5" /> {storeName}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground font-medium">Status Terkini</span>
+                        <span className={`font-bold px-3 py-1 rounded-md flex items-center gap-1.5 ${
+                          isApproved ? 'text-green-700 bg-green-100' : 'text-orange-600 bg-orange-100'
+                        }`}>
+                          {isApproved ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Clock className="h-3.5 w-3.5" />}
+                          {isApproved ? "Disetujui" : "Menunggu Review"}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  {isApproved ? (
+                    <Button className="w-full h-14 rounded-xl font-bold text-base shadow-lg shadow-primary/20" onClick={() => navigate("/courier")}>
+                      Masuk ke Dasbor
+                    </Button>
+                  ) : isRejected ? (
+                    <Button 
+                      className="w-full h-14 rounded-xl font-bold text-base shadow-lg shadow-primary/20"
+                      disabled={isDeleting}
+                      onClick={handleDeleteAndReRegister}
+                    >
+                      <RotateCcw className="h-5 w-5 mr-2" /> {isDeleting ? "Menghapus Akun..." : "Daftar Kembali (Hapus Akun)"}
+                    </Button>
+                  ) : null}
+                  
+                  {(!isApproved || isRejected) && (
+                    <Button variant="ghost" className="w-full h-12 text-muted-foreground hover:text-foreground" onClick={() => { logout(); navigate("/login"); }}>
+                      Keluar dari Sistem
+                    </Button>
+                  )}
+                </div>
+
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* KOLOM KANAN: PREVIEW DATA PENDAFTARAN KURIR */}
+          <div className="xl:col-span-7 flex flex-col gap-6">
+            <Card className="border-border/60 shadow-xl rounded-[2rem] overflow-hidden bg-card/50 backdrop-blur-sm mb-6">
+              <CardHeader className="border-b border-border/50 bg-muted/20 pb-6 pt-8 px-6 md:px-8">
+                <CardTitle className="text-xl flex items-center gap-2">
+                  <IdCard className="h-6 w-6 text-primary" /> Rincian Data Pendaftaran
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Berikut adalah data yang sedang ditinjau oleh pemilik toko.
+                </p>
+              </CardHeader>
+              
+              <CardContent className="p-6 md:p-8">
+                {isLoading ? (
+                  <div className="flex flex-col items-center justify-center py-20 animate-pulse text-muted-foreground">
+                    <Clock className="h-8 w-8 mb-4 opacity-50" />
+                    <p>Memuat rincian data...</p>
+                  </div>
+                ) : (
+                  <div className="space-y-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2">
+                      <div className="space-y-2">
+                        <h3 className="text-xs font-black uppercase tracking-widest text-primary mb-4 px-3 border-l-4 border-primary">
+                          Identitas Diri
+                        </h3>
+                        <DataRow icon={User} label="Nama Lengkap" value={userData?.nama} />
+                        <DataRow icon={Mail} label="Email" value={userData?.email} />
+                        <DataRow icon={Phone} label="Nomor Telepon" value={userData?.kontak} />
+                        <DataRow icon={MapPin} label="Alamat Domisili" value={userData?.alamat} />
+                      </div>
+                      
+                      <div className="space-y-2 mt-6 md:mt-0">
+                        <h3 className="text-xs font-black uppercase tracking-widest text-primary mb-4 px-3 border-l-4 border-primary">
+                          Data Operasional
+                        </h3>
+                        <DataRow icon={CreditCard} label="Nomor Induk Kependudukan (NIK)" value={userData?.nik} />
+                        <DataRow icon={CarFront} label="Tipe Kendaraan" value={userData?.tipe_kendaraan} />
+                        
+                        <div className="flex items-start gap-3 p-3 rounded-xl hover:bg-muted/30 transition-colors">
+                          <div className="mt-0.5 bg-primary/10 p-2 rounded-lg text-primary shrink-0">
+                            <CarFront className="h-4 w-4" />
+                          </div>
+                          <div className="space-y-1.5 min-w-0">
+                            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Plat Nomor</p>
+                            <span className="inline-block text-sm font-black font-mono tracking-wider bg-foreground bg-primary/50 text-foreground px-3 py-1 rounded-md">
+                              {userData?.plat_nomor || "-"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-6 border-t border-border/50">
+                      <h3 className="text-xs font-black uppercase tracking-widest text-primary mb-4 px-3 border-l-4 border-primary">
+                        Dokumen Verifikasi (KYC)
+                      </h3>
+                      <div className="bg-muted/30 border border-border/80 rounded-2xl p-4">
+                        <p className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
+                          <IdCard className="h-4 w-4 text-muted-foreground" /> Foto Kartu Tanda Penduduk
+                        </p>
+                        <div className="w-full bg-secondary/10 rounded-xl overflow-hidden border border-border/50 flex items-center justify-center min-h-[250px] relative group">
+                          {userData?.foto_ktp ? (
+                            <img
+                              src={`http://localhost:5000/uploads/ktp/${userData.foto_ktp}`}
+                              alt="Foto KTP Kurir"
+                              className="w-full h-auto max-h-[400px] object-contain"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = "https://placehold.co/800x500/eee/999?text=Gagal+Memuat+Gambar";
+                              }}
+                            />
+                          ) : (
+                            <div className="text-center text-muted-foreground">
+                              <IdCard className="h-12 w-12 mx-auto mb-3 opacity-20" />
+                              <p className="text-sm">Dokumen tidak tersedia</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default CourierStatus;

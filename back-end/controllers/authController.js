@@ -177,14 +177,14 @@ const login = async (req, res) => {
 
     const user = users[0];
 
-    // PERBAIKAN: Cek status aktif/nonaktif SEBELUM mengecek password
-    // Jika akun dinonaktifkan, tolak seketika.
+    // Cek status aktif/nonaktif SEBELUM mengecek password
+    // Jika akun dinonaktifkan (diblokir), tolak seketika.
     if (user.status === "nonaktif") {
       return res
-        .status(403) // Menggunakan 403 Forbidden (Lebih tepat untuk akun yang diblokir/nonaktif)
+        .status(403)
         .json({
           success: false,
-          message: "Akun anda dinonaktifkan oleh admin", // Pesan notifikasi kustom sesuai permintaan Anda
+          message: "Akun anda dinonaktifkan oleh admin",
         });
     }
 
@@ -194,24 +194,10 @@ const login = async (req, res) => {
         .status(401)
         .json({ success: false, message: "Email atau kata sandi salah" });
 
-    // FITUR BARU: Blokir login jika akun belum disetujui
-    if (user.is_approved === 0) {
-      if (user.status === "ditolak") {
-        return res.status(403).json({
-          success: false,
-          kyc_status: "rejected",
-          message:
-            user.alasan_penolakan ||
-            "Mohon maaf, pendaftaran Anda ditolak karena dokumen tidak valid.",
-        });
-      }
-      return res.status(403).json({
-        success: false,
-        kyc_status: "pending",
-        message:
-          "Verifikasi akun sedang diproses (Maksimal 1x24 Jam). Harap tunggu pemberitahuan selanjutnya.",
-      });
-    }
+    // PERBAIKAN PENTING:
+    // Blokade login (403) untuk akun pending/ditolak TELAH DIHAPUS.
+    // Kini semua pengguna dengan email & password yang benar akan berhasil masuk,
+    // namun status KYC mereka dikirim ke frontend untuk dicegat di halaman Dasbor.
 
     const token = jwt.sign(
       {
@@ -238,6 +224,10 @@ const login = async (req, res) => {
           kontak: user.kontak,
           alamat: user.alamat,
           store_id: user.store_id || null,
+          // DATA KYC WAJIB DIKIRIMKAN
+          is_approved: user.is_approved,
+          status: user.status,
+          alasan_penolakan: user.alasan_penolakan,
         },
       },
     });
@@ -288,10 +278,18 @@ const manageCourierStatus = async (req, res) => {
 // ================= GET CURRENT USER =================
 const getCurrentUser = async (req, res) => {
   try {
-    const [users] = await db.query(
-      "SELECT id, store_id, nama, email, peran, kontak, alamat FROM users WHERE id = ?",
-      [req.user.id],
-    );
+    // PERBAIKAN: Melakukan LEFT JOIN ke tabel stores untuk mengambil foto_warung
+    const query = `
+      SELECT u.id, u.store_id, u.nama, u.email, u.peran, u.kontak, u.alamat, 
+             u.is_approved, u.status, u.alasan_penolakan, u.nik, 
+             u.tipe_kendaraan, u.plat_nomor, u.foto_ktp, 
+             s.foto_warung 
+      FROM users u
+      LEFT JOIN stores s ON u.store_id = s.id
+      WHERE u.id = ?
+    `;
+    
+    const [users] = await db.query(query, [req.user.id]);
 
     if (users.length === 0) {
       return res
@@ -377,7 +375,6 @@ const getUsers = async (req, res) => {
     }
 
     const params = [];
-    // PERBAIKAN: Sertakan atribut KYC khusus kurir
     let query =
       "SELECT id, store_id, nama, email, peran, kontak, alamat, nik, tipe_kendaraan, plat_nomor, foto_ktp, is_approved FROM users WHERE 1=1";
 
@@ -390,7 +387,6 @@ const getUsers = async (req, res) => {
       query += " AND peran = ?";
       params.push(role);
 
-      // PERBAIKAN: Khusus untuk peran kurir (saat dicari Owner), ambil HANYA yang sudah di-approve
       if (role === "kurir" && loggedInUserRole === "owner") {
         query += " AND is_approved = 1";
       }
@@ -413,7 +409,6 @@ const getUsers = async (req, res) => {
 const getActiveCouriers = async (req, res) => {
   try {
     const storeId = req.user.store_id;
-    // Mengambil kurir yang SUDAH disetujui (is_approved = 1) dengan data lengkap
     const [rows] = await db.query(
       "SELECT id, nama, email, kontak, nik, tipe_kendaraan, plat_nomor, foto_ktp, status FROM users WHERE peran = 'kurir' AND store_id = ? AND is_approved = 1 ORDER BY id DESC",
       [storeId],
@@ -434,7 +429,6 @@ const updateCourier = async (req, res) => {
   const { nama, kontak, tipe_kendaraan, plat_nomor } = req.body;
 
   try {
-    // Memastikan Owner hanya bisa mengedit kurir dari tokonya sendiri
     const [result] = await db.query(
       "UPDATE users SET nama = ?, kontak = ?, tipe_kendaraan = ?, plat_nomor = ? WHERE id = ? AND store_id = ? AND peran = 'kurir'",
       [nama, kontak, tipe_kendaraan, plat_nomor, id, req.user.store_id],
@@ -464,7 +458,6 @@ const deleteCourier = async (req, res) => {
   const { id } = req.params;
 
   try {
-    // Kita melakukan Soft Delete (Hapus Permanen) karena kurir bisa mendaftar ulang
     const [result] = await db.query(
       "DELETE FROM users WHERE id = ? AND store_id = ? AND peran = 'kurir'",
       [id, req.user.store_id],
@@ -489,6 +482,21 @@ const deleteCourier = async (req, res) => {
   }
 };
 
+// ================= DELETE OWN ACCOUNT (Self-Delete) =================
+const deleteOwnAccount = async (req, res) => {
+  try {
+    const [result] = await db.query("DELETE FROM users WHERE id = ?", [req.user.id]);
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: "Akun tidak ditemukan." });
+    }
+    
+    res.status(200).json({ success: true, message: "Akun berhasil dihapus permanen. Silakan daftar kembali." });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Gagal menghapus akun", error: error.message });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -500,4 +508,5 @@ module.exports = {
   getActiveCouriers,
   updateCourier,
   deleteCourier,
+  deleteOwnAccount
 };

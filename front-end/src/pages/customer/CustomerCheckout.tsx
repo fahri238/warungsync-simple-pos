@@ -485,7 +485,7 @@ const CustomerCheckout = () => {
                             type="button"
                             variant="secondary"
                             size="sm"
-                            className="h-8 text-xs font-semibold text-primary"
+                            className="h-8 text-xs text-foreground bg-primary/50"
                             onClick={() => {
                               navigator.clipboard.writeText(
                                 bank.account_number,

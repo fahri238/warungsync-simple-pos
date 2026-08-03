@@ -7,7 +7,7 @@ const fs = require("fs");
 const {
   register, login, getCurrentUser, updateProfile, getUsers,
   getPendingCouriers, manageCourierStatus, getActiveCouriers,
-  updateCourier, deleteCourier,
+  updateCourier, deleteCourier, deleteOwnAccount
 } = require("../controllers/authController");
 const { verifyToken } = require("../middleware/authMiddleware");
 const { validateRegistration, validateLogin } = require("../middleware/validation");
@@ -42,7 +42,6 @@ const upload = multer({
 // ================= PUBLIC ROUTES =================
 router.post(
   "/register",
-  // PERBAIKAN: Menggunakan fields untuk menerima banyak gambar
   upload.fields([
     { name: "foto_ktp", maxCount: 1 },
     { name: "foto_warung", maxCount: 1 }
@@ -62,5 +61,8 @@ router.get("/", verifyToken, getUsers);
 router.get("/active-couriers", verifyToken, getActiveCouriers);
 router.put("/courier/:id", verifyToken, updateCourier);
 router.delete("/courier/:id", verifyToken, deleteCourier);
+
+// ROUTE BARU: Hapus akun sendiri
+router.delete("/me", verifyToken, deleteOwnAccount);
 
 module.exports = router;

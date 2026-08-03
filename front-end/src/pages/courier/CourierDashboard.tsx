@@ -1,40 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
 import { getSession } from "@/lib/store";
-import type { Order, OrderStatus } from "@/types";
+import type { Order } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-// PERBAIKAN: Menambahkan import Tabs
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent } from "@/components/ui/card";
 import {
-  LogOut,
   Truck,
   MapPin,
   Package,
   Phone,
-  CheckCircle,
   Store,
   ReceiptText,
   ChevronRight,
   Printer,
+  Clock,
 } from "lucide-react";
 import { toast } from "@/lib/custom-toast";
 import { fetchOrders, updateOrderStatus } from "@/services/orderService";
-import { useAuth } from "@/context/AuthContext";
 import { completeDelivery } from "@/services/deliveryService";
 
-const statusLabels: Record<OrderStatus, string> = {
-  pending: "Menunggu",
-  processing: "Diproses",
-  ready: "Siap Ambil",
-  delivering: "Sedang Diantar",
-  completed: "Selesai",
-};
-
 const CourierDashboard = () => {
-  const navigate = useNavigate();
   const session = getSession();
-  const { logout } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
 
@@ -78,19 +63,6 @@ const CourierDashboard = () => {
       ),
     [orders],
   );
-
-  const completedOrders = useMemo(
-    () =>
-      orders.filter((o) =>
-        ["completed", "selesai"].includes(o.status as string),
-      ),
-    [orders],
-  );
-
-  const handleLogout = () => {
-    logout();
-    navigate("/");
-  };
 
   const handleCompleteDelivery = async (order: Order) => {
     try {
@@ -141,22 +113,12 @@ const CourierDashboard = () => {
 
     const d = new Date();
     const formattedDate =
-      d.toLocaleDateString("id-ID", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      }) +
+      d.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" }) +
       " • " +
       d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
 
-    const alamatTujuan =
-      (order as any).deliveryAddress ||
-      order.customerAddress ||
-      "Alamat tidak dicantumkan";
-    const namaToko =
-      (order as any).storeName ||
-      (session as any)?.storeName ||
-      "TOKO MITRA WARUNGSYNC";
+    const alamatTujuan = (order as any).deliveryAddress || order.customerAddress || "Alamat tidak dicantumkan";
+    const namaToko = (order as any).storeName || (session as any)?.storeName || "TOKO MITRA WARUNGSYNC";
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -166,7 +128,6 @@ const CourierDashboard = () => {
         <style>
           @page { size: 80mm auto; margin: 0; }
           body { font-family: 'Courier New', monospace; font-size: 12px; width: 80mm; margin: 0 auto; padding: 15px; color: #000; box-sizing: border-box; }
-          @media screen { body { background-color: white; border: 1px solid #ccc; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-top: 20px; min-height: 200px; } html { background-color: #f0f0f0; } }
           .center { text-align: center; } .bold { font-weight: bold; } .divider { border-top: 2px dashed #000; margin: 12px 0; }
           .row { display: flex; justify-content: space-between; } .item-name { flex: 1; padding-right: 15px; word-break: break-word; }
           .title { font-size: 16px; font-weight: bold; letter-spacing: 1px; margin-bottom: 4px; text-transform: uppercase;}
@@ -208,441 +169,151 @@ const CourierDashboard = () => {
     printWindow.document.close();
   };
 
-  // FITUR BARU: Cetak Laporan Selesai (Rekap Setoran COD)
-  const handlePrintCompleted = () => {
-    const printWindow = window.open("", "_blank", "width=800,height=600");
-    if (!printWindow) return toast.error("Pop-up diblokir browser");
-
-    const dateStr = new Date().toLocaleDateString("id-ID", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-    const totalSetoran = completedOrders.reduce(
-      (sum, o) => sum + getOrderTotal(o),
-      0,
-    );
-
-    const tableContent = `
-      <table>
-        <thead>
-          <tr>
-            <th>Tanggal Selesai</th>
-            <th>Pelanggan</th>
-            <th>Alamat Tujuan</th>
-            <th class="right">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${completedOrders
-            .map(
-              (o) => `
-            <tr>
-              <td>${new Date(o.createdAt).toLocaleDateString("id-ID")}</td>
-              <td><b>${o.customerName}</b><br><small>${o.customerPhone || "-"}</small></td>
-              <td>${(o as any).deliveryAddress || o.customerAddress || "-"}</td>
-              <td class="right">Rp ${getOrderTotal(o).toLocaleString("id-ID")}</td>
-            </tr>
-          `,
-            )
-            .join("")}
-          <tr class="highlight bold">
-            <td colspan="3">TOTAL UANG SETORAN COD</td>
-            <td class="right">Rp ${totalSetoran.toLocaleString("id-ID")}</td>
-          </tr>
-        </tbody>
-      </table>`;
-
-    printWindow.document.write(`
-      <html>
-      <head>
-        <title>Rekap Pengiriman - ${session?.name}</title>
-        <style>
-          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 30px; color: #333; }
-          .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #222; padding-bottom: 20px; }
-          h1 { margin: 0; font-size: 24px; color: #111; text-transform: uppercase; }
-          .subtitle { font-size: 14px; color: #555; margin-top: 5px; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
-          th { background-color: #f4f4f5; text-align: left; padding: 10px; border: 1px solid #ddd; font-weight: bold; }
-          td { padding: 10px; border: 1px solid #ddd; }
-          .right { text-align: right; } .highlight { background-color: #f8fafc; } .bold { font-weight: bold; }
-          .footer { margin-top: 40px; font-size: 12px; color: #777; text-align: right; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>Laporan Pengiriman Selesai</h1>
-          <div class="subtitle">Nama Kurir: <b>${session?.name || "Kurir"}</b></div>
-        </div>
-        ${tableContent}
-        <div class="footer">Dicetak otomatis dari WarungSync pada ${dateStr}</div>
-        <script>window.onload = () => { setTimeout(() => window.print(), 500); }</script>
-      </body>
-      </html>
-    `);
-    printWindow.document.close();
-  };
-
-  if (
-    !session ||
-    ((session.role as string) !== "courier" &&
-      (session.role as string) !== "kurir")
-  ) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-secondary/10 px-4">
-        <Card className="w-full max-w-sm text-center shadow-lg border-0 rounded-3xl">
-          <CardContent className="py-10">
-            <div className="mx-auto h-20 w-20 bg-background rounded-full flex items-center justify-center shadow-inner mb-6">
-              <Truck className="h-10 w-10 text-muted-foreground opacity-50" />
-            </div>
-            <h2 className="text-xl font-bold mb-2">Akses Ditolak</h2>
-            <p className="mb-6 text-muted-foreground text-sm">
-              Sesi kurir Anda tidak ditemukan atau sudah kadaluarsa.
-            </p>
-            <Button asChild className="w-full rounded-xl h-12 text-base">
-              <Link to="/login">Masuk Kembali</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-muted/30 pb-20 font-sans">
-      {/* HEADER SECTION */}
-      <div className="bg-secondary text-secondary-foreground pt-8 md:pt-6 pb-20 md:pb-16 px-5 md:px-8 rounded-b-[2rem] relative z-0">
-        <div className="max-w-md md:max-w-4xl lg:max-w-5xl mx-auto">
-          <div className="flex justify-between items-start mb-2 md:mb-1">
-            <div>
-              <p className="text-secondary-foreground/70 text-xs md:text-sm font-medium tracking-wide mb-1 uppercase">
-                Kurir Aktif
-              </p>
-              <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-                Halo, {session.name.split(" ")[0]} 👋
-              </h1>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="hover:bg-white/10 text-white rounded-full h-10 w-10 md:h-12 md:w-12"
-              onClick={handleLogout}
-            >
-              <LogOut className="h-5 w-5 md:h-6 md:w-6" />
-            </Button>
-          </div>
-          <p className="text-secondary-foreground/90 text-sm md:text-base max-w-md">
-            {activeOrders.length > 0
-              ? `Ada ${activeOrders.length} paket yang menunggu untuk diantar.`
-              : "Belum ada paket yang ditugaskan untuk Anda."}
+    <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
+      
+      {/* KARTU RINGKASAN */}
+      <div className="bg-primary/10 border border-primary/20 rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-foreground">Tugas Hari Ini</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Anda memiliki <span className="font-bold text-primary">{activeOrders.length} paket</span> yang sedang dalam antrian pengiriman.
           </p>
         </div>
-      </div>
-
-      <div className="max-w-md md:max-w-4xl lg:max-w-5xl mx-auto px-5 md:px-8 -mt-10 md:-mt-8 relative z-10 space-y-6 md:space-y-8">
-        {/* FLOATING STATS */}
-        <div className="grid grid-cols-2 gap-4 md:gap-6">
-          <div className="bg-card rounded-2xl p-4 md:p-6 shadow-md shadow-black/5 border border-border flex items-center gap-4">
-            <div className="h-12 w-12 md:h-14 md:w-14 rounded-full bg-accent/15 flex items-center justify-center shrink-0">
-              <Truck className="h-6 w-6 md:h-7 md:w-7 text-accent" />
-            </div>
-            <div>
-              <p className="text-2xl md:text-3xl font-black text-foreground leading-none">
-                {activeOrders.length}
-              </p>
-              <p className="text-[10px] md:text-xs font-bold text-muted-foreground mt-1 uppercase tracking-wider">
-                Antrian
-              </p>
-            </div>
+        <div className="bg-background px-4 py-3 rounded-xl border border-border/50 shadow-sm flex items-center gap-3">
+          <div className="h-10 w-10 bg-orange-100 rounded-full flex items-center justify-center shrink-0">
+            <Clock className="h-5 w-5 text-orange-600" />
           </div>
-
-          <div className="bg-card rounded-2xl p-4 md:p-6 shadow-md shadow-black/5 border border-border flex items-center gap-4">
-            <div className="h-12 w-12 md:h-14 md:w-14 rounded-full bg-success/15 flex items-center justify-center shrink-0">
-              <CheckCircle className="h-6 w-6 md:h-7 md:w-7 text-success" />
-            </div>
-            <div>
-              <p className="text-2xl md:text-3xl font-black text-foreground leading-none">
-                {completedOrders.length}
-              </p>
-              <p className="text-[10px] md:text-xs font-bold text-muted-foreground mt-1 uppercase tracking-wider">
-                Selesai
-              </p>
-            </div>
+          <div>
+            <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Status Antrian</p>
+            <p className="font-black text-lg text-foreground">{activeOrders.length > 0 ? 'Sibuk' : 'Santai'}</p>
           </div>
         </div>
-
-        {/* MENGGUNAKAN TABS UNTUK MEMISAHKAN ANTRIAN DAN SELESAI */}
-        <Tabs defaultValue="active" className="w-full space-y-6 pt-2">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <h2 className="text-lg md:text-xl font-bold text-foreground">
-              Daftar Kiriman
-            </h2>
-            <TabsList className="bg-muted/50 p-1 rounded-xl">
-              <TabsTrigger
-                value="active"
-                className="rounded-lg text-sm font-semibold"
-              >
-                Antrian ({activeOrders.length})
-              </TabsTrigger>
-              <TabsTrigger
-                value="completed"
-                className="rounded-lg text-sm font-semibold"
-              >
-                Selesai ({completedOrders.length})
-              </TabsTrigger>
-            </TabsList>
-          </div>
-
-          {/* TAB: ANTRIAN PENGIRIMAN */}
-          <TabsContent value="active" className="focus-visible:outline-none">
-            {loadingOrders ? (
-              <div className="text-center py-10 text-muted-foreground animate-pulse text-sm">
-                Mensinkronkan data...
-              </div>
-            ) : activeOrders.length === 0 ? (
-              <div className="bg-card rounded-3xl p-10 md:p-16 text-center shadow-sm border border-border/50 flex flex-col items-center">
-                <div className="h-20 w-20 md:h-24 md:w-24 bg-muted/50 rounded-full flex items-center justify-center mb-4">
-                  <CheckCircle className="h-10 w-10 md:h-12 md:w-12 text-muted-foreground/40" />
-                </div>
-                <p className="font-bold text-foreground text-lg md:text-xl">
-                  Semua Selesai!
-                </p>
-                <p className="text-sm md:text-base text-muted-foreground mt-2 max-w-sm mx-auto">
-                  Anda bisa beristirahat sekarang. Tidak ada pengiriman yang
-                  tertunda.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-5 md:space-y-6 items-start">
-                {activeOrders.map((o) => {
-                  const tagihan = getOrderTotal(o);
-                  const alamatTujuan =
-                    (o as any).deliveryAddress ||
-                    o.customerAddress ||
-                    "Alamat tidak lengkap";
-
-                  return (
-                    <Card
-                      key={o.id}
-                      className="overflow-hidden border-border/60 shadow-sm rounded-[1.5rem] hover:shadow-md transition-all"
-                    >
-                      <div className="bg-gradient-to-r from-primary/10 to-transparent p-4 md:p-5 flex justify-between items-center border-b border-border/50">
-                        <div>
-                          <span className="text-[10px] md:text-xs font-bold text-primary uppercase tracking-wider">
-                            ID: {o.id.toString().slice(-6).toUpperCase()}
-                          </span>
-                          <p className="font-extrabold text-foreground text-base md:text-lg leading-tight mt-0.5">
-                            {o.customerName}
-                          </p>
-                        </div>
-                        <span className="bg-white px-3 py-1 md:py-1.5 rounded-full text-[10px] md:text-xs font-bold shadow-sm border border-border/50 text-foreground">
-                          Sedang Diantar
-                        </span>
-                      </div>
-
-                      <CardContent className="p-5 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                        <div className="flex flex-col gap-5 md:gap-6">
-                          <div className="flex gap-4">
-                            <div className="flex flex-col items-center mt-1">
-                              <div className="h-3 w-3 md:h-3.5 md:w-3.5 rounded-full bg-secondary ring-4 ring-secondary/20 z-10" />
-                              <div className="w-0.5 h-full min-h-[3rem] bg-border -my-1" />
-                              <div className="h-3 w-3 md:h-3.5 md:w-3.5 rounded-full bg-primary ring-4 ring-primary/20 z-10" />
-                            </div>
-                            <div className="flex-1 space-y-4 md:space-y-6">
-                              <div>
-                                <p className="text-[11px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">
-                                  Ambil di
-                                </p>
-                                <div className="flex items-center gap-1.5 text-sm md:text-base font-semibold text-foreground">
-                                  <Store className="h-4 w-4 md:h-5 md:w-5 text-secondary" />{" "}
-                                  {(o as any).storeName ||
-                                    (session as any)?.storeName ||
-                                    "Toko Mitra"}
-                                </div>
-                              </div>
-                              <div>
-                                <p className="text-[11px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1">
-                                  Antar ke
-                                </p>
-                                <div className="flex items-start gap-1.5 text-sm md:text-base font-semibold text-foreground">
-                                  <MapPin className="h-4 w-4 md:h-5 md:w-5 text-primary shrink-0 mt-0.5" />
-                                  <span className="leading-snug">
-                                    {alamatTujuan}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="pl-7 md:pl-8">
-                            <p className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                              <Package className="h-3.5 w-3.5" /> Rincian Barang
-                            </p>
-                            <div className="bg-muted/30 rounded-xl p-3 md:p-4 border border-border/50 max-h-[140px] overflow-y-auto custom-scrollbar space-y-2.5">
-                              {o.items.map((item, idx) => (
-                                <div
-                                  key={idx}
-                                  className="flex justify-between items-start gap-3 border-b border-border/50 last:border-0 pb-2 last:pb-0"
-                                >
-                                  <span className="text-sm font-medium text-foreground leading-snug">
-                                    {item.product.name}
-                                  </span>
-                                  <span className="text-xs font-bold bg-primary/10 text-primary px-2 py-1 rounded-md shrink-0">
-                                    {item.quantity}x
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col justify-between space-y-5">
-                          <div>
-                            <div className="grid grid-cols-2 gap-3 md:gap-4">
-                              <div className="bg-muted/50 rounded-xl p-3 md:p-4">
-                                <p className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase mb-1">
-                                  Telepon
-                                </p>
-                                <a
-                                  href={`tel:${o.customerPhone}`}
-                                  className="flex items-center gap-1.5 text-sm md:text-base font-bold text-secondary hover:text-primary transition-colors"
-                                >
-                                  <Phone className="h-3.5 w-3.5 md:h-4 md:w-4" />{" "}
-                                  {o.customerPhone || "-"}
-                                </a>
-                              </div>
-                              <div className="bg-muted/50 rounded-xl p-3 md:p-4">
-                                <p className="text-[10px] md:text-xs font-bold text-muted-foreground uppercase mb-1">
-                                  Total Item
-                                </p>
-                                <div className="flex items-center gap-1.5 text-sm md:text-base font-bold text-foreground">
-                                  <Package className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground" />{" "}
-                                  {o.items.reduce(
-                                    (sum, i) => sum + i.quantity,
-                                    0,
-                                  )}{" "}
-                                  Barang
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="mt-4 md:mt-5 bg-orange-100 border border-orange-200 rounded-xl p-4 flex items-center justify-between">
-                              <div className="flex items-center gap-2 md:gap-3">
-                                <div className="bg-orange-200 p-1.5 md:p-2 rounded-md">
-                                  <ReceiptText className="h-4 w-4 md:h-5 md:w-5 text-orange-700" />
-                                </div>
-                                <span className="text-xs md:text-sm font-bold text-orange-800 uppercase tracking-wide">
-                                  Tagihan COD
-                                </span>
-                              </div>
-                              <span className="text-lg md:text-xl font-black text-orange-700">
-                                Rp {tagihan.toLocaleString("id-ID")}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="flex gap-3 pt-1">
-                            <Button
-                              variant="outline"
-                              className="h-12 w-12 md:h-14 md:w-14 shrink-0 rounded-xl border-border hover:bg-muted"
-                              onClick={() => handlePrintSuratJalan(o)}
-                              title="Cetak Surat Jalan"
-                            >
-                              <Printer className="h-5 w-5 md:h-6 md:w-6 text-secondary" />
-                            </Button>
-                            <Button
-                              className="flex-1 h-12 md:h-14 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-base md:text-lg shadow-md shadow-primary/20 flex justify-between px-5 md:px-6 group"
-                              onClick={() => handleCompleteDelivery(o)}
-                            >
-                              <span>Selesaikan Tugas</span>
-                              <ChevronRight className="h-5 w-5 md:h-6 md:w-6 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </TabsContent>
-
-          {/* TAB BARU: RIWAYAT SELESAI */}
-          <TabsContent value="completed" className="focus-visible:outline-none">
-            <Card className="rounded-[1.5rem] border-border/60 shadow-sm overflow-hidden">
-              <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-muted/10 pb-4 border-b border-border/50">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-success" /> Riwayat
-                  Pengiriman Selesai
-                </CardTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handlePrintCompleted}
-                  className="h-9 gap-2 shadow-sm rounded-xl"
-                >
-                  <Printer className="h-4 w-4 text-muted-foreground" /> Cetak
-                  Laporan
-                </Button>
-              </CardHeader>
-              <CardContent className="p-0">
-                {completedOrders.length === 0 ? (
-                  <p className="p-8 text-center text-sm text-muted-foreground">
-                    Belum ada pengiriman yang diselesaikan.
-                  </p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-border/80 bg-muted/30">
-                          <th className="px-5 py-4 text-left font-semibold text-muted-foreground uppercase tracking-wider text-xs">
-                            Tanggal
-                          </th>
-                          <th className="px-5 py-4 text-left font-semibold text-muted-foreground uppercase tracking-wider text-xs">
-                            Pelanggan
-                          </th>
-                          <th className="px-5 py-4 text-left font-semibold text-muted-foreground uppercase tracking-wider text-xs">
-                            Alamat Tujuan
-                          </th>
-                          <th className="px-5 py-4 text-right font-semibold text-muted-foreground uppercase tracking-wider text-xs">
-                            Total
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border/40">
-                        {completedOrders.map((o) => (
-                          <tr
-                            key={o.id}
-                            className="hover:bg-muted/20 transition-colors"
-                          >
-                            <td className="px-5 py-4 text-foreground text-xs whitespace-nowrap">
-                              {new Date(o.createdAt).toLocaleString("id-ID")}
-                            </td>
-                            <td className="px-5 py-4 text-foreground text-sm font-bold">
-                              {o.customerName} <br />
-                              <span className="text-xs font-normal text-muted-foreground">
-                                {o.customerPhone || "-"}
-                              </span>
-                            </td>
-                            <td className="px-5 py-4 text-foreground text-xs leading-relaxed max-w-[250px]">
-                              {(o as any).deliveryAddress ||
-                                o.customerAddress ||
-                                "-"}
-                            </td>
-                            <td className="px-5 py-4 text-right font-mono font-bold whitespace-nowrap text-success">
-                              Rp {getOrderTotal(o).toLocaleString("id-ID")}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
       </div>
+
+      {/* DAFTAR ANTRIAN */}
+      {loadingOrders ? (
+        <div className="text-center py-10 text-muted-foreground animate-pulse text-sm">
+          Menyelaraskan data penugasan...
+        </div>
+      ) : activeOrders.length === 0 ? (
+        <div className="bg-card rounded-3xl p-10 md:p-16 text-center shadow-sm border border-border/50 flex flex-col items-center">
+          <div className="h-20 w-20 md:h-24 md:w-24 bg-muted/50 rounded-full flex items-center justify-center mb-4">
+            <Truck className="h-10 w-10 md:h-12 md:w-12 text-muted-foreground/40" />
+          </div>
+          <p className="font-bold text-foreground text-lg md:text-xl">Semua Tugas Selesai!</p>
+          <p className="text-sm md:text-base text-muted-foreground mt-2 max-w-sm mx-auto">
+            Belum ada paket baru yang ditugaskan kepada Anda. Silakan beristirahat.
+          </p>
+        </div>
+      ) : (
+        /* PERBAIKAN GRID: Menjadikan 1 kolom saja yang merentang 100% lebar layar */
+        <div className="grid grid-cols-1 gap-6 items-start">
+          {activeOrders.map((o) => {
+            const tagihan = getOrderTotal(o);
+            const alamatTujuan = (o as any).deliveryAddress || o.customerAddress || "Alamat tidak lengkap";
+
+            return (
+              <Card key={o.id} className="overflow-hidden border-border/60 shadow-md rounded-[1.5rem] hover:shadow-lg transition-all w-full">
+                {/* HEADER KARTU */}
+                <div className="bg-gradient-to-r from-primary/10 to-transparent p-4 md:p-5 flex justify-between items-center border-b border-border/50">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-background px-3 py-1.5 rounded-lg border border-border/50 hidden sm:block">
+                      <span className="text-xs font-bold text-primary uppercase tracking-wider">
+                        ID: {o.id.toString().slice(-6).toUpperCase()}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold text-primary uppercase tracking-wider sm:hidden block mb-0.5">
+                        ID: {o.id.toString().slice(-6).toUpperCase()}
+                      </span>
+                      <p className="font-extrabold text-foreground text-base md:text-lg leading-tight">
+                        {o.customerName}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="bg-background px-3 py-1.5 rounded-full text-[10px] md:text-xs font-bold shadow-sm border border-border/50 text-foreground shrink-0">
+                    Sedang Diantar
+                  </span>
+                </div>
+
+                <CardContent className="p-5 md:p-6">
+                  {/* DESAIN BARU: Memecah isi kartu menjadi 3 kolom di layar Laptop/Desktop */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-stretch">
+                    
+                    {/* BAGIAN 1: RUTE PENGIRIMAN (Kiri) */}
+                    <div className="lg:col-span-5 flex gap-4">
+                      <div className="flex flex-col items-center mt-1">
+                        <div className="h-3 w-3 rounded-full bg-secondary ring-4 ring-secondary/20 z-10 shrink-0" />
+                        <div className="w-0.5 h-full min-h-[3rem] bg-border -my-1" />
+                        <div className="h-3 w-3 rounded-full bg-primary ring-4 ring-primary/20 z-10 shrink-0" />
+                      </div>
+                      <div className="flex-1 space-y-5">
+                        <div>
+                          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Ambil di</p>
+                          <div className="flex items-center gap-2 text-sm md:text-base font-semibold text-foreground">
+                            <Store className="h-4 w-4 text-secondary shrink-0" /> 
+                            <span>{(o as any).storeName || (session as any)?.storeName || "Toko Mitra"}</span>
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Antar ke</p>
+                          <div className="flex items-start gap-2 text-sm md:text-base font-semibold text-foreground">
+                            <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                            <span className="leading-snug">{alamatTujuan}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* BAGIAN 2: RINCIAN BARANG & HUBUNGI (Tengah) */}
+                    <div className="lg:col-span-4 bg-muted/30 border border-border/50 rounded-xl p-4 flex flex-col justify-between h-full">
+                      <div className="flex justify-between items-center mb-3">
+                        <p className="text-xs font-bold text-muted-foreground uppercase flex items-center gap-1.5">
+                          <Package className="h-3.5 w-3.5" /> {o.items.reduce((sum, i) => sum + i.quantity, 0)} Barang
+                        </p>
+                        <a href={`tel:${o.customerPhone}`} className="text-xs font-bold text-secondary flex items-center gap-1 hover:underline bg-secondary/10 px-2 py-1 rounded-md">
+                          <Phone className="h-3.5 w-3.5" /> Hubungi
+                        </a>
+                      </div>
+                      <div className="space-y-2 max-h-[85px] overflow-y-auto custom-scrollbar pr-2">
+                        {o.items.map((item, idx) => (
+                          <div key={idx} className="flex justify-between items-start gap-2 text-sm border-b border-border/50 last:border-0 pb-1.5 last:pb-0">
+                            <span className="font-medium text-foreground truncate">{item.product.name}</span>
+                            <span className="font-bold text-primary shrink-0">x{item.quantity}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* BAGIAN 3: TAGIHAN & AKSI (Kanan) */}
+                    <div className="lg:col-span-3 flex flex-col justify-between space-y-4 h-full">
+                      <div className="flex items-center justify-between bg-orange-100 border border-orange-200 rounded-lg p-3.5 shadow-sm">
+                        <div className="flex items-center gap-2">
+                          <ReceiptText className="h-5 w-5 text-orange-700 shrink-0" />
+                          <span className="text-xs font-bold text-orange-800 uppercase tracking-wide hidden xl:inline">Tagihan</span>
+                        </div>
+                        <span className="text-lg font-black text-orange-700 whitespace-nowrap">Rp {tagihan.toLocaleString("id-ID")}</span>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <Button variant="outline" className="h-11 w-12 shrink-0 rounded-xl border-border hover:bg-muted" onClick={() => handlePrintSuratJalan(o)} title="Cetak Surat Jalan">
+                          <Printer className="h-5 w-5 text-secondary" />
+                        </Button>
+                        <Button className="flex-1 h-11 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-md flex justify-between px-4 group" onClick={() => handleCompleteDelivery(o)}>
+                          <span className="text-sm">Selesai</span>
+                          <ChevronRight className="h-4 w-4 opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                        </Button>
+                      </div>
+                    </div>
+
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

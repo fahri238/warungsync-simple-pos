@@ -21,6 +21,7 @@ import OwnerPOS from "./pages/owner/OwnerPOS";
 import OwnerOrders from "./pages/owner/OwnerOrders";
 import OwnerReports from "./pages/owner/OwnerReports";
 import OwnerSettings from "./pages/owner/OwnerSettings";
+import OwnerStatus from "./pages/owner/OwnerStatus";
 
 // === KOMPONEN CUSTOMER (Pelanggan) ===
 import StoreSelectPage from "./pages/customer/CustomerSelectPage";
@@ -33,7 +34,10 @@ import CustomerLayout from "./pages/customer/CustomerLayout";
 import CustomerDashboard from "./pages/customer/CustomerDashboard";
 
 // === KOMPONEN COURIER (Kurir) ===
+import CourierLayout from "./pages/courier/CourierLayout";
 import CourierDashboard from "./pages/courier/CourierDashboard";
+import CourierStatus from "./pages/courier/CourierStatus";
+import CourierHistory from "./pages/courier/CourierHistory"; // <-- Import sudah diaktifkan
 
 // === AUTH & LAINNYA ===
 import LoginPage from "./pages/auth/LoginPage";
@@ -65,7 +69,6 @@ const App = () => (
               {/* === RUTE SUPER ADMIN (Pemilik Sistem) === */}
               <Route path="/admin" element={<AdminLayout />}>
                 <Route index element={<AdminDashboard />} />
-                {/* Nanti kita buat halamannya satu per satu */}
                 <Route path="tenants" element={<AdminStoresPage />} />
                 <Route path="users" element={<AdminUsersPage />} />
                 <Route path="reports" element={<AdminReportsPage />} />
@@ -80,6 +83,7 @@ const App = () => (
                 <Route path="orders" element={<OwnerOrders />} />
                 <Route path="reports" element={<OwnerReports />} />
                 <Route path="settings" element={<OwnerSettings />} />
+                <Route path="status" element={<OwnerStatus />} /> 
               </Route>
 
               {/* === RUTE CUSTOMER (Pelanggan) === */}
@@ -97,7 +101,11 @@ const App = () => (
               </Route>
 
               {/* === RUTE COURIER === */}
-              <Route path="/courier" element={<CourierDashboard />} />
+              <Route path="/courier" element={<CourierLayout />}>
+                <Route index element={<CourierDashboard />} />
+                <Route path="status" element={<CourierStatus />} />
+                <Route path="history" element={<CourierHistory />} /> {/* <-- Rute sudah diaktifkan di dalam CourierLayout */}
+              </Route>
 
               <Route path="*" element={<NotFound />} />
             </Routes>

@@ -9,13 +9,13 @@ import {
   LogOut,
   Menu,
   X,
-  Truck,
   UserCircle,
   Loader2,
   Store
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { WarungSyncLogo } from "@/components/brand/WarungSyncLogo";
 
 const CourierLayout = () => {
   const session = getSession();
@@ -99,13 +99,8 @@ const CourierLayout = () => {
   return (
     <div className="flex h-screen bg-secondary/5 overflow-hidden font-sans">
       <aside className="hidden md:flex flex-col w-[260px] bg-card border-r border-border/50 shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-20">
-        <div className="flex h-20 shrink-0 items-center border-b border-border/50 px-6 gap-3">
-          <div className="bg-primary/10 p-2 rounded-xl text-primary">
-            <Truck className="h-6 w-6" />
-          </div>
-          <span className="font-display font-bold text-xl tracking-tight text-foreground">
-            Kurir<span className="text-primary">Sync</span>
-          </span>
+        <div className="flex h-20 shrink-0 items-center border-b border-border/50 px-6">
+          <WarungSyncLogo size="sm" />
         </div>
         
         <nav className="flex-1 overflow-y-auto py-6 px-4 flex flex-col gap-2">
@@ -149,9 +144,7 @@ const CourierLayout = () => {
       </aside>
 
       <header className="md:hidden fixed top-0 left-0 right-0 h-16 bg-card/80 backdrop-blur-md border-b border-border/50 z-30 flex items-center justify-between px-4 shadow-sm">
-        <div className="flex items-center gap-2 text-primary font-black text-lg">
-          <Truck className="h-5 w-5" /> KurirSync
-        </div>
+        <WarungSyncLogo size="sm" />
         <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
           {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </Button>

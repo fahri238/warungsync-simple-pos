@@ -140,7 +140,7 @@ const OwnerStatus = () => {
                           isApproved ? 'text-green-700 bg-green-100' : 'text-orange-600 bg-orange-100'
                         }`}>
                           {isApproved ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Clock className="h-3.5 w-3.5" />}
-                          {isApproved ? "Disetujui" : "Menunggu Review"}
+                          {isApproved ? "Disetujui" : "Menunggu Verifikasi"}
                         </span>
                       </div>
                     </>
@@ -150,7 +150,7 @@ const OwnerStatus = () => {
                 <div className="space-y-3">
                   {isApproved ? (
                     <Button className="w-full h-14 rounded-xl font-bold text-base shadow-lg shadow-primary/20" onClick={() => navigate("/owner")}>
-                      Masuk ke Dasbor Owner
+                      Masuk ke Dashboard Owner
                     </Button>
                   ) : isRejected ? (
                     <Button 

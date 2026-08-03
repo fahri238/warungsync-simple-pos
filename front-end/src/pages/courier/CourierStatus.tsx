@@ -144,7 +144,7 @@ const CourierStatus = () => {
                           isApproved ? 'text-green-700 bg-green-100' : 'text-orange-600 bg-orange-100'
                         }`}>
                           {isApproved ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Clock className="h-3.5 w-3.5" />}
-                          {isApproved ? "Disetujui" : "Menunggu Review"}
+                          {isApproved ? "Disetujui" : "Menunggu Verifikasi"}
                         </span>
                       </div>
                     </>

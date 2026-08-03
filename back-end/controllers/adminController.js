@@ -352,21 +352,60 @@ const updateUser = async (req, res) => {
 
 const deleteUser = async (req, res) => {
   const { id } = req.params;
-  if (req.user && req.user.id === parseInt(id))
+  
+  if (req.user && req.user.id === parseInt(id)) {
     return res.status(403).json({
       success: false,
-      message:
-        "Tindakan ditolak: Anda tidak dapat menghapus akun Anda sendiri!",
+      message: "Tindakan ditolak: Anda tidak dapat menghapus akun Anda sendiri!",
     });
+  }
+
+  let connection;
   try {
-    await db.query("DELETE FROM users WHERE id=?", [id]);
-    res
-      .status(200)
-      .json({ success: true, message: "Pengguna berhasil dihapus" });
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+
+    // Cek peran user yang akan dihapus
+    const [targetUser] = await connection.query("SELECT peran FROM users WHERE id = ?", [id]);
+    if (targetUser.length === 0) {
+      connection.release();
+      return res.status(404).json({ success: false, message: "Pengguna tidak ditemukan." });
+    }
+
+    const role = targetUser[0].peran;
+
+    // Jika kurir atau pengguna memiliki riwayat relasi, lakukan Soft Delete (Nonaktifkan) 
+    // atau putuskan relasi data pengirimannya terlebih dahulu agar tidak terkena Foreign Key Constraint.
+    try {
+      // Coba hapus langsung
+      await connection.query("DELETE FROM users WHERE id = ?", [id]);
+    } catch (dbError) {
+      // Jika gagal karena constraint relasi (Foreign Key), ubah menjadi Soft Delete / Nonaktif
+      if (dbError.code === "ER_ROW_IS_REFERENCED_2" || dbError.errno === 1451) {
+        await connection.query("UPDATE users SET status = 'nonaktif', is_approved = 0 WHERE id = ?", [id]);
+        await connection.commit();
+        connection.release();
+        return res.status(200).json({
+          success: true,
+          message: "Pengguna memiliki riwayat transaksi/pengiriman aktif. Akun berhasil dinonaktifkan secara permanen.",
+        });
+      }
+      throw dbError;
+    }
+
+    await connection.commit();
+    connection.release();
+    res.status(200).json({ success: true, message: "Pengguna berhasil dihapus dari sistem." });
+
   } catch (error) {
+    if (connection) {
+      await connection.rollback();
+      connection.release();
+    }
     res.status(500).json({
       success: false,
-      message: "Gagal menghapus pengguna. (Terkait transaksi)",
+      message: "Gagal menghapus pengguna karena terikat dengan data riwayat sistem.",
+      error: error.message,
     });
   }
 };

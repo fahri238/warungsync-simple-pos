@@ -16,6 +16,16 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { apiFetch } from "@/lib/store";
 import { toast } from "@/lib/custom-toast";
 
@@ -27,7 +37,7 @@ interface StoreData {
   kontak: string;
   latitude: number;
   longitude: number;
-  status: "aktif" | "nonaktif"; // Akan kita tambahkan ke database nanti
+  status: "aktif" | "nonaktif"; 
   kategori_toko?: string;
 }
 
@@ -46,6 +56,23 @@ const AdminStoresPage = () => {
     kontak: "",
     latitude: "",
     longitude: "",
+  });
+
+  // STATE UNTUK ALERT DIALOG (Pengganti window.confirm)
+  const [alertConfig, setAlertConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    desc: string;
+    actionText: string;
+    actionVariant: "default" | "destructive";
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: "",
+    desc: "",
+    actionText: "",
+    actionVariant: "default",
+    onConfirm: () => {},
   });
 
   // Ambil Data dari API
@@ -83,6 +110,27 @@ const AdminStoresPage = () => {
     };
   }, [stores]);
 
+  // HELPER UNTUK MEMANGGIL ALERT DIALOG
+  const confirmAction = (
+    title: string,
+    desc: string,
+    actionText: string,
+    actionVariant: "default" | "destructive",
+    onConfirm: () => void,
+  ) => {
+    setAlertConfig({
+      isOpen: true,
+      title,
+      desc,
+      actionText,
+      actionVariant,
+      onConfirm: () => {
+        onConfirm();
+        setAlertConfig((prev) => ({ ...prev, isOpen: false }));
+      },
+    });
+  };
+
   // Handler Buka Form
   const openForm = (store: StoreData | null = null) => {
     if (store) {
@@ -112,7 +160,7 @@ const AdminStoresPage = () => {
     setIsDetailOpen(true);
   };
 
-  // Handler Submit Form (Visual saja untuk saat ini sampai Backend dibuat)
+  // Handler Submit Form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -130,51 +178,58 @@ const AdminStoresPage = () => {
         if (res.success) toast.success(res.message);
       }
       setIsModalOpen(false);
-      fetchStores(); // Refresh tabel
+      fetchStores(); 
     } catch (error: any) {
       toast.error(error.message || "Gagal menyimpan data toko");
     }
   };
 
-  // Handler Hapus
-  const handleDelete = async (id: number) => {
-    if (
-      confirm(
-        "Apakah Anda yakin ingin menghapus toko ini secara permanen? Data yang sudah dihapus tidak dapat dikembalikan.",
-      )
-    ) {
-      try {
-        const res = await apiFetch(`/admin/stores/${id}`, { method: "DELETE" });
-        if (res.success) {
-          toast.success(res.message);
-          fetchStores(); // Refresh tabel
+  // Handler Hapus dengan Custom Alert
+  const handleDelete = (id: number) => {
+    confirmAction(
+      "Hapus Toko Permanen?",
+      "Apakah Anda yakin ingin menghapus toko ini? Data yang sudah dihapus tidak dapat dikembalikan.",
+      "Hapus",
+      "destructive",
+      async () => {
+        try {
+          const res = await apiFetch(`/admin/stores/${id}`, { method: "DELETE" });
+          if (res.success) {
+            toast.success(res.message);
+            fetchStores(); 
+          }
+        } catch (error: any) {
+          toast.error(error.message || "Gagal menghapus toko");
         }
-      } catch (error: any) {
-        toast.error(error.message || "Gagal menghapus toko");
       }
-    }
+    );
   };
 
-  // Handler Aktif/Nonaktif
-  const handleToggleStatus = async (id: number, currentStatus: string) => {
+  // Handler Aktif/Nonaktif dengan Custom Alert
+  const handleToggleStatus = (id: number, currentStatus: string) => {
     const newStatus = currentStatus === "nonaktif" ? "aktif" : "nonaktif";
-    const labelStatus =
-      newStatus === "aktif" ? "mengaktifkan" : "menonaktifkan";
+    const labelStatus = newStatus === "aktif" ? "mengaktifkan" : "menonaktifkan";
 
-    if (confirm(`Apakah Anda yakin ingin ${labelStatus} toko ini?`)) {
-      try {
-        const res = await apiFetch(`/admin/stores/${id}/status`, {
-          method: "PATCH",
-          body: JSON.stringify({ status: newStatus }),
-        });
-        if (res.success) {
-          toast.success(res.message);
-          fetchStores(); // Refresh tabel
+    confirmAction(
+      "Ubah Status Toko?",
+      `Apakah Anda yakin ingin ${labelStatus} toko ini?`,
+      "Ya, Ubah Status",
+      newStatus === "nonaktif" ? "destructive" : "default",
+      async () => {
+        try {
+          const res = await apiFetch(`/admin/stores/${id}/status`, {
+            method: "PATCH",
+            body: JSON.stringify({ status: newStatus }),
+          });
+          if (res.success) {
+            toast.success(res.message);
+            fetchStores(); 
+          }
+        } catch (error: any) {
+          toast.error(error.message || "Gagal mengubah status toko");
         }
-      } catch (error: any) {
-        toast.error(error.message || "Gagal mengubah status toko");
       }
-    }
+    );
   };
 
   return (
@@ -389,7 +444,7 @@ const AdminStoresPage = () => {
         </CardContent>
       </Card>
 
-      {/* Modal Form Tambah/Edit (Sederhana tanpa library eksternal) */}
+      {/* Modal Form Tambah/Edit */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 animate-in fade-in">
           <Card className="w-full max-w-lg shadow-2xl border-primary/20">
@@ -518,6 +573,34 @@ const AdminStoresPage = () => {
           </Card>
         </div>
       )}
+
+      {/* KOMPONEN ALERT DIALOG UNTUK KONFIRMASI TINDAKAN PENTING */}
+      <AlertDialog
+        open={alertConfig.isOpen}
+        onOpenChange={(open) =>
+          setAlertConfig((prev) => ({ ...prev, isOpen: open }))
+        }
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{alertConfig.title}</AlertDialogTitle>
+            <AlertDialogDescription>{alertConfig.desc}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={alertConfig.onConfirm}
+              className={
+                alertConfig.actionVariant === "destructive"
+                  ? "bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  : ""
+              }
+            >
+              {alertConfig.actionText}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

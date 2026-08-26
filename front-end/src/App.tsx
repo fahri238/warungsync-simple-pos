@@ -104,7 +104,7 @@ const App = () => (
               <Route path="/courier" element={<CourierLayout />}>
                 <Route index element={<CourierDashboard />} />
                 <Route path="status" element={<CourierStatus />} />
-                <Route path="history" element={<CourierHistory />} /> {/* <-- Rute sudah diaktifkan di dalam CourierLayout */}
+                <Route path="history" element={<CourierHistory />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />

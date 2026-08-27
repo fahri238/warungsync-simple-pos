@@ -7,10 +7,7 @@ import {
   Trash2,
   Power,
   PowerOff,
-  ShieldAlert,
   Store,
-  Bike,
-  ShoppingBag,
   Activity,
   AlertCircle,
   Mail,
@@ -106,7 +103,6 @@ const AdminUsersPage = () => {
   const [tempLng, setTempLng] = useState<number | null>(null);
   const [mapCenter, setMapCenter] = useState<[number, number]>(DEFAULT_CENTER);
 
-  // STATE UNTUK ALERT DIALOG (Pengganti window.confirm)
   const [alertConfig, setAlertConfig] = useState<{
     isOpen: boolean;
     title: string;
@@ -137,6 +133,8 @@ const AdminUsersPage = () => {
     alamat_toko: "",
     latitude: "",
     longitude: "",
+    kategori_toko: "",
+    kategoriCustom: "",
   });
   const [ktpFile, setKtpFile] = useState<File | null>(null);
   const [warungFile, setWarungFile] = useState<File | null>(null);
@@ -178,7 +176,6 @@ const AdminUsersPage = () => {
     [users],
   );
 
-  // HELPER UNTUK MEMANGGIL ALERT DIALOG
   const confirmAction = (
     title: string,
     desc: string,
@@ -203,6 +200,8 @@ const AdminUsersPage = () => {
     setKtpFile(null);
     setWarungFile(null);
     if (user) {
+      const isStandar = ["Sembako & Kebutuhan Pokok", "Makanan & Minuman", "Apotek & Obat-obatan", "Toko Bangunan"].includes(user.kategori_toko || "");
+      
       setEditingUser(user);
       setFormData({
         nama: user.nama,
@@ -218,6 +217,8 @@ const AdminUsersPage = () => {
         alamat_toko: user.alamat_toko || "",
         latitude: user.latitude?.toString() || "",
         longitude: user.longitude?.toString() || "",
+        kategori_toko: isStandar ? (user.kategori_toko || "") : (user.kategori_toko ? "Lainnya" : ""),
+        kategoriCustom: isStandar ? "" : (user.kategori_toko || ""),
       });
     } else {
       setEditingUser(null);
@@ -235,6 +236,8 @@ const AdminUsersPage = () => {
         alamat_toko: "",
         latitude: "",
         longitude: "",
+        kategori_toko: "",
+        kategoriCustom: "",
       });
     }
     setIsModalOpen(true);
@@ -267,6 +270,13 @@ const AdminUsersPage = () => {
 
     if (isOwner && !editingUser && (!ktpFile || !warungFile))
       return toast.error("Owner baru WAJIB upload KTP dan Foto Warung!");
+    
+    if (isOwner) {
+      if (!formData.kategori_toko) return toast.error("Pilih klasifikasi toko!");
+      if (formData.kategori_toko === "Lainnya" && !formData.kategoriCustom.trim()) 
+        return toast.error("Isi kategori manual untuk toko!");
+    }
+
     if (isCourier && !editingUser && !ktpFile)
       return toast.error("Kurir baru WAJIB upload KTP!");
     if (isCourier && !formData.store_id)
@@ -286,6 +296,10 @@ const AdminUsersPage = () => {
       payload.append("alamat_toko", formData.alamat_toko);
       payload.append("latitude", formData.latitude);
       payload.append("longitude", formData.longitude);
+      
+      const finalCategory = formData.kategori_toko === "Lainnya" ? formData.kategoriCustom : formData.kategori_toko;
+      payload.append("kategori_toko", finalCategory);
+
       if (warungFile) payload.append("foto_warung", warungFile);
     }
     if (isCourier) {
@@ -530,7 +544,6 @@ const AdminUsersPage = () => {
                               <Store className="inline h-3 w-3 mr-1" />{" "}
                               {user.nama_toko || "Store ID: " + user.store_id}
                             </p>
-                            {/* 👈 FITUR BARU: Tampilkan Kategori Toko Hanya Untuk Owner */}
                             {user.peran === "owner" && user.kategori_toko && (
                               <div className="mt-1.5">
                                 <span className="px-2 py-0.5 rounded-md bg-muted text-foreground text-[10px] font-bold border border-border/80 uppercase tracking-wider">
@@ -728,6 +741,35 @@ const AdminUsersPage = () => {
                   />
                 </div>
 
+                <div className="space-y-2 col-span-2">
+                  <Label>Klasifikasi Toko <span className="text-destructive">*</span></Label>
+                  <Select
+                    value={formData.kategori_toko}
+                    onValueChange={(v) => setFormData({ ...formData, kategori_toko: v })}
+                  >
+                    <SelectTrigger className="bg-background">
+                      <SelectValue placeholder="Pilih jenis toko..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Sembako & Kebutuhan Pokok">Sembako & Kebutuhan Pokok</SelectItem>
+                      <SelectItem value="Makanan & Minuman">Makanan & Minuman</SelectItem>
+                      <SelectItem value="Apotek & Obat-obatan">Apotek / Obat-obatan</SelectItem>
+                      <SelectItem value="Toko Bangunan">Toko Bangunan</SelectItem>
+                      <SelectItem value="Lainnya">Kategori Lainnya (Ketik Manual)</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {formData.kategori_toko === "Lainnya" && (
+                    <Input
+                      placeholder="Ketik kategori toko Anda..."
+                      value={formData.kategoriCustom}
+                      onChange={(e) => setFormData({ ...formData, kategoriCustom: e.target.value })}
+                      className="mt-2"
+                      autoFocus
+                    />
+                  )}
+                </div>
+
                 <div className="col-span-2 p-3 bg-background rounded-lg border border-border/80 flex flex-col sm:flex-row gap-3 items-end">
                   <div className="w-full space-y-1">
                     <Label className="text-[10px] uppercase text-muted-foreground">
@@ -909,7 +951,6 @@ const AdminUsersPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* MODAL KELOLA REKENING */}
       <Dialog open={isBankModalOpen} onOpenChange={setIsBankModalOpen}>
         <DialogContent>
           <DialogHeader>
@@ -929,7 +970,6 @@ const AdminUsersPage = () => {
                 onChange={(e) => setNewBankName(e.target.value)}
               />
 
-              {/* PERBAIKAN: Input tipe number khusus rekening */}
               <Input
                 type="number"
                 placeholder="No Rekening"
@@ -976,7 +1016,6 @@ const AdminUsersPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* KOMPONEN ALERT DIALOG UNTUK KONFIRMASI TINDAKAN PENTING */}
       <AlertDialog
         open={alertConfig.isOpen}
         onOpenChange={(open) =>
@@ -1006,4 +1045,4 @@ const AdminUsersPage = () => {
     </div>
   );
 };
-export default AdminUsersPage;
+export default AdminUsersPage;  

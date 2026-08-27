@@ -224,7 +224,7 @@ const Index = () => {
 
             <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground lg:mx-0">
               POS offline, toko online, dan pengiriman dalam satu aplikasi.
-              Pelanggan memilih toko dulu — keranjang tidak pernah tercampur antar toko.
+              Pelanggan memilih toko dulu & keranjang tidak pernah tercampur antar toko.
             </p>
 
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row lg:justify-start">

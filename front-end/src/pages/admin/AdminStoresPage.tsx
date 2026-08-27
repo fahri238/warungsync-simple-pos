@@ -28,6 +28,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { apiFetch } from "@/lib/store";
 import { toast } from "@/lib/custom-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Tipe data Toko
 interface StoreData {
@@ -56,6 +63,8 @@ const AdminStoresPage = () => {
     kontak: "",
     latitude: "",
     longitude: "",
+    kategori_toko: "",
+    kategoriCustom: "", 
   });
 
   // STATE UNTUK ALERT DIALOG (Pengganti window.confirm)
@@ -134,6 +143,9 @@ const AdminStoresPage = () => {
   // Handler Buka Form
   const openForm = (store: StoreData | null = null) => {
     if (store) {
+      // Cek apakah kategorinya standar atau custom saat diedit
+      const isStandar = ["Sembako & Kebutuhan Pokok", "Makanan & Minuman", "Apotek & Obat-obatan", "Toko Bangunan"].includes(store.kategori_toko || "");
+      
       setEditingStore(store);
       setFormData({
         nama: store.nama,
@@ -141,6 +153,8 @@ const AdminStoresPage = () => {
         kontak: store.kontak || "",
         latitude: store.latitude ? store.latitude.toString() : "",
         longitude: store.longitude ? store.longitude.toString() : "",
+        kategori_toko: isStandar ? (store.kategori_toko || "") : (store.kategori_toko ? "Lainnya" : ""),
+        kategoriCustom: isStandar ? "" : (store.kategori_toko || ""),
       });
     } else {
       setEditingStore(null);
@@ -150,6 +164,8 @@ const AdminStoresPage = () => {
         kontak: "",
         latitude: "",
         longitude: "",
+        kategori_toko: "",
+        kategoriCustom: "",
       });
     }
     setIsModalOpen(true);
@@ -163,17 +179,34 @@ const AdminStoresPage = () => {
   // Handler Submit Form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validasi Klasifikasi Toko
+    if (!formData.kategori_toko) return toast.error("Pilih klasifikasi toko!");
+    if (formData.kategori_toko === "Lainnya" && !formData.kategoriCustom.trim()) 
+      return toast.error("Isi kategori manual untuk toko!");
+
+    const finalCategory = formData.kategori_toko === "Lainnya" ? formData.kategoriCustom : formData.kategori_toko;
+
+    const payload = {
+      nama: formData.nama,
+      alamat: formData.alamat,
+      kontak: formData.kontak,
+      latitude: formData.latitude,
+      longitude: formData.longitude,
+      kategori_toko: finalCategory
+    };
+
     try {
       if (editingStore) {
         const res = await apiFetch(`/admin/stores/${editingStore.id}`, {
           method: "PUT",
-          body: JSON.stringify(formData),
+          body: JSON.stringify(payload),
         });
         if (res.success) toast.success(res.message);
       } else {
         const res = await apiFetch("/admin/stores", {
           method: "POST",
-          body: JSON.stringify(formData),
+          body: JSON.stringify(payload),
         });
         if (res.success) toast.success(res.message);
       }
@@ -487,6 +520,35 @@ const AdminStoresPage = () => {
                     }
                     placeholder="Jl. Raya No. 123..."
                   />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Klasifikasi Toko <span className="text-destructive">*</span></label>
+                  <Select
+                    value={formData.kategori_toko}
+                    onValueChange={(v) => setFormData({ ...formData, kategori_toko: v })}
+                  >
+                    <SelectTrigger className="bg-background">
+                      <SelectValue placeholder="Pilih jenis toko..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Sembako & Kebutuhan Pokok">Sembako & Kebutuhan Pokok</SelectItem>
+                      <SelectItem value="Makanan & Minuman">Makanan & Minuman</SelectItem>
+                      <SelectItem value="Apotek & Obat-obatan">Apotek / Obat-obatan</SelectItem>
+                      <SelectItem value="Toko Bangunan">Toko Bangunan</SelectItem>
+                      <SelectItem value="Lainnya">Kategori Lainnya (Ketik Manual)</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {/* Input text muncul hanya jika memilih "Lainnya" */}
+                  {formData.kategori_toko === "Lainnya" && (
+                    <Input
+                      placeholder="Ketik kategori toko..."
+                      value={formData.kategoriCustom}
+                      onChange={(e) => setFormData({ ...formData, kategoriCustom: e.target.value })}
+                      className="mt-2"
+                      autoFocus
+                    />
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">

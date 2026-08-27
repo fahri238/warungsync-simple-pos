@@ -287,7 +287,7 @@ const OwnerSettings = () => {
                     <Input
                       value={newVillage}
                       onChange={(e) => setNewVillage(e.target.value)}
-                      placeholder="Contoh: Montallat Utara"
+                      placeholder="Contoh: Banjarmasin Utara"
                     />
                   </div>
                   <div className="space-y-2 w-full">

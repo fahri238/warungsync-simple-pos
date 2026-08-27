@@ -93,11 +93,11 @@ const getStores = async (req, res) => {
   }
 };
 const createStore = async (req, res) => {
-  const { nama, kontak, alamat, latitude, longitude } = req.body;
+  const { nama, kontak, alamat, latitude, longitude, kategori_toko } = req.body;
   try {
     const [result] = await db.query(
-      "INSERT INTO stores (nama, kontak, alamat, latitude, longitude) VALUES (?, ?, ?, ?, ?)",
-      [nama, kontak, alamat, latitude || null, longitude || null],
+      "INSERT INTO stores (nama, kontak, alamat, latitude, longitude, kategori_toko) VALUES (?, ?, ?, ?, ?, ?)",
+      [nama, kontak, alamat, latitude || null, longitude || null, kategori_toko || null],
     );
     res.status(201).json({
       success: true,
@@ -108,13 +108,14 @@ const createStore = async (req, res) => {
     res.status(500).json({ success: false, message: "Gagal menambah toko" });
   }
 };
+
 const updateStore = async (req, res) => {
   const { id } = req.params;
-  const { nama, kontak, alamat, latitude, longitude } = req.body;
+  const { nama, kontak, alamat, latitude, longitude, kategori_toko } = req.body;
   try {
     await db.query(
-      "UPDATE stores SET nama=?, kontak=?, alamat=?, latitude=?, longitude=? WHERE id=?",
-      [nama, kontak, alamat, latitude || null, longitude || null, id],
+      "UPDATE stores SET nama=?, kontak=?, alamat=?, latitude=?, longitude=?, kategori_toko=? WHERE id=?",
+      [nama, kontak, alamat, latitude || null, longitude || null, kategori_toko || null, id],
     );
     res
       .status(200)

@@ -4,42 +4,75 @@ const bcrypt = require("bcryptjs");
 const getDashboardStatsFull = async (req, res) => {
   try {
     const [stores] = await db.query("SELECT COUNT(*) as total FROM stores");
-    const [owners] = await db.query(
-      "SELECT COUNT(*) as total FROM users WHERE peran = 'owner'",
-    );
-    const [pelanggan] = await db.query(
-      "SELECT COUNT(*) as total FROM users WHERE peran = 'pelanggan'",
-    );
-    const [kurir] = await db.query(
-      "SELECT COUNT(*) as total FROM users WHERE peran = 'kurir'",
-    );
+    const [owners] = await db.query("SELECT COUNT(*) as total FROM users WHERE peran = 'owner'");
+    const [pelanggan] = await db.query("SELECT COUNT(*) as total FROM users WHERE peran = 'pelanggan'");
+    const [kurir] = await db.query("SELECT COUNT(*) as total FROM users WHERE peran = 'kurir'");
     const [produk] = await db.query("SELECT COUNT(*) as total FROM products");
-    const [pesanan] = await db.query(
-      "SELECT COUNT(*) as total, SUM(komisi_sistem) as total_komisi FROM orders WHERE status = 'selesai'",
-    );
+    const [pesanan] = await db.query("SELECT COUNT(*) as total, SUM(komisi_sistem) as total_komisi FROM orders WHERE status = 'selesai'");
 
+    // 1. Buat array 7 hari terakhir secara berurutan
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      // Format YYYY-MM-DD untuk pencocokan
+      const dateString = d.toISOString().split('T')[0]; 
+      last7Days.push({
+        date: dateString,
+        name: d.toLocaleDateString("id-ID", { weekday: "short" }),
+        totalPesanan: 0,
+        totalUser: 0
+      });
+    }
+
+    // 2. Ambil data Transaksi dari DB
     const [transaksiHarian] = await db.query(
-      `SELECT DATE(tanggal_dibuat) as tanggal, COUNT(*) as jumlah_pesanan FROM orders WHERE tanggal_dibuat >= DATE(NOW()) - INTERVAL 7 DAY GROUP BY DATE(tanggal_dibuat) ORDER BY tanggal ASC`,
+      `SELECT DATE(tanggal_dibuat) as tanggal, COUNT(*) as jumlah_pesanan 
+       FROM orders 
+       WHERE tanggal_dibuat >= DATE(NOW()) - INTERVAL 7 DAY 
+       GROUP BY DATE(tanggal_dibuat)`
     );
-    const chartTransaksi = transaksiHarian.map((item) => ({
-      name: new Date(item.tanggal).toLocaleDateString("id-ID", {
-        weekday: "short",
-      }),
-      total: item.jumlah_pesanan,
-    }));
 
+    // 3. Ambil data User Baru dari DB
     const [penggunaBaru] = await db.query(
-      `SELECT DATE(tanggal_dibuat) as tanggal, COUNT(*) as jumlah_user FROM users WHERE tanggal_dibuat >= DATE(NOW()) - INTERVAL 7 DAY GROUP BY DATE(tanggal_dibuat) ORDER BY tanggal ASC`,
+      `SELECT DATE(tanggal_dibuat) as tanggal, COUNT(*) as jumlah_user 
+       FROM users 
+       WHERE tanggal_dibuat >= DATE(NOW()) - INTERVAL 7 DAY 
+       GROUP BY DATE(tanggal_dibuat)`
     );
-    const chartPengguna = penggunaBaru.map((item) => ({
-      name: new Date(item.tanggal).toLocaleDateString("id-ID", {
-        weekday: "short",
-      }),
-      total: item.jumlah_user,
+
+    // 4. Gabungkan (Merge) data DB ke dalam template 7 hari
+    transaksiHarian.forEach(item => {
+      // Ambil format YYYY-MM-DD dari hasil DB, atasi masalah timezone (UTC/Lokal)
+      const dateKey = new Date(item.tanggal).toISOString().split('T')[0];
+      const targetDay = last7Days.find(d => d.date === dateKey);
+      if (targetDay) {
+        targetDay.totalPesanan = item.jumlah_pesanan;
+      }
+    });
+
+    penggunaBaru.forEach(item => {
+      const dateKey = new Date(item.tanggal).toISOString().split('T')[0];
+      const targetDay = last7Days.find(d => d.date === dateKey);
+      if (targetDay) {
+        targetDay.totalUser = item.jumlah_user;
+      }
+    });
+
+    // 5. Pisahkan kembali untuk dikirim ke Recharts di Frontend
+    const chartTransaksi = last7Days.map(item => ({
+      name: item.name,
+      total: item.totalPesanan
     }));
 
+    const chartPengguna = last7Days.map(item => ({
+      name: item.name,
+      total: item.totalUser
+    }));
+
+    // Data Aktivitas Terbaru
     const [userTerbaru] = await db.query(
-      `SELECT nama, peran, tanggal_dibuat FROM users ORDER BY tanggal_dibuat DESC, id DESC LIMIT 5`,
+      `SELECT nama, peran, tanggal_dibuat FROM users ORDER BY tanggal_dibuat DESC, id DESC LIMIT 5`
     );
     const aktivitasTerbaru = userTerbaru.map((user) => ({
       type: "register",
@@ -64,21 +97,13 @@ const getDashboardStatsFull = async (req, res) => {
           pesanan: pesanan[0].total || 0,
           komisi: pesanan[0].total_komisi || 0,
         },
-        chartTransaksi:
-          chartTransaksi.length > 0
-            ? chartTransaksi
-            : [{ name: "Data Kosong", total: 0 }],
-        chartPengguna:
-          chartPengguna.length > 0
-            ? chartPengguna
-            : [{ name: "Data Kosong", total: 0 }],
-        aktivitasTerbaru: aktivitasTerbaru,
+        chartTransaksi,
+        chartPengguna,
+        aktivitasTerbaru,
       },
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, message: "Gagal memuat data statistik sistem" });
+    res.status(500).json({ success: false, message: "Gagal memuat data statistik sistem" });
   }
 };
 
